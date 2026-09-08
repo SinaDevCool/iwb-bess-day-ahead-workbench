@@ -689,12 +689,6 @@ export default function Workbench() {
                 </label>
               )}
             </fieldset>
-            {dirty && result && (
-              <div className="stale-note">
-                <AlertTriangle size={15} aria-hidden="true" />
-                Inputs changed. Results show the previous run.
-              </div>
-            )}
             <button
               className="primary run-button"
               onClick={() => void run()}
@@ -714,12 +708,13 @@ export default function Workbench() {
             </div>
           </aside>
           <div className="main-column">
-            <section className="kpis" aria-label="Optimization summary">
+            <section className="kpis" aria-label={dirty && result ? "Previous optimization summary; rerun required" : "Optimization summary"}>
               <Kpi
                 label="Expected Net Contribution"
                 value={money(summary.expected_contribution_eur)}
                 detail="Sales − purchases − degradation"
                 tone={result ? "good" : ""}
+                stale={dirty && Boolean(result)}
               />
               <Kpi
                 label="Daily Throughput"
@@ -739,6 +734,7 @@ export default function Workbench() {
                   "% of budget"
                 }
                 progress={cyclePct}
+                stale={dirty && Boolean(result)}
               />
               <Kpi
                 label="State of Charge"
@@ -754,6 +750,7 @@ export default function Workbench() {
                   " MWh · target " +
                   resultBattery.target_soc_mwh
                 }
+                stale={dirty && Boolean(result)}
               />
               <Kpi
                 label="Order Proposal"
@@ -778,8 +775,15 @@ export default function Workbench() {
                       ? "warn"
                       : ""
                 }
+                stale={dirty && Boolean(result)}
               />
             </section>
+            {dirty && result && (
+              <div className="status-message warning stale-results" role="status" aria-live="polite">
+                <AlertTriangle size={17} aria-hidden="true" />
+                Configuration changed. Summary cards and charts show the previous completed run. Re-run the optimization to update all results.
+              </div>
+            )}
             {message && (
               <div
                 ref={errorRef}
