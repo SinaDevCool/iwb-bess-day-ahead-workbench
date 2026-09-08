@@ -1,0 +1,100 @@
+from fastapi.testclient import TestClient
+
+from backend.api.main import app
+
+client = TestClient(app)
+
+
+def test_health_and_configuration():
+    assert client.get("/health").status_code == 200
+    config = client.get("/api/configuration").json()
+    assert config["battery"]["capacity_mwh"] == 100
+    assert config["battery"]["max_discharge_power_mw"] == 50
+
+
+def test_simulation_approval_and_audit():
+    response = client.post("/api/simulations", json={})
+    assert response.status_code == 200
+    payload = response.json()
+    simulation_id = payload["simulation_id"]
+    assert client.post(f"/api/order-proposals/{simulation_id}/validate").status_code == 200
+    approval = client.post(f"/api/order-proposals/{simulation_id}/approve")
+    assert approval.status_code == 200
+    assert approval.json()["submitted"] is False
+    assert client.get("/api/audit").json()["items"]
+
+
+def test_trader_can_adjust_and_exclude_orders_with_revalidation():
+    payload = client.post("/api/simulations", json={}).json()
+    first, second = payload["orders"][:2]
+    response = client.patch(f"/api/order-proposals/{payload['simulation_id']}", json={"adjustments": [
+        {"order_id": first["order_id"], "volume_mw": 12.3, "limit_price_eur_mwh": 44.4, "comment": "Trader liquidity view"},
+        {"order_id": second["order_id"], "exclude": True, "comment": "Avoid thin product"},
+    ]})
+    assert response.status_code == 200
+    revised = response.json()
+    assert len(revised["orders"]) == len(payload["orders"]) - 1
+    assert revised["orders"][0]["volume_mw"] == 12.3
+    assert revised["audit"]["modified_by_trader"] is True
+
+
+def test_excessive_trader_volume_fails_physical_validation_and_approval():
+    payload = client.post("/api/simulations", json={}).json()
+    first = payload["orders"][0]
+    revised = client.patch(f"/api/order-proposals/{payload['simulation_id']}", json={"adjustments": [
+        {"order_id": first["order_id"], "volume_mw": 1000, "comment": "Validation probe"}
+    ]}).json()
+    assert revised["validation"]["status"] == "failed"
+    assert any(item["code"] == "order_power_limit" for item in revised["validation"]["findings"])
+    assert client.post(f"/api/order-proposals/{payload['simulation_id']}/approve").status_code == 409
+
+
+def test_out_of_range_unavailable_interval_is_rejected():
+    response = client.post("/api/simulations", json={"battery": {"unavailable_intervals": [999]}})
+    assert response.status_code == 422
+
+
+def test_validate_recomputes_and_marks_orders_validated():
+    payload = client.post("/api/simulations", json={}).json()
+    response = client.post(f"/api/order-proposals/{payload['simulation_id']}/validate")
+    assert response.status_code == 200
+    validated = response.json()
+    assert validated["validation"]["status"] == "passed"
+    assert all(order["status"] == "VALIDATED" for order in validated["orders"])
+    assert validated["proposal"]["proposal_terminal_soc_mwh"] >= validated["battery"]["target_soc_mwh"] - .15
+
+
+def test_invalid_proposal_cannot_be_exported():
+    payload = client.post("/api/simulations", json={}).json()
+    first = payload["orders"][0]
+    client.patch(f"/api/order-proposals/{payload['simulation_id']}", json={"adjustments": [
+        {"order_id": first["order_id"], "volume_mw": 1000, "comment": "Deliberate invalid test"}
+    ]})
+    assert client.get(f"/api/order-proposals/{payload['simulation_id']}/export").status_code == 409
+
+
+def test_trader_edit_requires_reason_and_real_change():
+    payload = client.post("/api/simulations", json={}).json()
+    first = payload["orders"][0]
+    assert client.patch(f"/api/order-proposals/{payload['simulation_id']}", json={"adjustments": [
+        {"order_id": first["order_id"], "limit_price_eur_mwh": 31, "comment": ""}
+    ]}).status_code == 422
+    assert client.patch(f"/api/order-proposals/{payload['simulation_id']}", json={"adjustments": [
+        {"order_id": first["order_id"], "comment": "No actual change"}
+    ]}).status_code == 422
+
+
+def test_approval_is_idempotent():
+    payload = client.post("/api/simulations", json={}).json()
+    first = client.post(f"/api/order-proposals/{payload['simulation_id']}/approve")
+    second = client.post(f"/api/order-proposals/{payload['simulation_id']}/approve")
+    assert first.status_code == second.status_code == 200
+    assert second.json()["already_approved"] is True
+
+
+def test_initial_result_versions_and_proposal_metrics_are_present():
+    payload = client.post("/api/simulations", json={}).json()
+    assert payload["audit"]["schema_version"] == 2
+    assert payload["audit"]["validation_version"] == "order_proposal_validation_v2"
+    assert payload["optimization"]["engine"] == "scipy_highs_milp_v1"
+    assert payload["summary"]["baseline_proposal_contribution_eur"] == payload["summary"]["proposal_contribution_eur"]

@@ -1,0 +1,12 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+data/*.sqlite
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+dependency-install-backup/
+.env
+.env.*
+!.env.example
+frontend/out/
