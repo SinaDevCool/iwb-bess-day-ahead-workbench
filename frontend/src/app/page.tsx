@@ -123,6 +123,10 @@ export default function Workbench() {
         kind: next.validation.status === "passed" ? "success" : "error",
         text:
           "Optimization complete: " +
+          next.dispatch.length +
+          " × " +
+          next.market.product_minutes +
+          "-minute delivery intervals; " +
           next.orders.length +
           " draft orders generated; validation " +
           next.validation.status +
@@ -482,6 +486,11 @@ export default function Workbench() {
                   <option value="60">60 minutes</option>
                   <option value="15">15 minutes</option>
                 </select>
+                <small>
+                  {market.product_minutes === 15
+                    ? "Quarter-hour products: normally 96 delivery intervals per day."
+                    : "Hourly products: normally 24 delivery intervals per day."}
+                </small>
               </label>
               <label htmlFor="scenario">
                 Day-Ahead price scenario{" "}
@@ -760,13 +769,15 @@ export default function Workbench() {
                   (summary.order_count === 1 ? "order" : "orders")
                 }
                 detail={
-                  result?.approval_status
-                    ? "Approved for demo export"
-                    : result?.validation.status === "passed"
-                      ? "Validated draft"
-                      : result
-                        ? "Requires attention"
-                        : "Pending optimization"
+                  result
+                    ? `${result.dispatch.length} × ${result.market.product_minutes}-min intervals · ${
+                        result.approval_status
+                          ? "approved for demo export"
+                          : result.validation.status === "passed"
+                            ? "validated draft"
+                            : "requires attention"
+                      }`
+                    : "Pending optimization"
                 }
                 tone={
                   result?.validation.status === "passed"

@@ -18,6 +18,23 @@ def test_forecast_rejects_unsupported_or_invalid_intervals_and_dates():
     assert client.get("/api/forecast", params={"delivery_date": "not-a-date"}).status_code == 422
 
 
+def test_product_duration_changes_dispatch_granularity_and_orders():
+    hourly = client.post("/api/simulations", json={"market": {"product_minutes": 60}}).json()
+    quarter_hourly = client.post("/api/simulations", json={"market": {"product_minutes": 15}}).json()
+
+    assert hourly["market"]["product_minutes"] == 60
+    assert quarter_hourly["market"]["product_minutes"] == 15
+    assert len(hourly["dispatch"]) == 24
+    assert len(quarter_hourly["dispatch"]) == 96
+    assert len(hourly["orders"]) != len(quarter_hourly["orders"])
+    assert hourly["orders"][0]["product"] == "DAY_AHEAD_60MIN"
+    assert quarter_hourly["orders"][0]["product"] == "DAY_AHEAD_15MIN"
+    assert hourly["orders"][0]["energy_mwh"] == hourly["orders"][0]["volume_mw"]
+    assert quarter_hourly["orders"][0]["energy_mwh"] == round(
+        quarter_hourly["orders"][0]["volume_mw"] / 4, 6
+    )
+
+
 def test_simulation_approval_and_audit():
     response = client.post("/api/simulations", json={})
     assert response.status_code == 200
