@@ -233,11 +233,14 @@ select {
 }
 .workspace {
   display: grid;
-  grid-template-columns: 330px minmax(0, 1fr);
+  grid-template-columns: 340px minmax(0, 1fr);
   gap: 18px;
   padding: 18px 24px;
   max-width: 1600px;
   margin: auto;
+}
+.workspace.sidebar-collapsed {
+  grid-template-columns: 52px minmax(0, 1fr);
 }
 .panel {
   background: #fff;
@@ -250,6 +253,16 @@ select {
   height: max-content;
   position: sticky;
   top: 86px;
+}
+.inputs.collapsed {
+  padding: 8px;
+}
+.inputs.collapsed .panel-title {
+  justify-content: center;
+  margin: 0;
+}
+.inputs.collapsed .inputs-content {
+  display: none;
 }
 .panel-title,
 .section-head {
@@ -264,6 +277,14 @@ select {
   display: flex;
   align-items: flex-start;
   gap: 9px;
+}
+.panel-title-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+.panel-collapse-button {
+  background: #e2f0ed;
 }
 .panel-title h2,
 .section-head h2 {
@@ -362,7 +383,7 @@ select {
 }
 .field-grid > label {
   display: grid;
-  grid-template-rows: minmax(32px, auto) 40px minmax(28px, auto);
+  grid-template-rows: 44px 40px 34px;
   align-content: start;
   margin-bottom: 0;
   min-width: 0;
@@ -370,12 +391,19 @@ select {
 .field-grid .field-label {
   align-items: flex-start;
   line-height: 1.3;
+  overflow: hidden;
 }
 .field-grid .number input {
   margin-top: 0;
 }
 .field-grid .empty-hint {
   visibility: hidden;
+}
+.field-grid > label > small {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .assumption-note {
   display: flex;
@@ -1207,8 +1235,9 @@ footer {
 }
 @media (max-width: 1200px) {
   .workspace {
-    grid-template-columns: 310px minmax(0, 1fr);
+    grid-template-columns: 330px minmax(0, 1fr);
   }
+  .workspace.sidebar-collapsed { grid-template-columns:52px minmax(0,1fr); }
   .kpis {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1220,6 +1249,7 @@ footer {
   .inputs {
     position: static;
   }
+  .workspace.sidebar-collapsed { grid-template-columns:52px minmax(0,1fr); }
   .field-grid {
     grid-template-columns: repeat(4, 1fr);
   }
@@ -1263,6 +1293,8 @@ footer {
   .workspace {
     padding: 12px;
   }
+  .workspace.sidebar-collapsed { grid-template-columns:44px minmax(0,1fr); gap:8px; }
+  .inputs.collapsed { padding:4px; }
   .field-grid {
     grid-template-columns: 1fr 1fr;
   }

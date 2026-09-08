@@ -11,6 +11,8 @@ import {
   History,
   LayoutDashboard,
   LoaderCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
   Play,
   RotateCcw,
   ShieldCheck,
@@ -81,6 +83,7 @@ export default function Workbench() {
     ),
     [dirty, setDirty] = useState(false),
     [advanced, setAdvanced] = useState(false),
+    [inputsCollapsed, setInputsCollapsed] = useState(false),
     [tab, setTab] = useState<TabKey>("schedule"),
     [selected, setSelected] = useState<Order>(),
     [volume, setVolume] = useState(""),
@@ -182,8 +185,10 @@ export default function Workbench() {
   }, [dirty]);
   useEffect(() => {
     const restoreTab = () => {
-      const requested = new URLSearchParams(location.search).get("tab");
+      const parameters = new URLSearchParams(location.search);
+      const requested = parameters.get("tab");
       if (tabs.some(([key]) => key === requested)) setTab(requested as TabKey);
+      setInputsCollapsed(parameters.get("panel") === "collapsed");
     };
     restoreTab();
     addEventListener("popstate", restoreTab);
@@ -197,6 +202,14 @@ export default function Workbench() {
     setTab(key);
     const url = new URL(location.href);
     url.searchParams.set("tab", key);
+    history.replaceState({}, "", url);
+  };
+  const toggleInputs = () => {
+    const next = !inputsCollapsed;
+    setInputsCollapsed(next);
+    const url = new URL(location.href);
+    if (next) url.searchParams.set("panel", "collapsed");
+    else url.searchParams.delete("panel");
     history.replaceState({}, "", url);
   };
   const tabKey = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
@@ -403,22 +416,36 @@ export default function Workbench() {
             </p>
           </div>
         </section>
-        <section className="workspace">
-          <aside className="panel inputs" aria-labelledby="input-title">
+        <section className={`workspace${inputsCollapsed ? " sidebar-collapsed" : ""}`}>
+          <aside className={`panel inputs${inputsCollapsed ? " collapsed" : ""}`} aria-label="Market and battery configuration">
             <div className="panel-title">
-              <div>
+              {!inputsCollapsed && <div>
                 <span>01</span>
                 <h2 id="input-title">Configure Market &amp; Battery</h2>
+              </div>}
+              <div className="panel-title-actions">
+                {!inputsCollapsed && <button
+                  className="icon-button"
+                  onClick={reset}
+                  aria-label="Reset all inputs"
+                  title="Reset case inputs"
+                >
+                  <RotateCcw size={17} aria-hidden="true" />
+                </button>}
+                <button
+                  className="icon-button panel-collapse-button"
+                  type="button"
+                  onClick={toggleInputs}
+                  aria-controls="configuration-content"
+                  aria-expanded={!inputsCollapsed}
+                  aria-label={inputsCollapsed ? "Expand configuration panel" : "Collapse configuration panel"}
+                  title={inputsCollapsed ? "Expand configuration" : "Collapse configuration"}
+                >
+                  {inputsCollapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
+                </button>
               </div>
-              <button
-                className="icon-button"
-                onClick={reset}
-                aria-label="Reset all inputs"
-                title="Reset case inputs"
-              >
-                <RotateCcw size={17} aria-hidden="true" />
-              </button>
             </div>
+            <div id="configuration-content" className="inputs-content">
             <fieldset>
               <legend>Delivery & Market</legend>
               <label htmlFor="date">
@@ -684,6 +711,7 @@ export default function Workbench() {
                   ? "Re-run Optimization"
                   : "Run Optimization"}
             </button>
+            </div>
           </aside>
           <div className="main-column">
             <section className="kpis" aria-label="Optimization summary">
