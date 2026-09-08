@@ -1102,8 +1102,9 @@ function ProofView({
   battery: Battery;
 }) {
   const s = result?.summary ?? {},
+    proposalDispatch = result?.proposal?.implied_dispatch ?? result?.dispatch ?? [],
     power = result
-      ? Math.max(...result.dispatch.map((x) => Math.abs(x.power_mw)))
+      ? Math.max(0, ...proposalDispatch.map((x) => Math.abs(x.power_mw)))
       : 0,
     proposalTerminalSoc =
       result?.proposal?.proposal_terminal_soc_mwh ??

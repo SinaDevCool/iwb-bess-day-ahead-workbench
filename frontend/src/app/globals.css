@@ -1541,8 +1541,10 @@ body {
 .utilization-row span { font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums; }
 .utilization-track { height:8px; background:#e5edeb; border-radius:99px; overflow:hidden; }
 .utilization-track i { display:block; height:100%; background:#218e87; border-radius:inherit; }
+.utilization-track i.failed { background:var(--error); }
 .utilization-row > .binding { color:#8b4b0d; font-weight:800; }
 .utilization-row > .headroom { color:var(--success); font-weight:750; }
+.utilization-row > .failed { color:var(--error); font-weight:800; }
 @media (max-width:1200px) {
   .economics-grid { grid-template-columns:1fr; }
   .economics-bridge { min-height:230px; }
