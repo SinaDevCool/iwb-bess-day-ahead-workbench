@@ -1,13 +1,8 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  BatteryCharging,
-  ChartNoAxesCombined,
   Check,
-  ClipboardCheck,
   History,
-  ShieldCheck,
-  ShoppingCart,
 } from "lucide-react";
 import "./present.css";
 
@@ -17,35 +12,30 @@ const workflow = [
     "Configure",
     "Configure market & battery",
     "Capacity, power, efficiency, availability and cycle budget.",
-    BatteryCharging,
   ],
   [
     "02",
     "Optimize",
     "Optimize dispatch",
     "Maximize expected contribution after losses, degradation and transaction fees.",
-    ChartNoAxesCombined,
   ],
   [
     "03",
     "Generate",
     "Generate Day-Ahead orders",
     "Convert the dispatch into clear BUY and SELL instructions.",
-    ShoppingCart,
   ],
   [
     "04",
     "Validate",
     "Validate feasibility",
     "Check SoC, power, throughput, outages and terminal energy.",
-    ClipboardCheck,
   ],
   [
     "05",
     "Compare",
     "Compare scenarios",
     "Measure how changed prices and availability affect the recommendation.",
-    ShieldCheck,
   ],
 ] as const;
 
@@ -77,11 +67,11 @@ export default function ProductOverview() {
             <span className="overview-eyebrow">
               BATTERY TRADING · DAY-AHEAD
             </span>
-            <h1>Day-Ahead Battery Dispatch &amp; Order Optimizer</h1>
+            <h1>Turn Tomorrow’s Prices Into Feasible Battery Orders</h1>
             <p>
-              Simulate the contribution-maximizing operation of a 100&nbsp;MWh
-              battery and generate physically feasible Day-Ahead auction orders
-              under trader control.
+              Optimize a 100&nbsp;MWh battery against the Day-Ahead forecast,
+              validate every physical constraint, and create a trader-ready
+              order proposal.
             </p>
             <div className="hero-actions">
               <Link className="overview-primary" href="/">
@@ -93,61 +83,29 @@ export default function ProductOverview() {
               </span>
             </div>
           </div>
-          <aside className="decision-card" aria-label="Decision model summary">
-            <div className="decision-head">
-              <span>IWB TASK BASELINE</span>
-              <span className="model-status">
-                <i />
-                Ready
-              </span>
-            </div>
-            <div className="asset-line">
-              <BatteryCharging aria-hidden="true" />
-              <div>
-                <strong>100 MWh</strong>
-                <span>50 MW · 2-hour system</span>
-                <small>Alternative assumptions can be tested in the workbench.</small>
-              </div>
-            </div>
-            <div className="decision-flow">
-              <span>Forecast</span>
-              <i />
-              <span>Dispatch</span>
-              <i />
-              <span>Orders</span>
-            </div>
+          <aside className="decision-card" aria-labelledby="baseline-title">
+            <span className="overview-eyebrow">MODEL BASELINE</span>
+            <h2 id="baseline-title">100 MWh · 50 MW</h2>
+            <p>2-hour battery system</p>
             <dl>
-              <div>
-                <dt>Objective</dt>
-                <dd>Net contribution</dd>
-              </div>
-              <div>
-                <dt>Guardrails</dt>
-                <dd>Physical + market</dd>
-              </div>
-              <div>
-                <dt>Approval</dt>
-                <dd>Trader controlled</dd>
-              </div>
+              <div><dt>Optimize</dt><dd>Net contribution</dd></div>
+              <div><dt>Validate</dt><dd>Physical feasibility</dd></div>
+              <div><dt>Control</dt><dd>Trader approval</dd></div>
             </dl>
+            <small>All assumptions remain configurable in the workbench.</small>
           </aside>
         </section>
         <section className="workflow-section">
           <div className="workflow-heading">
             <span>HOW IT WORKS</span>
             <h2>One continuous decision path</h2>
-            <p>Each step produces the evidence required by the next.</p>
+            <p>From market assumptions to an explainable order proposal.</p>
           </div>
           <div className="workflow-grid">
-            {workflow.map(([number, label, title, description, Icon]) => (
+            {workflow.map(([number, label, title, description]) => (
               <article key={number}>
-                <div>
-                  <span>{number}</span>
-                  <Icon aria-hidden="true" />
-                </div>
-                <small>{label}</small>
-                <h3>{title}</h3>
-                <p>{description}</p>
+                <span>{number}</span>
+                <div><small>{label}</small><h3>{title}</h3><p>{description}</p></div>
               </article>
             ))}
           </div>
