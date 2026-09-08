@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { DispatchChart } from "@/components/dispatch-chart";
+import { IntervalResultsTable } from "@/components/interval-results-table";
 import { Kpi } from "@/components/kpi";
 import { OrderTable } from "@/components/order-table";
 import {
@@ -915,6 +916,7 @@ function Schedule({
           {result.audit.modified_by_trader && <div className="status-message info" role="status">Showing trader proposal revision {result.proposal_revision ?? 2}; dispatch and SoC reflect the revised orders.</div>}
           <DispatchChart rows={result.proposal?.implied_dispatch ?? result.dispatch} battery={result.battery} />
           <EconomicsPanel result={result} />
+          <IntervalResultsTable result={result} />
         </>
       ) : (
         <Empty

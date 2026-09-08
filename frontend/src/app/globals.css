@@ -1530,9 +1530,6 @@ body {
   width: 18px;
   border-top: 1px dashed #827cbd;
 }
-.data-table-toggle {
-  margin-top: 12px;
-}
 .economics-section { border-top:1px solid var(--line); margin-top:22px; padding-top:20px; }
 .economics-grid { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(250px,.8fr); gap:12px; }
 .economics-chart,.order-timeline,.scenario-chart { margin:0 0 14px; padding:12px; }
@@ -1549,9 +1546,35 @@ body {
 .economics-bridge .bridge-total span,.economics-bridge .bridge-total strong { color:var(--ink); font-weight:850; }
 .economics-bridge .bridge-total strong { font-size:18px; }
 .economics-bridge > small { color:var(--muted); font-size:9px; line-height:1.4; }
-.data-table-toggle tbody tr { transition: background-color 140ms ease, color 140ms ease, font-weight 140ms ease; }
-.data-table-toggle tbody tr:hover { background:#eaf6f4; color:#073f3d; font-weight:700; }
-.data-table-toggle tbody tr:focus-within { background:#eaf6f4; color:#073f3d; }
+.interval-results { border-top:1px solid var(--line); margin-top:22px; padding-top:20px; }
+.interval-table-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; }
+.interval-table-heading h3 { margin:3px 0; font-size:17px; }
+.interval-table-heading p,.interval-table-note { margin:0; color:var(--muted); font-size:10px; line-height:1.45; }
+.column-picker { position:relative; flex:0 0 auto; }
+.column-picker summary { display:flex; align-items:center; gap:7px; min-height:36px; padding:0 12px; border:1px solid #bdd2cf; border-radius:7px; background:#fff; color:var(--teal-dark); cursor:pointer; font-size:11px; font-weight:800; list-style:none; user-select:none; }
+.column-picker summary::-webkit-details-marker { display:none; }
+.column-picker summary:hover { background:#f1f8f6; border-color:var(--teal); }
+.column-picker summary:focus-visible { outline:3px solid rgba(22,134,127,.24); outline-offset:2px; }
+.column-menu { position:absolute; z-index:30; top:calc(100% + 7px); right:0; display:flex; flex-direction:column; width:270px; padding:10px; border:1px solid var(--line); border-radius:9px; background:#fff; box-shadow:0 12px 30px rgba(17,56,58,.16); }
+.column-menu > strong { font-size:12px; }
+.column-menu > span { margin:2px 0 8px; color:var(--muted); font-size:10px; line-height:1.4; }
+.column-option { display:flex; align-items:center; gap:9px; min-height:36px; padding:5px 7px; border-radius:6px; cursor:pointer; font-size:11px; }
+.column-option:hover { background:#f1f8f6; }
+.column-option:has(input:disabled) { color:#91a09f; cursor:not-allowed; }
+.column-option input { width:16px; height:16px; accent-color:var(--teal); }
+.interval-table-scroll { max-height:540px; margin-top:12px; }
+.interval-results-table thead { position:sticky; z-index:2; top:0; background:#f5f8f7; box-shadow:0 1px #dce5e3; }
+.interval-results-table th { white-space:normal; line-height:1.25; }
+.interval-results-table tbody tr { content-visibility:auto; contain-intrinsic-size:auto 39px; }
+.interval-results-table tbody tr:hover { background:#eaf6f4; color:#073f3d; font-weight:700; }
+.interval-results-table .contribution { font-weight:750; }
+.interval-results-table .positive { color:#187a49; }
+.interval-results-table .negative { color:#a64b3d; }
+.interval-action { display:inline-flex; align-items:center; min-width:66px; padding:3px 7px; border-radius:999px; font-size:10px; font-weight:800; text-transform:capitalize; }
+.interval-action.charge { background:#ddf3f0; color:#096c68; }
+.interval-action.discharge { background:#fff0dc; color:#a95100; }
+.interval-action.idle { background:#edf1f0; color:#607477; }
+.interval-table-note { margin-top:7px; text-align:right; }
 .scenario-guide { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; margin:12px 0; }
 .scenario-guide article { display:flex; flex-direction:column; gap:5px; min-width:0; padding:12px; border:1px solid var(--line); border-radius:8px; background:#fbfcfc; }
 .scenario-guide article strong { color:var(--ink); }
@@ -1600,4 +1623,8 @@ body {
     padding: 15px 18px;
   }
   .economics-chart figcaption,.order-timeline figcaption,.scenario-chart figcaption { flex-direction:column; gap:2px; }
+  .interval-table-heading { align-items:stretch; flex-direction:column; gap:10px; }
+  .column-picker summary { justify-content:center; }
+  .column-menu { position:fixed; top:auto; right:12px; bottom:12px; left:12px; width:auto; }
+  .interval-table-scroll { max-height:430px; }
 }

@@ -53,7 +53,6 @@ export function EconomicsPanel({ result }: { result: Simulation }) {
         <small>Forecast-based value before fees, imbalance costs and taxes.</small>
       </aside>
     </div>
-    <details className="data-table-toggle"><summary>View Interval Economics Table</summary><div className="table-scroll"><table><caption className="sr-only">Auction-order economics by delivery interval</caption><thead><tr><th>Delivery</th><th className="numeric">Revenue</th><th className="numeric">Purchases</th><th className="numeric">Degradation</th><th className="numeric">Order Contribution</th></tr></thead><tbody>{data.map((row) => <tr key={row.interval}><td>{row.time}</td><td className="numeric">{money(row.order?.sales_revenue_eur ?? 0)}</td><td className="numeric">{money(row.order?.purchase_cost_eur ?? 0)}</td><td className="numeric">{money(row.order?.degradation_cost_eur ?? 0)}</td><td className="numeric">{money(row.order?.expected_contribution_eur ?? 0)}</td></tr>)}</tbody></table></div></details>
   </section>;
 }
 

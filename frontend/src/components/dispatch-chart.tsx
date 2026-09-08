@@ -234,35 +234,6 @@ export function DispatchChart({
         </span>
         <span>Delivery time · Europe/Zurich · hover for exact values</span>
       </div>
-      <details className="data-table-toggle">
-        <summary>View Accessible Interval Table</summary>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Delivery Time</th>
-                <th>Illustrative DA Price Forecast</th>
-                <th>Action</th>
-                <th>Power</th>
-                <th>SoC</th>
-                <th>Contribution</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((row) => (
-                <tr key={row.interval}>
-                  <td>{row.time}</td>
-                  <td>{euro(row.price_eur_mwh)}/MWh</td>
-                  <td>{title(row.action)}</td>
-                  <td>{row.power_mw.toFixed(1)} MW</td>
-                  <td>{row.soc_mwh.toFixed(1)} MWh</td>
-                  <td>{euro(row.interval_pnl_eur)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
     </figure>
   );
 }
