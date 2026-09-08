@@ -95,7 +95,7 @@ export default function ProductOverview() {
           </div>
           <aside className="decision-card" aria-label="Decision model summary">
             <div className="decision-head">
-              <span>ASSET IN SCOPE</span>
+              <span>IWB TASK BASELINE</span>
               <span className="model-status">
                 <i />
                 Ready
@@ -106,6 +106,7 @@ export default function ProductOverview() {
               <div>
                 <strong>100 MWh</strong>
                 <span>50 MW · 2-hour system</span>
+                <small>Alternative assumptions can be tested in the workbench.</small>
               </div>
             </div>
             <div className="decision-flow">

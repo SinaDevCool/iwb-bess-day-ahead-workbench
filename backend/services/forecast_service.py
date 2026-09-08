@@ -11,8 +11,13 @@ HOURLY_PRICES = [55, 50, 45, 40, 38, 35, 32, 45, 60, 75, 82, 70, 60, 55, 48, 45,
 
 
 def build_demo_forecast(delivery_date: str, market: MarketConfig) -> list[PricePoint]:
+    if market.product_minutes not in (15, 60):
+        raise ValueError("Product duration must be 15 or 60 minutes")
     local_zone = ZoneInfo(market.timezone)
-    local_start = datetime.fromisoformat(delivery_date).replace(tzinfo=local_zone)
+    try:
+        local_start = datetime.strptime(delivery_date, "%Y-%m-%d").replace(tzinfo=local_zone)
+    except ValueError as error:
+        raise ValueError("Delivery date must use YYYY-MM-DD") from error
     local_end = local_start + timedelta(days=1)
     utc_start = local_start.astimezone(timezone.utc)
     utc_end = local_end.astimezone(timezone.utc)

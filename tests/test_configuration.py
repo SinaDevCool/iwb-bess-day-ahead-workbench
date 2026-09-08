@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from backend.domain.models import BatteryConfig
+from backend.domain.models import BatteryConfig, MarketConfig, OrderProposalEdit
 
 
 @pytest.mark.parametrize(
@@ -39,3 +39,27 @@ def test_soc_limits_follow_editable_capacity():
 
     with pytest.raises(ValidationError):
         BatteryConfig(capacity_mwh=80, max_soc_mwh=90)
+
+
+@pytest.mark.parametrize("changes", [
+    {"min_price_eur_mwh": 100, "max_price_eur_mwh": 10},
+    {"gate_closure_local": "noon"},
+    {"timezone": "Mars/Olympus"},
+    {"currency": "EU"},
+    {"bidding_zone": ""},
+])
+def test_invalid_market_configuration_is_rejected(changes):
+    with pytest.raises(ValidationError):
+        MarketConfig(**changes)
+
+
+def test_duplicate_or_contradictory_order_adjustments_are_rejected():
+    with pytest.raises(ValidationError):
+        OrderProposalEdit(adjustments=[
+            {"order_id": "a", "volume_mw": 1, "comment": "first change"},
+            {"order_id": "a", "volume_mw": 2, "comment": "second change"},
+        ])
+    with pytest.raises(ValidationError):
+        OrderProposalEdit(adjustments=[
+            {"order_id": "a", "exclude": True, "volume_mw": 1, "comment": "contradictory change"},
+        ])

@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from backend.db.repository import add_audit_event, save_simulation
+from backend.db.repository import save_simulation_with_event
 from backend.domain.models import SimulationRequest, SimulationResult
 from backend.optimization.milp_optimizer import optimize_dispatch
 from backend.services.forecast_service import apply_scenario, build_demo_forecast
@@ -43,6 +43,9 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         created_at_utc=created_at,
         delivery_date=request.delivery_date,
         scenario_name=request.scenario_name,
+        strategy=request.strategy,
+        price_multiplier=request.price_multiplier,
+        peak_reduction_eur_mwh=request.peak_reduction_eur_mwh,
         battery=request.battery,
         market=request.market,
         dispatch=dispatch,
@@ -52,7 +55,7 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
             "expected_contribution_eur": proposal["proposal_contribution_eur"],
             "optimized_contribution_eur": round(contribution, 2),
             "baseline_proposal_contribution_eur": proposal["proposal_contribution_eur"],
-            **{key: value for key, value in proposal.items() if key != "implied_soc_mwh"},
+            **{key: value for key, value in proposal.items() if key not in {"implied_soc_mwh", "implied_dispatch"}},
             "trader_adjustment_delta_eur": 0,
             "sales_revenue_eur": round(sales_revenue, 2),
             "purchase_cost_eur": round(charge_cost, 2),
@@ -72,6 +75,5 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         audit={"schema_version": 2, "input_hash": input_hash, "forecast_version": "illustrative-v1", "optimizer_version": optimization["engine"], "validation_version": "order_proposal_validation_v2", "modified_by_trader": False},
     )
     payload = result.model_dump(mode="json")
-    save_simulation(payload)
-    add_audit_event(simulation_id, created_at.isoformat(), "SIMULATION_CREATED", {"schema_version": 2, "input_hash": input_hash, "validation": validation_status, "optimizer": optimization["engine"]})
+    save_simulation_with_event(payload, created_at.isoformat(), "SIMULATION_CREATED", {"schema_version": 2, "input_hash": input_hash, "validation": validation_status, "optimizer": optimization["engine"]})
     return result

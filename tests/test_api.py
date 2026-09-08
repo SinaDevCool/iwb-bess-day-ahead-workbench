@@ -12,6 +12,12 @@ def test_health_and_configuration():
     assert config["battery"]["max_discharge_power_mw"] == 50
 
 
+def test_forecast_rejects_unsupported_or_invalid_intervals_and_dates():
+    for duration in (0, -15, 30):
+        assert client.get("/api/forecast", params={"product_minutes": duration}).status_code == 422
+    assert client.get("/api/forecast", params={"delivery_date": "not-a-date"}).status_code == 422
+
+
 def test_simulation_approval_and_audit():
     response = client.post("/api/simulations", json={})
     assert response.status_code == 200
@@ -73,6 +79,19 @@ def test_invalid_proposal_cannot_be_exported():
     assert client.get(f"/api/order-proposals/{payload['simulation_id']}/export").status_code == 409
 
 
+def test_post_export_records_event_but_legacy_get_is_safe():
+    payload = client.post("/api/simulations", json={}).json()
+    simulation_id = payload["simulation_id"]
+    assert client.post(f"/api/order-proposals/{simulation_id}/approve").status_code == 200
+    before = len([e for e in client.get("/api/audit").json()["items"] if e["simulation_id"] == simulation_id])
+    assert client.get(f"/api/order-proposals/{simulation_id}/export").status_code == 200
+    after_get = len([e for e in client.get("/api/audit").json()["items"] if e["simulation_id"] == simulation_id])
+    assert after_get == before
+    assert client.post(f"/api/order-proposals/{simulation_id}/exports").status_code == 200
+    after_post = len([e for e in client.get("/api/audit").json()["items"] if e["simulation_id"] == simulation_id])
+    assert after_post == before + 1
+
+
 def test_trader_edit_requires_reason_and_real_change():
     payload = client.post("/api/simulations", json={}).json()
     first = payload["orders"][0]
@@ -82,6 +101,26 @@ def test_trader_edit_requires_reason_and_real_change():
     assert client.patch(f"/api/order-proposals/{payload['simulation_id']}", json={"adjustments": [
         {"order_id": first["order_id"], "comment": "No actual change"}
     ]}).status_code == 422
+    assert client.patch(f"/api/order-proposals/{payload['simulation_id']}", json={"adjustments": [
+        {"order_id": first["order_id"], "volume_mw": first["volume_mw"], "limit_price_eur_mwh": first["limit_price_eur_mwh"], "comment": "Same submitted values"}
+    ]}).status_code == 422
+
+
+def test_export_requires_current_proposal_approval_and_edit_revokes_it():
+    payload = client.post("/api/simulations", json={}).json()
+    simulation_id = payload["simulation_id"]
+    assert client.post(f"/api/order-proposals/{simulation_id}/exports").status_code == 409
+    assert client.post(f"/api/order-proposals/{simulation_id}/approve").status_code == 200
+    assert client.post(f"/api/order-proposals/{simulation_id}/exports").status_code == 200
+    first = payload["orders"][0]
+    edited = client.patch(f"/api/order-proposals/{simulation_id}", json={"adjustments": [
+        {"order_id": first["order_id"], "volume_mw": first["volume_mw"] / 2, "comment": "Reduce market exposure"}
+    ]}).json()
+    assert edited["proposal_revision"] == 2
+    assert edited.get("approval_status") is None
+    assert len(edited["proposal"]["implied_dispatch"]) == len(edited["dispatch"])
+    assert abs(edited["proposal"]["implied_dispatch"][-1]["soc_mwh"] - edited["proposal"]["proposal_terminal_soc_mwh"]) < 0.001
+    assert client.post(f"/api/order-proposals/{simulation_id}/exports").status_code == 409
 
 
 def test_approval_is_idempotent():

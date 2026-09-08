@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class BatteryConfig(BaseModel):
@@ -18,7 +20,7 @@ class BatteryConfig(BaseModel):
     degradation_cost_eur_per_mwh: float = Field(3, ge=0)
     max_equivalent_cycles: float = Field(1.5, gt=0)
     grid_limit_mw: float = Field(50, gt=0)
-    unavailable_intervals: list[int] = []
+    unavailable_intervals: list[int] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_soc(self):
@@ -44,6 +46,31 @@ class MarketConfig(BaseModel):
     max_price_eur_mwh: float = 4000
     assumptions_unverified: bool = True
 
+    @model_validator(mode="after")
+    def validate_market(self):
+        if self.min_price_eur_mwh >= self.max_price_eur_mwh:
+            raise ValueError("Minimum market price must be below maximum market price")
+        try:
+            datetime.strptime(self.gate_closure_local, "%H:%M")
+        except ValueError as error:
+            raise ValueError("Gate closure must use HH:MM in local market time") from error
+        try:
+            ZoneInfo(self.timezone)
+        except ZoneInfoNotFoundError as error:
+            raise ValueError(f"Unknown IANA timezone: {self.timezone}") from error
+        if len(self.currency) != 3 or not self.currency.isalpha():
+            raise ValueError("Currency must be a three-letter code")
+        if not self.bidding_zone.strip():
+            raise ValueError("Bidding zone is required")
+        return self
+
+
+class ScenarioType(str, Enum):
+    EXPECTED = "expected"
+    DOWNSIDE = "downside"
+    PEAK_COMPRESSION = "peak_compression"
+    AVAILABILITY_STRESS = "availability_stress"
+
 
 class PricePoint(BaseModel):
     timestamp_utc: datetime
@@ -55,12 +82,28 @@ class PricePoint(BaseModel):
 class SimulationRequest(BaseModel):
     delivery_date: str = "2026-09-09"
     scenario_name: str = "Expected forecast"
-    battery: BatteryConfig = BatteryConfig()
-    market: MarketConfig = MarketConfig()
+    battery: BatteryConfig = Field(default_factory=BatteryConfig)
+    market: MarketConfig = Field(default_factory=MarketConfig)
     prices: list[PricePoint] | None = None
     price_multiplier: float = Field(1, gt=0)
     peak_reduction_eur_mwh: float = Field(0, ge=0)
     strategy: Literal["expected_value", "conservative"] = "expected_value"
+
+    @model_validator(mode="after")
+    def validate_request(self):
+        try:
+            datetime.strptime(self.delivery_date, "%Y-%m-%d")
+        except ValueError as error:
+            raise ValueError("Delivery date must use YYYY-MM-DD") from error
+        if len(self.battery.unavailable_intervals) != len(set(self.battery.unavailable_intervals)):
+            raise ValueError("Unavailable intervals must be unique")
+        if self.prices:
+            timestamps = [point.timestamp_utc for point in self.prices]
+            if timestamps != sorted(timestamps) or len(timestamps) != len(set(timestamps)):
+                raise ValueError("Forecast timestamps must be unique and chronological")
+            if any(not self.market.min_price_eur_mwh <= point.price_eur_mwh <= self.market.max_price_eur_mwh for point in self.prices):
+                raise ValueError("Forecast price is outside configured market limits")
+        return self
 
 
 class DispatchRow(BaseModel):
@@ -129,12 +172,102 @@ class OrderAdjustment(BaseModel):
 class OrderProposalEdit(BaseModel):
     adjustments: list[OrderAdjustment] = Field(..., min_length=1)
 
+    @model_validator(mode="after")
+    def validate_unique_orders(self):
+        ids = [item.order_id for item in self.adjustments]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Each order may be adjusted only once per request")
+        if any(item.exclude and (item.volume_mw is not None or item.limit_price_eur_mwh is not None) for item in self.adjustments):
+            raise ValueError("An excluded order cannot also change volume or price")
+        return self
+
+
+class MappingModel(BaseModel):
+    """Typed API evidence that remains compatible with existing key access."""
+    model_config = ConfigDict(extra="forbid")
+
+    def __getitem__(self, key: str):
+        return getattr(self, key)
+
+
+class ProposalSummary(MappingModel):
+    proposal_contribution_eur: float
+    proposal_terminal_soc_mwh: float
+    proposal_throughput_mwh: float
+    proposal_equivalent_cycles: float
+    proposal_min_soc_mwh: float
+    proposal_max_soc_mwh: float
+    proposal_sales_revenue_eur: float
+    proposal_purchase_cost_eur: float
+    proposal_degradation_cost_eur: float
+    proposal_buy_volume_mwh: float
+    proposal_sell_volume_mwh: float
+    implied_soc_mwh: list[float]
+    implied_dispatch: list[DispatchRow]
+
+
+class SimulationSummary(MappingModel):
+    expected_contribution_eur: float
+    optimized_contribution_eur: float
+    baseline_proposal_contribution_eur: float
+    proposal_contribution_eur: float
+    proposal_terminal_soc_mwh: float
+    proposal_throughput_mwh: float
+    proposal_equivalent_cycles: float
+    proposal_min_soc_mwh: float
+    proposal_max_soc_mwh: float
+    proposal_sales_revenue_eur: float
+    proposal_purchase_cost_eur: float
+    proposal_degradation_cost_eur: float
+    proposal_buy_volume_mwh: float
+    proposal_sell_volume_mwh: float
+    trader_adjustment_delta_eur: float
+    sales_revenue_eur: float
+    purchase_cost_eur: float
+    degradation_cost_eur: float
+    charged_grid_mwh: float
+    discharged_grid_mwh: float
+    throughput_mwh: float
+    equivalent_cycles: float
+    min_soc_mwh: float
+    max_soc_mwh: float
+    order_count: int
+    buy_volume_mwh: float
+    sell_volume_mwh: float
+
+
+class OptimizationEvidence(MappingModel):
+    engine: str
+    prototype_solver: bool
+    solver_status: str
+    solve_time_ms: float
+    mip_gap: float
+    objective: str
+    objective_value_eur: float
+    terminal_soc_mwh: float
+    throughput_mwh: float
+    constraint_status: str
+    constraints: list[str]
+
+
+class AuditMetadata(MappingModel):
+    schema_version: int
+    input_hash: str
+    forecast_version: str
+    optimizer_version: str
+    validation_version: str
+    modified_by_trader: bool
+
 
 class SimulationResult(BaseModel):
     simulation_id: str
     created_at_utc: datetime
     delivery_date: str
     scenario_name: str
+    strategy: Literal["expected_value", "conservative"] = "expected_value"
+    price_multiplier: float = 1
+    peak_reduction_eur_mwh: float = 0
+    proposal_revision: int = 1
     data_mode: str = "illustrative"
     submission_mode: str = "preview_only"
     battery: BatteryConfig
@@ -142,7 +275,8 @@ class SimulationResult(BaseModel):
     dispatch: list[DispatchRow]
     orders: list[Order]
     validation: ValidationResult
-    summary: dict
-    optimization: dict
-    proposal: dict
-    audit: dict
+    summary: SimulationSummary
+    optimization: OptimizationEvidence
+    proposal: ProposalSummary
+    audit: AuditMetadata
+    approval_status: str | None = None

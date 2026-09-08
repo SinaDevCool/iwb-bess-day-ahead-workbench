@@ -17,6 +17,23 @@ def initialize():
         connection.execute(
             "CREATE TABLE IF NOT EXISTS audit_events (event_id INTEGER PRIMARY KEY AUTOINCREMENT, simulation_id TEXT NOT NULL, created_at TEXT NOT NULL, event_type TEXT NOT NULL, payload TEXT NOT NULL)"
         )
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_audit_simulation ON audit_events(simulation_id, event_id)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_simulation_created ON simulations(created_at DESC)")
+
+
+def save_simulation_with_event(payload: dict, created_at: str, event_type: str, event_payload: dict):
+    """Persist a decision revision and its governance evidence atomically."""
+    initialize()
+    with sqlite3.connect(DB_PATH) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute(
+            "INSERT OR REPLACE INTO simulations(simulation_id, created_at, payload) VALUES (?, ?, ?)",
+            (payload["simulation_id"], payload["created_at_utc"], json.dumps(payload, default=str)),
+        )
+        connection.execute(
+            "INSERT INTO audit_events(simulation_id, created_at, event_type, payload) VALUES (?, ?, ?, ?)",
+            (payload["simulation_id"], created_at, event_type, json.dumps(event_payload, default=str)),
+        )
 
 
 def save_simulation(payload: dict):
@@ -59,4 +76,3 @@ def list_audit_events(limit: int = 100):
             (limit,),
         ).fetchall()
     return [{"event_id": row[0], "simulation_id": row[1], "created_at": row[2], "event_type": row[3], "payload": json.loads(row[4])} for row in rows]
-

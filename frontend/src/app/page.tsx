@@ -26,9 +26,8 @@ import {
   OrderTimeline,
   ScenarioOutcomeChart,
 } from "@/components/analytics-charts";
-import { api, API } from "@/lib/api";
+import { api, download } from "@/lib/api";
 import type { Battery, Market, Order, Simulation } from "@/types/api";
-import "./editor.css";
 
 const defaultBattery: Battery = {
   capacity_mwh: 100,
@@ -141,9 +140,15 @@ export default function Workbench() {
   // recent saved decision as read-only context; only the Run button writes.
   useEffect(() => {
     let active = true;
-    api<{ items: Simulation[] }>("/api/simulations")
-      .then(({ items }) => {
-        if (!active || !items.length) return;
+    Promise.all([
+      api<{ battery: Battery; market: Market }>("/api/configuration"),
+      api<{ items: Simulation[] }>("/api/simulations"),
+    ])
+      .then(([configuration, { items }]) => {
+        if (!active) return;
+        setBattery(configuration.battery);
+        setMarket(configuration.market);
+        if (!items.length) return;
         const latest = items[0];
         setResult(latest);
         setBaseline(latest);
@@ -151,19 +156,30 @@ export default function Workbench() {
         setMarket(latest.market);
         setDate(latest.delivery_date);
         setScenario(latest.scenario_name);
+        setStrategy(latest.strategy ?? "expected_value");
+        setPeak(latest.peak_reduction_eur_mwh ?? 0);
         setUnavailable(latest.battery.unavailable_intervals.join(", "));
+        setAvailability(latest.battery.unavailable_intervals.length ? "Custom" : "Fully available");
         setMessage({
           kind: "info",
           text: "Latest saved run loaded. Change inputs and run the optimization to create a new decision record.",
         });
       })
-      .catch(() => {
-        // A fresh deployment simply starts without a saved result.
+      .catch((error) => {
+        if (active) setMessage({ kind: "error", text: `${error instanceof Error ? error.message : "Configuration unavailable"}. Backend defaults could not be loaded.` });
       });
     return () => {
       active = false;
     };
   }, []);
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!dirty) return;
+      event.preventDefault();
+    };
+    addEventListener("beforeunload", warn);
+    return () => removeEventListener("beforeunload", warn);
+  }, [dirty]);
   useEffect(() => {
     const restoreTab = () => {
       const requested = new URLSearchParams(location.search).get("tab");
@@ -218,11 +234,13 @@ export default function Workbench() {
     setAvailability(value);
     change();
     const m = market.product_minutes === 15 ? 4 : 1;
+    const intervalRange = (startHour: number, endHour: number) =>
+      Array.from({ length: (endHour - startHour) * m }, (_, index) => startHour * m + index).join(", ");
     setUnavailable(
       value === "Morning outage"
-        ? String(6 * m) + ", " + String(7 * m)
+        ? intervalRange(6, 8)
         : value === "Evening peak outage"
-          ? String(18 * m) + ", " + String(19 * m)
+          ? intervalRange(18, 20)
           : value === "Custom"
             ? unavailable
             : "",
@@ -302,10 +320,24 @@ export default function Workbench() {
       setBusy(false);
     }
   };
+  const exportProposal = async () => {
+    if (!result) return;
+    setBusy(true);
+    try {
+      await download(`/api/order-proposals/${result.simulation_id}/exports`, `${result.simulation_id}-orders.csv`);
+      setMessage({ kind: "success", text: "CSV exported and recorded in the Decision Log." });
+    } catch (error) {
+      setMessage({ kind: "error", text: `${error instanceof Error ? error.message : "Export failed"}. Confirm the current proposal is validated and approved.` });
+    } finally {
+      setBusy(false);
+    }
+  };
   const summary = result?.summary ?? {},
+    resultBattery = result?.battery ?? battery,
+    resultMarket = result?.market ?? market,
     cyclePct = Math.min(
       100,
-      ((summary.equivalent_cycles ?? 0) / battery.max_equivalent_cycles) * 100,
+      ((summary.equivalent_cycles ?? 0) / resultBattery.max_equivalent_cycles) * 100,
     ),
     delta =
       result && baseline
@@ -314,7 +346,7 @@ export default function Workbench() {
         : undefined,
     dst =
       result &&
-      result.dispatch.length !== (market.product_minutes === 60 ? 24 : 96);
+      result.dispatch.length !== (resultMarket.product_minutes === 60 ? 24 : 96);
   return (
     <>
       <a className="skip-link" href="#workbench">
@@ -325,6 +357,7 @@ export default function Workbench() {
           className="brand"
           href="/present/"
           aria-label="Return to product overview"
+          onClick={(event) => { if (dirty && !confirm("Discard unsimulated changes and return to the Overview?")) event.preventDefault(); }}
         >
           <span className="logo" translate="no">
             IWB
@@ -335,10 +368,10 @@ export default function Workbench() {
           </span>
         </Link>
         <div className="header-status">
-          <Link className="header-action" href="/present/">
+          <Link className="header-action" href="/present/" onClick={(event) => { if (dirty && !confirm("Discard unsimulated changes and return to the Overview?")) event.preventDefault(); }}>
             <LayoutDashboard size={15} aria-hidden="true" /> Overview
           </Link>
-          <Link className="header-action" href="/audit/">
+          <Link className="header-action" href="/audit/" onClick={(event) => { if (dirty && !confirm("Discard unsimulated changes and open the Decision Log?")) event.preventDefault(); }}>
             <History size={15} aria-hidden="true" /> Decision Log
           </Link>
           <span
@@ -346,8 +379,8 @@ export default function Workbench() {
             title="Assumed Day-Ahead auction gate closure; confirm with IWB"
           >
             <Clock3 size={14} aria-hidden="true" />
-            Gate closure assumption · 12:00{" "}
-            <span className="desktop-only">Europe/Zurich*</span>
+            Gate closure assumption · {market.gate_closure_local}{" "}
+            <span className="desktop-only">{market.timezone}*</span>
           </span>
         </div>
       </header>
@@ -437,9 +470,19 @@ export default function Workbench() {
                     if (v === "Downside") {
                       setStrategy("conservative");
                       setPeak(15);
+                      setAvailability("Fully available");
+                      setUnavailable("");
+                    } else if (v === "Availability stress") {
+                      const multiplier = market.product_minutes === 15 ? 4 : 1;
+                      setStrategy("expected_value");
+                      setPeak(0);
+                      setAvailability("Evening peak outage");
+                      setUnavailable(Array.from({ length: 2 * multiplier }, (_, index) => 18 * multiplier + index).join(", "));
                     } else {
                       setStrategy("expected_value");
                       setPeak(v === "Peak compression" ? 25 : 0);
+                      setAvailability("Fully available");
+                      setUnavailable("");
                     }
                     change();
                   }}
@@ -514,8 +557,8 @@ export default function Workbench() {
                 />
                 <NF
                   id="target"
-                  label="End-of-day SoC"
-                  hint="Required terminal energy"
+                  label="Minimum end-of-day SoC"
+                  hint="Required reserve; optimizer may finish above it"
                   value={battery.target_soc_mwh}
                   unit="MWh"
                   min={0}
@@ -656,7 +699,7 @@ export default function Workbench() {
                   num(summary.throughput_mwh) +
                   " / " +
                   num(
-                    2 * battery.capacity_mwh * battery.max_equivalent_cycles,
+                    2 * resultBattery.capacity_mwh * resultBattery.max_equivalent_cycles,
                     0,
                   ) +
                   " MWh"
@@ -679,9 +722,9 @@ export default function Workbench() {
                 }
                 detail={
                   "Ends at " +
-                  num(result?.optimization.terminal_soc_mwh, 0) +
+                  num(result?.proposal?.proposal_terminal_soc_mwh ?? result?.optimization.terminal_soc_mwh, 0) +
                   " MWh · target " +
-                  battery.target_soc_mwh
+                  resultBattery.target_soc_mwh
                 }
               />
               <Kpi
@@ -760,7 +803,7 @@ export default function Workbench() {
               className="panel result-panel"
             >
               {tab === "schedule" && (
-                <Schedule result={result} busy={busy} battery={battery} />
+                  <Schedule result={result} busy={busy} />
               )}{" "}
               {tab === "orders" && (
                 <Orders
@@ -779,10 +822,11 @@ export default function Workbench() {
                   setExclude={setExclude}
                   edit={edit}
                   approve={approve}
+                  exportProposal={exportProposal}
                 />
               )}{" "}
               {tab === "proof" && (
-                <ProofView result={result} battery={battery} />
+                <ProofView result={result} battery={resultBattery} />
               )}{" "}
               {tab === "compare" && (
                 <Compare
@@ -849,11 +893,9 @@ function Head({
 function Schedule({
   result,
   busy,
-  battery,
 }: {
   result?: Simulation;
   busy: boolean;
-  battery: Battery;
 }) {
   return (
     <>
@@ -871,7 +913,8 @@ function Schedule({
         />
       ) : result ? (
         <>
-          <DispatchChart rows={result.dispatch} battery={battery} />
+          {result.audit.modified_by_trader && <div className="status-message info" role="status">Showing trader proposal revision {result.proposal_revision ?? 2}; dispatch and SoC reflect the revised orders.</div>}
+          <DispatchChart rows={result.proposal?.implied_dispatch ?? result.dispatch} battery={result.battery} />
           <EconomicsPanel result={result} />
         </>
       ) : (
@@ -899,8 +942,10 @@ type OP = {
   setExclude: (v: boolean) => void;
   edit: () => void;
   approve: () => void;
+  exportProposal: () => void;
 };
 function Orders(p: OP) {
+  const hasEffectiveChange = Boolean(p.selected) && (p.exclude || Number(p.volume) !== p.selected?.volume_mw || Number(p.price) !== p.selected?.limit_price_eur_mwh);
   const impact = p.selected
     ? estimate(p.selected, p.volume) - p.selected.expected_contribution_eur
     : 0;
@@ -917,6 +962,7 @@ function Orders(p: OP) {
       )}
       <OrderTable
         orders={p.result?.orders ?? []}
+        market={p.result?.market ?? defaultMarket}
         selectedId={p.selected?.order_id}
         onSelect={p.choose}
       />
@@ -995,7 +1041,7 @@ function Orders(p: OP) {
           </div>
           <button
             className="secondary drawer-action"
-            disabled={p.comment.trim().length < 3 || p.busy}
+            disabled={p.comment.trim().length < 3 || p.busy || !hasEffectiveChange}
             onClick={p.edit}
           >
             {p.busy ? "Revalidating…" : "Apply Change & Revalidate"}
@@ -1018,18 +1064,8 @@ function Orders(p: OP) {
         <div className="actions">
           <button
             className="secondary"
-            disabled={
-              !p.result || p.busy || p.result.validation.status !== "passed"
-            }
-            onClick={() =>
-              p.result &&
-              open(
-                API +
-                  "/api/order-proposals/" +
-                  p.result.simulation_id +
-                  "/export",
-              )
-            }
+            disabled={!p.result || p.busy || p.result.validation.status !== "passed" || !p.result.approval_status}
+            onClick={p.exportProposal}
           >
             <Download size={16} />
             Export CSV
@@ -1102,11 +1138,9 @@ function ProofView({
           [
             "Terminal SoC",
             num(battery.target_soc_mwh) + " MWh",
-            num(result.optimization.terminal_soc_mwh) + " MWh",
+            num(result.proposal?.proposal_terminal_soc_mwh ?? result.optimization.terminal_soc_mwh) + " MWh",
             num(
-              Math.abs(
-                result.optimization.terminal_soc_mwh - battery.target_soc_mwh,
-              ),
+              Math.max(0, (result.proposal?.proposal_terminal_soc_mwh ?? result.optimization.terminal_soc_mwh) - battery.target_soc_mwh),
             ) + " MWh",
           ],
         ]
@@ -1126,18 +1160,19 @@ function ProofView({
         />
       ) : (
         <>
+          <div className="meaning-note">
+            <strong>What “Binding” Means</strong>
+            <span>A binding limit is fully used by the optimizer. It is not an error and normally should not be changed; it shows which constraint currently prevents additional value.</span>
+          </div>
           <ConstraintUtilization result={result} battery={battery} />
-          <div className="proof-summary">
-            <CheckCircle2 size={26} />
+          <div className={`proof-summary ${result.validation.status}`}>
+            {result.validation.status === "passed" ? <CheckCircle2 size={26} aria-hidden="true" /> : <AlertTriangle size={26} aria-hidden="true" />}
             <div>
-              <strong>
-                Physical schedule and order package passed validation
-              </strong>
-              <span>
-                All modeled battery and market constraints are satisfied.
-              </span>
+              <strong>{result.validation.status === "passed" ? "Proposal Is Physically Feasible" : result.validation.status === "warning" ? "Proposal Passed with Warnings" : "Proposal Is Not Feasible"}</strong>
+              <span>{result.validation.status === "passed" ? "All modeled battery and market constraints are satisfied." : "Review the validation findings below before approval or export."}</span>
             </div>
           </div>
+          {result.validation.findings.length > 0 && <ul className="checks">{result.validation.findings.map((finding) => <li key={`${finding.code}-${finding.interval ?? "run"}`}><AlertTriangle size={15} aria-hidden="true" />{finding.message}</li>)}</ul>}
           <div className="constraint-table">
             <div className="constraint-row header">
               <strong>Constraint</strong>
@@ -1263,6 +1298,13 @@ function Compare({
               "."}
         </span>
       </div>
+      <div className="scenario-guide" aria-label="Available scenario definitions">
+        <article><strong>Expected Forecast</strong><span>Central illustrative Day-Ahead price expectation and normal availability.</span></article>
+        <article><strong>Downside</strong><span>Lower selling peaks and more expensive charging hours test a weaker arbitrage case.</span></article>
+        <article><strong>Peak Compression</strong><span>Reduces prices above €80/MWh by €25/MWh to test a narrower market spread.</span></article>
+        <article><strong>Availability Stress</strong><span>Removes the battery from operation from 18:00–20:00 to test loss of peak-hour flexibility.</span></article>
+      </div>
+      <p className="scenario-instruction"><strong>How to compare:</strong> choose a scenario in the left panel, run the optimization, then return here. The previous baseline and new completed run will be shown side by side.</p>
       {result && baseline && (
         <ScenarioOutcomeChart baseline={baseline} current={result} />
       )}
@@ -1470,7 +1512,7 @@ function scenarioDescription(v: string) {
     : v === "Peak compression"
       ? "Illustrative Day-Ahead peaks reduced by €25/MWh to test spread risk."
       : v === "Availability stress"
-        ? "Dispatch re-optimizes around selected outage periods."
+        ? "Illustrative 18:00–20:00 outage; dispatch re-optimizes around unavailable peak intervals."
         : "Illustrative central Day-Ahead price forecast.";
 }
 function validate(b: Battery, d: string, u: string) {
@@ -1495,7 +1537,7 @@ function validate(b: Battery, d: string, u: string) {
   if (b.initial_soc_mwh < b.min_soc_mwh || b.initial_soc_mwh > b.max_soc_mwh)
     return "Initial SoC must remain inside the configured envelope.";
   if (b.target_soc_mwh < b.min_soc_mwh || b.target_soc_mwh > b.max_soc_mwh)
-    return "End-of-day SoC must remain inside the configured envelope.";
+    return "Minimum end-of-day SoC must remain inside the configured envelope.";
   if (b.round_trip_efficiency <= 0 || b.round_trip_efficiency > 1)
     return "Round-trip efficiency must be greater than 0% and no more than 100%.";
   if (b.degradation_cost_eur_per_mwh < 0)

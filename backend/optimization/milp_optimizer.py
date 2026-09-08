@@ -10,6 +10,7 @@ from scipy.optimize import Bounds, LinearConstraint, milp
 from scipy.sparse import lil_matrix
 
 from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, PricePoint
+from backend.domain.economics import calculate_interval
 
 
 def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: MarketConfig):
@@ -99,19 +100,23 @@ def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: 
         discharge = 0 if result.x[discharge_offset + t] < 1e-7 else result.x[discharge_offset + t]
         if charge > 0:
             action, power = "charge", -charge
-            grid_energy, battery_energy = charge * dt, charge * eta * dt
-            pnl = -grid_energy * point.price_eur_mwh - battery_energy * battery.degradation_cost_eur_per_mwh
-            sales_revenue, purchase_cost = 0.0, grid_energy * point.price_eur_mwh
-            degradation_cost = battery_energy * battery.degradation_cost_eur_per_mwh
+            economics = calculate_interval("BUY", charge, dt, point.price_eur_mwh, battery)
         elif discharge > 0:
             action, power = "discharge", discharge
-            grid_energy, battery_energy = discharge * dt, discharge / eta * dt
-            pnl = grid_energy * point.price_eur_mwh - battery_energy * battery.degradation_cost_eur_per_mwh
-            sales_revenue, purchase_cost = grid_energy * point.price_eur_mwh, 0.0
-            degradation_cost = battery_energy * battery.degradation_cost_eur_per_mwh
+            economics = calculate_interval("SELL", discharge, dt, point.price_eur_mwh, battery)
         else:
-            action, power, grid_energy, battery_energy, pnl = "idle", 0.0, 0.0, 0.0, 0.0
-            sales_revenue, purchase_cost, degradation_cost = 0.0, 0.0, 0.0
+            action, power = "idle", 0.0
+            economics = None
+        if economics is None:
+            grid_energy = battery_energy = pnl = 0.0
+            sales_revenue = purchase_cost = degradation_cost = 0.0
+        else:
+            grid_energy = economics.grid_energy_mwh
+            battery_energy = economics.battery_energy_mwh
+            pnl = economics.contribution_eur
+            sales_revenue = economics.sales_revenue_eur
+            purchase_cost = economics.purchase_cost_eur
+            degradation_cost = economics.degradation_cost_eur
         throughput += battery_energy
         cumulative += pnl
         dispatch.append(DispatchRow(

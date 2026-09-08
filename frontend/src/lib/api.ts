@@ -14,4 +14,18 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   }
   return response.json();
 }
+
+export async function download(path: string, filename: string): Promise<void> {
+  const response = await fetch(`${API}${path}`, { method: "POST" });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(typeof body.detail === "string" ? body.detail : `Export failed: ${response.status}`);
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
 export { API };

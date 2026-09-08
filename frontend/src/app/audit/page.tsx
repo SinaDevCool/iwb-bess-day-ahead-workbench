@@ -10,14 +10,22 @@ type Event = { event_id: number; simulation_id: string; created_at: string; even
 export default function AuditPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [runs, setRuns] = useState<Simulation[]>([]);
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("ALL");
+  const [query, setQuery] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(location.search).get("q") ?? "");
+  const [status, setStatus] = useState(() => typeof window === "undefined" ? "ALL" : new URLSearchParams(location.search).get("status") ?? "ALL");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   useEffect(() => {
     Promise.all([api<{ items: Event[] }>("/api/audit"), api<{ items: Simulation[] }>("/api/simulations")])
       .then(([audit, simulations]) => { setEvents(audit.items); setRuns(simulations.items); })
+      .catch((error) => setLoadError(error instanceof Error ? error.message : "Decision history could not be loaded"))
       .finally(() => setLoading(false));
   }, []);
+  useEffect(() => {
+    const url = new URL(location.href);
+    if (query) url.searchParams.set("q", query); else url.searchParams.delete("q");
+    if (status !== "ALL") url.searchParams.set("status", status); else url.searchParams.delete("status");
+    history.replaceState({}, "", url);
+  }, [query, status]);
   const byRun = useMemo(() => {
     const grouped = new Map<string, Event[]>();
     events.forEach((event) => grouped.set(event.simulation_id, [...(grouped.get(event.simulation_id) ?? []), event]));
@@ -51,7 +59,7 @@ export default function AuditPage() {
         <label className="sr-only" htmlFor="audit-search">Search runs</label><div style={{ position: "relative", flex: 1 }}><Search size={16} aria-hidden="true" style={{ position: "absolute", left: 12, top: 12, color: "#617a77" }} /><input id="audit-search" name="audit-search" autoComplete="off" style={{ width: "100%", paddingLeft: 36 }} placeholder="Search run, scenario or delivery date…" value={query} onChange={(e) => setQuery(e.target.value)} /></div>
         <label className="sr-only" htmlFor="validation-status">Validation status</label><select id="validation-status" name="validation-status" value={status} onChange={(e) => setStatus(e.target.value)}><option value="ALL">All validation results</option><option value="passed">Passed</option><option value="warning">Warning</option><option value="failed">Failed</option></select>
       </div>
-      {loading ? <div className="state-block"><strong>Loading saved runs…</strong></div> : !filtered.length ? <div className="state-block"><strong>{runs.length ? "No matching runs" : "No optimization runs yet"}</strong><span>{runs.length ? "Change the search or validation filter." : "Return to the workbench and run the optimizer to create the first record."}</span></div> :
+      {loading ? <div className="state-block"><strong>Loading saved runs…</strong></div> : loadError ? <div className="state-block" role="alert"><strong>Decision history unavailable</strong><span>{loadError}. Check the service and try again.</span></div> : !filtered.length ? <div className="state-block"><strong>{runs.length ? "No matching runs" : "No optimization runs yet"}</strong><span>{runs.length ? "Change the search or validation filter." : "Return to the workbench and run the optimizer to create the first record."}</span></div> :
         <div className="table-scroll"><table><caption className="sr-only">Saved optimization runs and their lifecycle events</caption><thead><tr><th>Run</th><th>Case</th><th>Outcome</th><th>Recorded actions</th><th>Evidence</th></tr></thead><tbody>{filtered.map((run) => {
           const lifecycle = [...(byRun.get(run.simulation_id) ?? [])].reverse();
           return <tr key={run.simulation_id}><td className="run-cell"><strong>{localTime(run.created_at_utc)}</strong><span><code translate="no">{run.simulation_id}</code></span></td><td className="run-cell"><strong>{run.scenario_name}</strong><span>{formatDate(run.delivery_date)} · {run.market.product_minutes}-minute products</span></td><td className="run-outcome"><strong>{money(run.summary.expected_contribution_eur)}</strong><small>{run.orders.length} orders · validation {run.validation.status}</small></td><td><div className="run-events">{lifecycle.map((event) => <span className="event-step" key={event.event_id}>{shortTitle(event.event_type)}</span>)}</div></td><td><details><summary>View run evidence</summary><code>{JSON.stringify({ input_fingerprint: run.audit.input_hash, optimizer: run.optimization.engine, validation: run.validation.status, events: lifecycle.map((event) => ({ time_utc: event.created_at, type: event.event_type, evidence: event.payload })) }, null, 2)}</code></details></td></tr>;

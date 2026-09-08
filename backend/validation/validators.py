@@ -3,9 +3,11 @@ from __future__ import annotations
 from collections import Counter
 from datetime import timedelta
 from decimal import Decimal
-import math
-
+from backend.domain.economics import calculate_interval
 from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order, ValidationFinding, ValidationResult
+
+SOC_TOLERANCE_MWH = 0.15
+POWER_TOLERANCE_MW = 1e-3
 
 
 def validate_dispatch(rows: list[DispatchRow], battery: BatteryConfig) -> ValidationResult:
@@ -15,8 +17,12 @@ def validate_dispatch(rows: list[DispatchRow], battery: BatteryConfig) -> Valida
             findings.append(ValidationFinding(severity="error", code="soc_below_min", message="SOC is below the configured minimum", interval=row.interval))
         if row.soc_mwh > battery.max_soc_mwh + 1e-3:
             findings.append(ValidationFinding(severity="error", code="soc_above_max", message="SOC is above the configured maximum", interval=row.interval))
-        if abs(row.power_mw) > battery.grid_limit_mw + 1e-3:
+        if abs(row.power_mw) > battery.grid_limit_mw + POWER_TOLERANCE_MW:
             findings.append(ValidationFinding(severity="error", code="grid_limit", message="Grid power limit exceeded", interval=row.interval))
+        if row.power_mw < -battery.max_charge_power_mw - POWER_TOLERANCE_MW:
+            findings.append(ValidationFinding(severity="error", code="charge_power_limit", message="Battery charge limit exceeded", interval=row.interval))
+        if row.power_mw > battery.max_discharge_power_mw + POWER_TOLERANCE_MW:
+            findings.append(ValidationFinding(severity="error", code="discharge_power_limit", message="Battery discharge limit exceeded", interval=row.interval))
         if row.interval in battery.unavailable_intervals and row.action != "idle":
             findings.append(ValidationFinding(severity="error", code="unavailable", message="Dispatch scheduled during unavailability", interval=row.interval))
     if rows and rows[-1].soc_mwh < battery.target_soc_mwh - 1e-3:
@@ -44,7 +50,6 @@ def validate_order_proposal(orders: list[Order], market: MarketConfig, battery: 
     """Validate an edited order package and reconstruct its implied physical schedule."""
     findings = list(validate_orders(orders, market).findings)
     dt = market.product_minutes / 60
-    eta = math.sqrt(battery.round_trip_efficiency)
     max_charge = min(battery.max_charge_power_mw, battery.grid_limit_mw)
     max_discharge = min(battery.max_discharge_power_mw, battery.grid_limit_mw)
     interval_by_start = {row.timestamp_utc: row for row in dispatch}
@@ -74,6 +79,8 @@ def validate_order_proposal(orders: list[Order], market: MarketConfig, battery: 
     purchase_cost = 0.0
     degradation_cost = 0.0
     implied_soc = []
+    implied_dispatch = []
+    cumulative = 0.0
     below_reported = False
     above_reported = False
     unavailable = set(battery.unavailable_intervals)
@@ -83,38 +90,50 @@ def validate_order_proposal(orders: list[Order], market: MarketConfig, battery: 
             if row.interval in unavailable:
                 findings.append(ValidationFinding(severity="error", code="order_unavailable", message=f"Order {order.order_id} is in an unavailable interval", interval=row.interval))
             if order.side == "BUY":
-                battery_energy = order.energy_mwh * eta
-                soc += battery_energy
-                energy_value = order.energy_mwh * order.expected_price_eur_mwh
-                wear = battery_energy * battery.degradation_cost_eur_per_mwh
-                order.sales_revenue_eur = 0
-                order.purchase_cost_eur = round(energy_value, 2)
-                order.degradation_cost_eur = round(wear, 2)
+                economics = calculate_interval("BUY", order.volume_mw, dt, order.expected_price_eur_mwh, battery)
             else:
-                battery_energy = order.energy_mwh / eta
-                soc -= battery_energy
-                energy_value = order.energy_mwh * order.expected_price_eur_mwh
-                wear = battery_energy * battery.degradation_cost_eur_per_mwh
-                order.sales_revenue_eur = round(energy_value, 2)
-                order.purchase_cost_eur = 0
-                order.degradation_cost_eur = round(wear, 2)
-            order.expected_contribution_eur = round(order.sales_revenue_eur - order.purchase_cost_eur - order.degradation_cost_eur, 2)
-            sales_revenue += order.sales_revenue_eur
-            purchase_cost -= order.purchase_cost_eur
-            degradation_cost += order.degradation_cost_eur
-            contribution += order.expected_contribution_eur
-            throughput += battery_energy
+                economics = calculate_interval("SELL", order.volume_mw, dt, order.expected_price_eur_mwh, battery)
+            soc += economics.soc_delta_mwh
+            # Auction-order economics are presented to cents. Aggregate those
+            # exact order values so the proposal reconciles with the CSV/UI.
+            order_sales = round(economics.sales_revenue_eur, 2)
+            order_purchase = round(economics.purchase_cost_eur, 2)
+            order_degradation = round(economics.degradation_cost_eur, 2)
+            order_contribution = round(economics.contribution_eur, 2)
+            sales_revenue += order_sales
+            purchase_cost += order_purchase
+            degradation_cost += order_degradation
+            contribution += order_contribution
+            throughput += economics.battery_energy_mwh
+            action = "charge" if order.side == "BUY" else "discharge"
+            power = -order.volume_mw if order.side == "BUY" else order.volume_mw
+            interval_contribution = order_contribution
+            grid_energy = economics.grid_energy_mwh
+            battery_energy = economics.battery_energy_mwh
+        else:
+            action, power, interval_contribution = "idle", 0.0, 0.0
+            grid_energy = battery_energy = 0.0
+            order_sales = order_purchase = order_degradation = 0.0
+        cumulative += interval_contribution
         implied_soc.append(round(soc, 6))
-        if soc < battery.min_soc_mwh - 0.15 and not below_reported:
+        implied_dispatch.append(DispatchRow(
+            interval=row.interval, timestamp_utc=row.timestamp_utc, timestamp_local=row.timestamp_local,
+            price_eur_mwh=row.price_eur_mwh, action=action, power_mw=power,
+            grid_energy_mwh=grid_energy, battery_energy_mwh=battery_energy, soc_mwh=round(soc, 6),
+            interval_pnl_eur=interval_contribution, cumulative_pnl_eur=round(cumulative, 2),
+            sales_revenue_eur=order_sales, purchase_cost_eur=order_purchase,
+            degradation_cost_eur=order_degradation,
+        ))
+        if soc < battery.min_soc_mwh - SOC_TOLERANCE_MWH and not below_reported:
             findings.append(ValidationFinding(severity="error", code="proposal_soc_below_min", message=f"Edited orders drive SoC below minimum at interval {row.interval}", interval=row.interval))
             below_reported = True
-        if soc > battery.max_soc_mwh + 0.15 and not above_reported:
+        if soc > battery.max_soc_mwh + SOC_TOLERANCE_MWH and not above_reported:
             findings.append(ValidationFinding(severity="error", code="proposal_soc_above_max", message=f"Edited orders drive SoC above maximum at interval {row.interval}", interval=row.interval))
             above_reported = True
-    if soc < battery.target_soc_mwh - 0.15:
+    if soc < battery.target_soc_mwh - SOC_TOLERANCE_MWH:
         findings.append(ValidationFinding(severity="error", code="proposal_terminal_soc", message=f"Edited orders finish at {soc:.2f} MWh, below the {battery.target_soc_mwh:g} MWh target"))
     maximum_throughput = 2 * battery.capacity_mwh * battery.max_equivalent_cycles
-    if throughput > maximum_throughput + 0.15:
+    if throughput > maximum_throughput + SOC_TOLERANCE_MWH:
         findings.append(ValidationFinding(severity="error", code="proposal_cycle_limit", message="Edited orders exceed the configured equivalent-cycle budget"))
     return _result(findings), {
         "proposal_contribution_eur": round(contribution, 2),
@@ -129,6 +148,7 @@ def validate_order_proposal(orders: list[Order], market: MarketConfig, battery: 
         "proposal_buy_volume_mwh": round(sum(order.energy_mwh for order in orders if order.side == "BUY"), 3),
         "proposal_sell_volume_mwh": round(sum(order.energy_mwh for order in orders if order.side == "SELL"), 3),
         "implied_soc_mwh": implied_soc,
+        "implied_dispatch": implied_dispatch,
     }
 
 

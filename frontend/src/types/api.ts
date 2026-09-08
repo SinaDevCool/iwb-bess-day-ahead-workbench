@@ -25,8 +25,10 @@ export type Order = {
 };
 export type Simulation = {
   simulation_id: string; created_at_utc: string; delivery_date: string; scenario_name: string;
+  strategy?: "expected_value" | "conservative"; price_multiplier?: number; peak_reduction_eur_mwh?: number; proposal_revision?: number;
   data_mode: string; submission_mode: string; battery: Battery; market: Market; dispatch: Dispatch[];
   orders: Order[]; validation: { status: string; findings: { severity: string; code: string; message: string; interval?: number }[] };
   summary: Record<string, number>; optimization: { engine: string; prototype_solver: boolean; solver_status?: string; solve_time_ms?: number; mip_gap?: number; objective: string; objective_value_eur: number; terminal_soc_mwh: number; constraint_status: string; constraints: string[] };
-  proposal?: Record<string, unknown>; audit: Record<string, string | boolean | number>; approval_status?: string;
+  proposal?: { proposal_contribution_eur: number; proposal_terminal_soc_mwh: number; proposal_throughput_mwh: number; proposal_equivalent_cycles: number; proposal_min_soc_mwh: number; proposal_max_soc_mwh: number; proposal_sales_revenue_eur: number; proposal_purchase_cost_eur: number; proposal_degradation_cost_eur: number; proposal_buy_volume_mwh: number; proposal_sell_volume_mwh: number; implied_soc_mwh: number[]; implied_dispatch?: Dispatch[] };
+  audit: Record<string, string | boolean | number>; approval_status?: string;
 };
