@@ -13,7 +13,7 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
-COPY data/ ./data/
+RUN mkdir -p ./data
 COPY --from=frontend-builder /app/frontend/out ./frontend/out/
 EXPOSE 10000
 CMD ["sh", "-c", "python -m uvicorn backend.api.main:app --host 0.0.0.0 --port ${PORT}"]
