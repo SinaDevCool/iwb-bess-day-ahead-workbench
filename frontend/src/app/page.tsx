@@ -1009,6 +1009,10 @@ type OP = {
   exportProposal: () => void;
 };
 function Orders(p: OP) {
+  const editorRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (p.selected) editorRef.current?.scrollIntoView({ block: "nearest" });
+  }, [p.selected]);
   const issue = traderEditIssue(p);
   const volumeChanged = Boolean(p.selected) && Number(p.volume) !== p.selected?.volume_mw;
   const priceChanged = Boolean(p.selected) && Number(p.price) !== p.selected?.limit_price_eur_mwh;
@@ -1035,7 +1039,7 @@ function Orders(p: OP) {
         onSelect={p.choose}
       />
       {p.selected && (
-        <aside className="edit-drawer" aria-labelledby="edit-title">
+        <aside ref={editorRef} className="edit-drawer" aria-labelledby="edit-title">
           <div className="drawer-head">
             <div>
               <span className={"side " + p.selected.side.toLowerCase()}>

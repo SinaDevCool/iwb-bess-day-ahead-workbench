@@ -775,16 +775,26 @@ td {
   background: #eef8f6;
   box-shadow: inset 3px 0 var(--teal);
 }
-.row-select {
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  padding: 0;
-  text-align: left;
+.order-table tbody tr {
+  cursor: pointer;
 }
-.row-select:hover strong {
+.order-table tbody tr:hover {
+  background: #e7f4f1;
+  color: #073f3d;
+}
+.order-table tbody tr:focus-visible {
+  position: relative;
+  z-index: 2;
+  outline: 3px solid rgba(8, 125, 120, 0.3);
+  outline-offset: -3px;
+}
+.row-select {
+  color: var(--ink);
+  display: block;
+}
+.order-table tbody tr:hover .row-select strong,
+.order-table tbody tr:focus-visible .row-select strong {
   color: var(--teal);
-  text-decoration: underline;
 }
 .row-select small {
   display: block;
