@@ -1051,14 +1051,18 @@ function Orders(p: OP) {
       <div className="approval-bar">
         <div>
           <strong>
-            {p.result?.validation.status === "passed"
-              ? "Ready for trader approval"
-              : "Approval blocked"}
+            {p.result?.approval_status
+              ? "Approved for demo export"
+              : p.result?.validation.status === "passed"
+                ? "Ready for trader approval"
+                : "Approval blocked"}
           </strong>
           <span>
-            {p.result?.validation.status === "passed"
-              ? "Physical and market validation passed."
-              : "Resolve validation findings before export."}
+            {p.result?.approval_status
+              ? "The validated proposal can now be exported as CSV; no market submission occurs."
+              : p.result?.validation.status === "passed"
+                ? "Physical and market validation passed."
+                : "Resolve validation findings before export."}
           </span>
         </div>
         <div className="actions">
@@ -1101,48 +1105,17 @@ function ProofView({
     power = result
       ? Math.max(...result.dispatch.map((x) => Math.abs(x.power_mw)))
       : 0,
+    proposalTerminalSoc =
+      result?.proposal?.proposal_terminal_soc_mwh ??
+      result?.optimization.terminal_soc_mwh ??
+      0,
     rows = result
       ? [
-          [
-            "Power limit",
-            num(battery.grid_limit_mw) + " MW",
-            num(power) + " MW",
-            num(Math.max(0, battery.grid_limit_mw - power)) + " MW",
-          ],
-          [
-            "Minimum SoC",
-            num(battery.min_soc_mwh) + " MWh",
-            num(s.min_soc_mwh) + " MWh",
-            num(Math.max(0, (s.min_soc_mwh ?? 0) - battery.min_soc_mwh)) +
-              " MWh",
-          ],
-          [
-            "Maximum SoC",
-            num(battery.max_soc_mwh) + " MWh",
-            num(s.max_soc_mwh) + " MWh",
-            num(Math.max(0, battery.max_soc_mwh - (s.max_soc_mwh ?? 0))) +
-              " MWh",
-          ],
-          [
-            "Cycle budget",
-            num(battery.max_equivalent_cycles, 2) + " EFC",
-            num(s.equivalent_cycles, 2) + " EFC",
-            num(
-              Math.max(
-                0,
-                battery.max_equivalent_cycles - (s.equivalent_cycles ?? 0),
-              ),
-              2,
-            ) + " EFC",
-          ],
-          [
-            "Terminal SoC",
-            num(battery.target_soc_mwh) + " MWh",
-            num(result.proposal?.proposal_terminal_soc_mwh ?? result.optimization.terminal_soc_mwh) + " MWh",
-            num(
-              Math.max(0, (result.proposal?.proposal_terminal_soc_mwh ?? result.optimization.terminal_soc_mwh) - battery.target_soc_mwh),
-            ) + " MWh",
-          ],
+          constraintRow("Power limit", battery.grid_limit_mw, power, "MW", "maximum"),
+          constraintRow("Minimum SoC", battery.min_soc_mwh, s.min_soc_mwh ?? 0, "MWh", "minimum"),
+          constraintRow("Maximum SoC", battery.max_soc_mwh, s.max_soc_mwh ?? 0, "MWh", "maximum"),
+          constraintRow("Cycle budget", battery.max_equivalent_cycles, s.equivalent_cycles ?? 0, "EFC", "maximum", 2),
+          constraintRow("Terminal SoC", battery.target_soc_mwh, proposalTerminalSoc, "MWh", "minimum"),
         ]
       : [];
   return (
@@ -1182,14 +1155,12 @@ function ProofView({
               <span>Result</span>
             </div>
             {rows.map((r) => (
-              <div className="constraint-row" key={r[0]}>
-                <strong>{r[0]}</strong>
-                <span>{r[1]}</span>
-                <span>{r[2]}</span>
-                <span>{r[3]}</span>
-                <span className="binding">
-                  {r[3].startsWith("0.0") ? "Binding" : "Passed"}
-                </span>
+              <div className="constraint-row" key={r.label}>
+                <strong>{r.label}</strong>
+                <span>{r.limit}</span>
+                <span>{r.observed}</span>
+                <span>{r.headroom}</span>
+                <span className={r.status.toLowerCase()}>{r.status}</span>
               </div>
             ))}
           </div>
@@ -1453,6 +1424,29 @@ function Proof({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+type ConstraintDirection = "minimum" | "maximum";
+
+function constraintRow(
+  label: string,
+  limit: number,
+  observed: number,
+  unit: string,
+  direction: ConstraintDirection,
+  digits = 1,
+) {
+  const margin = direction === "maximum" ? limit - observed : observed - limit;
+  const tolerance = digits === 2 ? 0.005 : 0.05;
+  const status = margin < -tolerance ? "Failed" : Math.abs(margin) <= tolerance ? "Binding" : "Passed";
+  const magnitude = num(Math.abs(margin), digits) + " " + unit;
+  return {
+    label,
+    limit: num(limit, digits) + " " + unit,
+    observed: num(observed, digits) + " " + unit,
+    headroom: margin < -tolerance ? magnitude + " short" : magnitude,
+    status,
+  };
 }
 const num = (v?: number, d = 1) =>
   typeof v === "number"

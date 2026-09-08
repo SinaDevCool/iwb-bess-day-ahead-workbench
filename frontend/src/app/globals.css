@@ -908,6 +908,14 @@ td {
   color: var(--warning);
   font-weight: 750;
 }
+.constraint-row .failed {
+  color: var(--error);
+  font-weight: 750;
+}
+.constraint-row .passed {
+  color: var(--success);
+  font-weight: 700;
+}
 .proof-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
