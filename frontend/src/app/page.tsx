@@ -751,7 +751,6 @@ export default function Workbench() {
                 label="Expected Net Contribution"
                 value={money(summary.expected_contribution_eur)}
                 detail="Sales − purchases − degradation − transaction fees"
-                tone={result ? "good" : ""}
                 stale={dirty && Boolean(result)}
               />
               <Kpi
@@ -771,7 +770,6 @@ export default function Workbench() {
                   num(cyclePct, 0) +
                   "% of budget"
                 }
-                progress={cyclePct}
                 stale={dirty && Boolean(result)}
               />
               <Kpi
@@ -807,13 +805,6 @@ export default function Workbench() {
                             : "requires attention"
                       }`
                     : "Pending optimization"
-                }
-                tone={
-                  result?.validation.status === "passed"
-                    ? "good"
-                    : result
-                      ? "warn"
-                      : ""
                 }
                 stale={dirty && Boolean(result)}
               />

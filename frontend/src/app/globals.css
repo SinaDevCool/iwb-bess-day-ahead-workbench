@@ -548,6 +548,7 @@ select {
   flex-direction: column;
   min-height: 100px;
   font-variant-numeric: tabular-nums;
+  justify-content: flex-start;
 }
 .kpi > span,
 .kpi-heading > span {
@@ -585,31 +586,11 @@ select {
   font-size: 21px;
   margin: 7px 0 2px;
   line-height: 1.15;
+  color: var(--ink);
 }
 .kpi small {
   font-size: 10px;
   color: var(--muted);
-}
-.kpi.good {
-  border-top: 3px solid #319966;
-}
-.kpi.good strong {
-  color: var(--success);
-}
-.kpi.warn {
-  border-top: 3px solid var(--orange);
-}
-.progress {
-  height: 4px;
-  background: #e5edeb;
-  border-radius: 5px;
-  margin-top: auto;
-  overflow: hidden;
-}
-.progress i {
-  height: 100%;
-  background: var(--teal);
-  display: block;
 }
 .status-message {
   display: flex;
