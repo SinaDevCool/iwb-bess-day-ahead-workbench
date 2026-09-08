@@ -1459,13 +1459,15 @@ function envelopeRow(
   const lowerMargin = observedMinimum - minimum;
   const upperMargin = maximum - observedMaximum;
   const margin = Math.min(lowerMargin, upperMargin);
-  const tolerance = 0.05;
+  // Match the backend proposal-validation tolerance so rounded auction orders
+  // cannot appear invalid in the UI after the API has accepted them.
+  const tolerance = 0.15;
   const status = margin < -tolerance ? "Failed" : Math.abs(margin) <= tolerance ? "Binding" : "Passed";
   return {
     label: "State-of-charge envelope",
     limit: `${num(minimum)}–${num(maximum)} MWh`,
     observed: `${num(observedMinimum)}–${num(observedMaximum)} MWh`,
-    headroom: margin < -tolerance ? `${num(Math.abs(margin))} MWh outside` : `${num(margin)} MWh nearest limit`,
+    headroom: margin < -tolerance ? `${num(Math.abs(margin))} MWh outside` : `${num(Math.max(0, margin))} MWh nearest limit`,
     status,
   };
 }
