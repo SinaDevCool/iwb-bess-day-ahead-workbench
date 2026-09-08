@@ -9,7 +9,6 @@ import {
   Download,
   FileCheck2,
   History,
-  Info,
   LayoutDashboard,
   LoaderCircle,
   Play,
@@ -306,13 +305,12 @@ export default function Workbench() {
           <Link className="header-action" href="/audit/">
             <History size={15} aria-hidden="true" /> Decision Log
           </Link>
-          <span className="pill neutral">
-            <Info size={14} aria-hidden="true" />
-            Illustrative forecast
-          </span>
-          <span className="pill">
+          <span
+            className="pill"
+            title="Assumed Day-Ahead auction gate closure; confirm with IWB"
+          >
             <Clock3 size={14} aria-hidden="true" />
-            Gate closes 12:00{" "}
+            Gate closure assumption · 12:00{" "}
             <span className="desktop-only">Europe/Zurich*</span>
           </span>
         </div>
@@ -321,7 +319,8 @@ export default function Workbench() {
         <ShieldCheck size={16} aria-hidden="true" />
         <strong>MODELLING ENVIRONMENT</strong>
         <span>
-          Indicative prices · no live market connectivity or order submission.
+          Illustrative Day-Ahead price forecast · no live market feed or order
+          submission.
         </span>
       </div>
       <main id="workbench">
@@ -333,20 +332,6 @@ export default function Workbench() {
               {formatDate(date)} · {market.bidding_zone} ·{" "}
               {market.product_minutes}-minute products
             </p>
-          </div>
-          <div className="battery-summary">
-            <BatteryCharging aria-hidden="true" />
-            <span>
-              <small className="summary-label">CURRENT CONFIGURATION</small>
-              <strong>
-                {num(battery.capacity_mwh, 0)} MWh ·{" "}
-                {num(battery.grid_limit_mw, 0)} MW
-              </strong>
-              <small>
-                SoC {num(battery.min_soc_mwh, 0)}–{num(battery.max_soc_mwh, 0)}{" "}
-                MWh
-              </small>
-            </span>
           </div>
         </section>
         <section className="workspace">
@@ -403,7 +388,8 @@ export default function Workbench() {
                 </select>
               </label>
               <label htmlFor="scenario">
-                Forecast scenario
+                Day-Ahead price scenario{" "}
+                <span className="assumption">illustrative</span>
                 <select
                   id="scenario"
                   name="scenario"
@@ -432,13 +418,62 @@ export default function Workbench() {
             </fieldset>
             <fieldset>
               <legend>Battery Constraints</legend>
+              <div className="assumption-note">
+                <BatteryCharging size={16} aria-hidden="true" />
+                <span>
+                  <strong>Task baseline</strong>
+                  100 MWh capacity · 50 MW charge/discharge · 2-hour duration
+                </span>
+              </div>
               <div className="field-grid">
+                <NF
+                  id="capacity"
+                  label="Energy capacity"
+                  hint="Task input: 100 MWh"
+                  value={battery.capacity_mwh}
+                  unit="MWh"
+                  min={1}
+                  assumption
+                  change={(v) => batteryChange("capacity_mwh", v)}
+                />
+                <NF
+                  id="charge-power"
+                  label="Charge limit"
+                  hint="Task input: 50 MW"
+                  value={battery.max_charge_power_mw}
+                  unit="MW"
+                  min={0.1}
+                  assumption
+                  change={(v) => batteryChange("max_charge_power_mw", v)}
+                />
+                <NF
+                  id="discharge-power"
+                  label="Discharge limit"
+                  hint="Task input: 50 MW"
+                  value={battery.max_discharge_power_mw}
+                  unit="MW"
+                  min={0.1}
+                  assumption
+                  change={(v) => batteryChange("max_discharge_power_mw", v)}
+                />
+                <NF
+                  id="grid-limit"
+                  label="Grid connection limit"
+                  hint="Assumption: 50 MW"
+                  value={battery.grid_limit_mw}
+                  unit="MW"
+                  min={0.1}
+                  assumption
+                  change={(v) => batteryChange("grid_limit_mw", v)}
+                />
                 <NF
                   id="initial"
                   label="Initial SoC"
                   hint="Stored energy at 00:00"
                   value={battery.initial_soc_mwh}
                   unit="MWh"
+                  min={0}
+                  max={battery.capacity_mwh}
                   change={(v) => batteryChange("initial_soc_mwh", v)}
                 />
                 <NF
@@ -447,6 +482,8 @@ export default function Workbench() {
                   hint="Required terminal energy"
                   value={battery.target_soc_mwh}
                   unit="MWh"
+                  min={0}
+                  max={battery.capacity_mwh}
                   change={(v) => batteryChange("target_soc_mwh", v)}
                 />
                 <NF
@@ -454,6 +491,8 @@ export default function Workbench() {
                   label="Minimum SoC"
                   value={battery.min_soc_mwh}
                   unit="MWh"
+                  min={0}
+                  max={battery.capacity_mwh}
                   change={(v) => batteryChange("min_soc_mwh", v)}
                 />
                 <NF
@@ -461,21 +500,17 @@ export default function Workbench() {
                   label="Maximum SoC"
                   value={battery.max_soc_mwh}
                   unit="MWh"
+                  min={0}
+                  max={battery.capacity_mwh}
                   change={(v) => batteryChange("max_soc_mwh", v)}
-                />
-                <NF
-                  id="power"
-                  label="Power limit"
-                  hint="100 MWh ÷ 2 h"
-                  value={battery.grid_limit_mw}
-                  unit="MW"
-                  change={(v) => batteryChange("grid_limit_mw", v)}
                 />
                 <NF
                   id="efficiency"
                   label="Round-trip efficiency"
                   value={battery.round_trip_efficiency * 100}
                   unit="%"
+                  min={1}
+                  max={100}
                   change={(v) =>
                     batteryChange("round_trip_efficiency", v / 100)
                   }
@@ -485,6 +520,7 @@ export default function Workbench() {
                   label="Degradation cost"
                   value={battery.degradation_cost_eur_per_mwh}
                   unit="€/MWh"
+                  min={0}
                   change={(v) =>
                     batteryChange("degradation_cost_eur_per_mwh", v)
                   }
@@ -496,6 +532,7 @@ export default function Workbench() {
                   value={battery.max_equivalent_cycles}
                   unit="EFC"
                   step=".1"
+                  min={0.1}
                   change={(v) => batteryChange("max_equivalent_cycles", v)}
                 />
               </div>
@@ -686,7 +723,9 @@ export default function Workbench() {
               aria-labelledby={"tab-" + tab}
               className="panel result-panel"
             >
-              {tab === "schedule" && <Schedule result={result} busy={busy} />}{" "}
+              {tab === "schedule" && (
+                <Schedule result={result} busy={busy} battery={battery} />
+              )}{" "}
               {tab === "orders" && (
                 <Orders
                   result={result}
@@ -771,7 +810,15 @@ function Head({
     </div>
   );
 }
-function Schedule({ result, busy }: { result?: Simulation; busy: boolean }) {
+function Schedule({
+  result,
+  busy,
+  battery,
+}: {
+  result?: Simulation;
+  busy: boolean;
+  battery: Battery;
+}) {
   return (
     <>
       <Head
@@ -787,7 +834,7 @@ function Schedule({ result, busy }: { result?: Simulation; busy: boolean }) {
           text="Applying efficiency, SoC, power, availability and cycle constraints."
         />
       ) : result ? (
-        <DispatchChart rows={result.dispatch} />
+        <DispatchChart rows={result.dispatch} battery={battery} />
       ) : (
         <Empty
           title="No result yet"
@@ -1217,6 +1264,9 @@ function NF({
   value,
   unit,
   step = "1",
+  min,
+  max,
+  assumption = false,
   change,
 }: {
   id: string;
@@ -1225,11 +1275,17 @@ function NF({
   value: number;
   unit: string;
   step?: string;
+  min?: number;
+  max?: number;
+  assumption?: boolean;
   change: (v: number) => void;
 }) {
   return (
     <label htmlFor={id}>
-      {label}
+      <span className="field-label">
+        {label}
+        {assumption && <span className="assumption">assumption</span>}
+      </span>
       <div className="number">
         <input
           id={id}
@@ -1238,6 +1294,8 @@ function NF({
           inputMode="decimal"
           type="number"
           step={step}
+          min={min}
+          max={max}
           value={value}
           onChange={(e) => change(Number(e.target.value))}
         />
@@ -1360,25 +1418,42 @@ function estimate(o: Order, v: string) {
 }
 function scenarioDescription(v: string) {
   return v === "Downside"
-    ? "Conservative forecast with a €15/MWh peak reduction."
+    ? "Illustrative Day-Ahead forecast with a €15/MWh peak reduction."
     : v === "Peak compression"
-      ? "Peak prices reduced by €25/MWh to test spread risk."
+      ? "Illustrative Day-Ahead peaks reduced by €25/MWh to test spread risk."
       : v === "Availability stress"
         ? "Dispatch re-optimizes around selected outage periods."
         : "Illustrative central Day-Ahead price forecast.";
 }
 function validate(b: Battery, d: string, u: string) {
   if (!d) return "Choose a delivery date.";
+  if (!Number.isFinite(b.capacity_mwh) || b.capacity_mwh <= 0)
+    return "Energy capacity must be greater than 0 MWh.";
+  if (
+    !Number.isFinite(b.max_charge_power_mw) ||
+    b.max_charge_power_mw <= 0 ||
+    !Number.isFinite(b.max_discharge_power_mw) ||
+    b.max_discharge_power_mw <= 0 ||
+    !Number.isFinite(b.grid_limit_mw) ||
+    b.grid_limit_mw <= 0
+  )
+    return "Charge, discharge and grid limits must all be greater than 0 MW.";
   if (
     b.min_soc_mwh < 0 ||
     b.max_soc_mwh > b.capacity_mwh ||
     b.min_soc_mwh >= b.max_soc_mwh
   )
-    return "Set a valid SoC envelope between 0 and 100 MWh.";
+    return `Set the SoC envelope between 0 and ${num(b.capacity_mwh, 0)} MWh, with minimum below maximum.`;
   if (b.initial_soc_mwh < b.min_soc_mwh || b.initial_soc_mwh > b.max_soc_mwh)
     return "Initial SoC must remain inside the configured envelope.";
   if (b.target_soc_mwh < b.min_soc_mwh || b.target_soc_mwh > b.max_soc_mwh)
     return "End-of-day SoC must remain inside the configured envelope.";
+  if (b.round_trip_efficiency <= 0 || b.round_trip_efficiency > 1)
+    return "Round-trip efficiency must be greater than 0% and no more than 100%.";
+  if (b.degradation_cost_eur_per_mwh < 0)
+    return "Degradation cost cannot be negative.";
+  if (b.max_equivalent_cycles <= 0)
+    return "Daily cycle budget must be greater than 0 EFC.";
   try {
     parseIntervals(u);
   } catch (e) {
