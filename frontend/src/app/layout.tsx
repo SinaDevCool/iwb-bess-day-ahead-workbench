@@ -3,10 +3,17 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "IWB BESS Day-Ahead Workbench",
-  description: "Interview prototype for explainable battery Day-Ahead trading",
+  description:
+    "Explainable battery dispatch optimization and Day-Ahead order generation",
 };
 export const viewport: Viewport = { themeColor: "#f3f7f6" };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
 }

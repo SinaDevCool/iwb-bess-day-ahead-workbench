@@ -1,7 +1,22 @@
 "use client";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, BatteryCharging, CheckCircle2, Clock3, Download, FileCheck2, Info, LoaderCircle, Play, RotateCcw, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
+import {
+  AlertTriangle,
+  BatteryCharging,
+  CheckCircle2,
+  Clock3,
+  Download,
+  FileCheck2,
+  History,
+  Info,
+  LoaderCircle,
+  Play,
+  RotateCcw,
+  ShieldCheck,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { DispatchChart } from "@/components/dispatch-chart";
 import { Kpi } from "@/components/kpi";
 import { OrderTable } from "@/components/order-table";
@@ -9,46 +24,1362 @@ import { api, API } from "@/lib/api";
 import type { Battery, Market, Order, Simulation } from "@/types/api";
 import "./editor.css";
 
-const defaultBattery:Battery={capacity_mwh:100,max_charge_power_mw:50,max_discharge_power_mw:50,initial_soc_mwh:50,min_soc_mwh:10,max_soc_mwh:90,target_soc_mwh:50,round_trip_efficiency:.9,degradation_cost_eur_per_mwh:3,max_equivalent_cycles:1.5,grid_limit_mw:50,unavailable_intervals:[]};
-const defaultMarket:Market={market_name:"Swiss Day-Ahead (configuration assumption)",bidding_zone:"CH",currency:"EUR",timezone:"Europe/Zurich",product_minutes:60,gate_closure_local:"12:00",volume_increment_mw:.1,price_increment_eur_mwh:.01,min_price_eur_mwh:-500,max_price_eur_mwh:4000,assumptions_unverified:true};
-const tabs=[["schedule","Dispatch & SoC"],["orders","Auction Orders"],["proof","Feasibility Proof"],["compare","Scenario Comparison"]] as const;
-type TabKey=typeof tabs[number][0];
+const defaultBattery: Battery = {
+  capacity_mwh: 100,
+  max_charge_power_mw: 50,
+  max_discharge_power_mw: 50,
+  initial_soc_mwh: 50,
+  min_soc_mwh: 10,
+  max_soc_mwh: 90,
+  target_soc_mwh: 50,
+  round_trip_efficiency: 0.9,
+  degradation_cost_eur_per_mwh: 3,
+  max_equivalent_cycles: 1.5,
+  grid_limit_mw: 50,
+  unavailable_intervals: [],
+};
+const defaultMarket: Market = {
+  market_name: "Swiss Day-Ahead (configuration assumption)",
+  bidding_zone: "CH",
+  currency: "EUR",
+  timezone: "Europe/Zurich",
+  product_minutes: 60,
+  gate_closure_local: "12:00",
+  volume_increment_mw: 0.1,
+  price_increment_eur_mwh: 0.01,
+  min_price_eur_mwh: -500,
+  max_price_eur_mwh: 4000,
+  assumptions_unverified: true,
+};
+const tabs = [
+  ["schedule", "Dispatch & SoC"],
+  ["orders", "Auction Orders"],
+  ["proof", "Feasibility Proof"],
+  ["compare", "Scenario Comparison"],
+] as const;
+type TabKey = (typeof tabs)[number][0];
 
-export default function Workbench(){
- const [battery,setBattery]=useState(defaultBattery),[market,setMarket]=useState(defaultMarket),[date,setDate]=useState("2026-09-09"),[scenario,setScenario]=useState("Expected forecast"),[strategy,setStrategy]=useState("expected_value"),[peak,setPeak]=useState(0),[availability,setAvailability]=useState("Fully available"),[unavailable,setUnavailable]=useState("");
- const [result,setResult]=useState<Simulation>(),[baseline,setBaseline]=useState<Simulation>(),[busy,setBusy]=useState(false),[message,setMessage]=useState<{kind:string;text:string}|null>(null),[dirty,setDirty]=useState(false),[advanced,setAdvanced]=useState(false),[tab,setTab]=useState<TabKey>("schedule"),[selected,setSelected]=useState<Order>(),[volume,setVolume]=useState(""),[price,setPrice]=useState(""),[comment,setComment]=useState(""),[exclude,setExclude]=useState(false);
- const errorRef=useRef<HTMLDivElement>(null);
- const run=async(first=false)=>{const error=validate(battery,date,unavailable);if(error){setMessage({kind:"error",text:error});setTimeout(()=>errorRef.current?.focus(),0);return;}setBusy(true);setMessage(null);try{const next=await api<Simulation>("/api/simulations",{method:"POST",body:JSON.stringify({delivery_date:date,scenario_name:scenario,battery:{...battery,unavailable_intervals:parseIntervals(unavailable)},market,strategy,peak_reduction_eur_mwh:peak})});setResult(next);if(first||!baseline)setBaseline(next);setDirty(false);setSelected(undefined);setMessage({kind:next.validation.status==="passed"?"success":"error",text:"Optimization complete: "+next.orders.length+" draft orders generated; validation "+next.validation.status+"."});}catch(e){setMessage({kind:"error",text:(e instanceof Error?e.message:"Simulation failed")+". Review the inputs and run again."});}finally{setBusy(false);}};
- // Preload is intentionally tied to the initial interview-case mount.
- // eslint-disable-next-line react-hooks/exhaustive-deps
- useEffect(()=>{const timer=setTimeout(()=>void run(true),0);return()=>clearTimeout(timer);},[]);
- const change=()=>{if(result)setDirty(true);setMessage(null);};
- const chooseTab=(key:TabKey)=>{setTab(key);const url=new URL(location.href);url.searchParams.set("tab",key);history.replaceState({},"",url);};
- const tabKey=(e:KeyboardEvent<HTMLButtonElement>,i:number)=>{if(!["ArrowLeft","ArrowRight","Home","End"].includes(e.key))return;e.preventDefault();const n=e.key==="Home"?0:e.key==="End"?tabs.length-1:(i+(e.key==="ArrowRight"?1:-1)+tabs.length)%tabs.length;chooseTab(tabs[n][0]);document.getElementById("tab-"+tabs[n][0])?.focus();};
- const batteryChange=(key:keyof Battery,value:number)=>{setBattery(x=>({...x,[key]:value}));change();};
- const reset=()=>{setBattery(defaultBattery);setMarket(defaultMarket);setDate("2026-09-09");setScenario("Expected forecast");setStrategy("expected_value");setPeak(0);setAvailability("Fully available");setUnavailable("");setDirty(true);setMessage({kind:"info",text:"Default inputs restored. Run the optimization to refresh results."});};
- const outage=(value:string)=>{setAvailability(value);change();const m=market.product_minutes===15?4:1;setUnavailable(value==="Morning outage"?String(6*m)+", "+String(7*m):value==="Evening peak outage"?String(18*m)+", "+String(19*m):value==="Custom"?unavailable:"");};
- const chooseOrder=(o:Order)=>{setSelected(o);setVolume(String(o.volume_mw));setPrice(String(o.limit_price_eur_mwh));setComment("");setExclude(false);};
- const edit=async()=>{if(!result||!selected)return;setBusy(true);try{const next=await api<Simulation>("/api/order-proposals/"+result.simulation_id,{method:"PATCH",body:JSON.stringify({adjustments:[{order_id:selected.order_id,volume_mw:volume?Number(volume):null,limit_price_eur_mwh:price?Number(price):null,exclude,comment}]})});setResult(next);setSelected(undefined);setMessage({kind:next.validation.status==="passed"?"success":"error",text:"Trader change recorded. Validation "+next.validation.status+"."});}catch(e){setMessage({kind:"error",text:(e instanceof Error?e.message:"Order edit failed")+". Correct the order and retry."});}finally{setBusy(false);}};
- const approve=async()=>{if(!result)return;setBusy(true);try{const x=await api<{approval_status:string}>("/api/order-proposals/"+result.simulation_id+"/approve",{method:"POST"});setResult({...result,approval_status:x.approval_status,orders:result.orders.map(o=>({...o,status:"APPROVED"}))});setMessage({kind:"success",text:"Approved for demo export. No external submission occurred."});}catch(e){setMessage({kind:"error",text:(e instanceof Error?e.message:"Approval failed")+". Resolve validation findings first."});}finally{setBusy(false);}};
- const summary=result?.summary??{},cyclePct=Math.min(100,((summary.equivalent_cycles??0)/battery.max_equivalent_cycles)*100),delta=result&&baseline?result.summary.expected_contribution_eur-baseline.summary.expected_contribution_eur:undefined,dst=result&&result.dispatch.length!==(market.product_minutes===60?24:96);
- return <><a className="skip-link" href="#workbench">Skip to Workbench</a><header className="topbar"><Link className="brand" href="/" aria-label="Workbench home"><span className="logo" translate="no">IWB</span><span className="brand-copy"><strong>BESS Day-Ahead Workbench</strong><span>Spot trading decision support</span></span></Link><nav className="app-nav" aria-label="Application"><Link className="active" href="/">Workbench</Link><Link href="/present">Presentation</Link><Link href="/audit">Audit Trail</Link></nav><div className="header-status"><span className="pill neutral"><Info size={14} aria-hidden="true"/>Illustrative forecast</span><span className="pill"><Clock3 size={14} aria-hidden="true"/>Gate closes 12:00 <span className="desktop-only">Europe/Zurich*</span></span></div></header><div className="safety"><ShieldCheck size={16} aria-hidden="true"/><strong>PROTOTYPE SIMULATION</strong><span>Illustrative prices · no exchange connection or live submission.</span></div>
- <main id="workbench"><section className="context-bar"><div><span className="eyebrow">DELIVERY CASE</span><h1>From Forecast to Feasible Orders</h1><p>{formatDate(date)} · {market.bidding_zone} · {market.product_minutes}-minute products</p></div><div className="battery-summary"><BatteryCharging aria-hidden="true"/><span><strong>100 MWh / 50 MW</strong><small>2-hour battery system</small></span></div></section><section className="workspace"><aside className="panel inputs" aria-labelledby="input-title"><div className="panel-title"><div><span>01</span><h2 id="input-title">Configure the Case</h2></div><button className="icon-button" onClick={reset} aria-label="Reset all inputs" title="Reset interview case"><RotateCcw size={17} aria-hidden="true"/></button></div>
- <fieldset><legend>Delivery & Market</legend><label htmlFor="date">Delivery date<input id="date" name="date" autoComplete="off" type="date" value={date} onChange={e=>{setDate(e.target.value);change();}}/></label><label htmlFor="duration">Product duration <span className="assumption">assumption</span><select id="duration" name="duration" autoComplete="off" value={market.product_minutes} onChange={e=>{setMarket({...market,product_minutes:Number(e.target.value) as 15|60});setAvailability("Fully available");setUnavailable("");change();}}><option value="60">60 minutes</option><option value="15">15 minutes</option></select></label><label htmlFor="scenario">Forecast scenario<select id="scenario" name="scenario" autoComplete="off" value={scenario} onChange={e=>{const v=e.target.value;setScenario(v);if(v==="Downside"){setStrategy("conservative");setPeak(15);}else{setStrategy("expected_value");setPeak(v==="Peak compression"?25:0);}change();}}><option>Expected forecast</option><option>Downside</option><option>Peak compression</option><option>Availability stress</option></select><small>{scenarioDescription(scenario)}</small></label></fieldset>
- <fieldset><legend>Battery Constraints</legend><div className="field-grid"><NF id="initial" label="Initial SoC" hint="Stored energy at 00:00" value={battery.initial_soc_mwh} unit="MWh" change={v=>batteryChange("initial_soc_mwh",v)}/><NF id="target" label="End-of-day SoC" hint="Required terminal energy" value={battery.target_soc_mwh} unit="MWh" change={v=>batteryChange("target_soc_mwh",v)}/><NF id="min" label="Minimum SoC" value={battery.min_soc_mwh} unit="MWh" change={v=>batteryChange("min_soc_mwh",v)}/><NF id="max" label="Maximum SoC" value={battery.max_soc_mwh} unit="MWh" change={v=>batteryChange("max_soc_mwh",v)}/><NF id="power" label="Power limit" hint="100 MWh ÷ 2 h" value={battery.grid_limit_mw} unit="MW" change={v=>batteryChange("grid_limit_mw",v)}/><NF id="efficiency" label="Round-trip efficiency" value={battery.round_trip_efficiency*100} unit="%" change={v=>batteryChange("round_trip_efficiency",v/100)}/><NF id="degradation" label="Degradation cost" value={battery.degradation_cost_eur_per_mwh} unit="€/MWh" change={v=>batteryChange("degradation_cost_eur_per_mwh",v)}/><NF id="cycles" label="Daily cycle budget" hint="Equivalent full cycles" value={battery.max_equivalent_cycles} unit="EFC" step=".1" change={v=>batteryChange("max_equivalent_cycles",v)}/></div></fieldset>
- <fieldset><legend>Asset Availability</legend><label htmlFor="availability">Availability preset<select id="availability" name="availability" autoComplete="off" value={availability} onChange={e=>outage(e.target.value)}><option>Fully available</option><option>Morning outage</option><option>Evening peak outage</option><option>Custom</option></select></label><button className="advanced-toggle" type="button" aria-expanded={advanced} onClick={()=>setAdvanced(x=>!x)}><SlidersHorizontal size={15} aria-hidden="true"/>Advanced Interval Input</button>{advanced&&<label htmlFor="intervals">Unavailable interval indices<input id="intervals" name="intervals" autoComplete="off" inputMode="numeric" placeholder="Example: 6, 18…" value={unavailable} onChange={e=>{setUnavailable(e.target.value);setAvailability("Custom");change();}}/><small>Advanced model input. Indices start at 0.</small></label>}</fieldset>{dirty&&result&&<div className="stale-note"><AlertTriangle size={15} aria-hidden="true"/>Inputs changed. Results show the previous run.</div>}<button className="primary run-button" onClick={()=>void run()} disabled={busy}>{busy?<LoaderCircle className="spinner" size={18}/>:<Play size={18}/>} {busy?"Optimizing…":result?"Re-run Optimization":"Run Optimization"}</button></aside>
- <div className="main-column"><section className="kpis" aria-label="Optimization summary"><Kpi label="Expected Net Contribution" value={money(summary.expected_contribution_eur)} detail="Sales − purchases − degradation" tone={result?"good":""}/><Kpi label="Daily Throughput" value={num(summary.throughput_mwh)+" / "+num(2*battery.capacity_mwh*battery.max_equivalent_cycles,0)+" MWh"} detail={num(summary.equivalent_cycles,2)+" EFC · "+num(cyclePct,0)+"% of budget"} progress={cyclePct}/><Kpi label="State of Charge" value={num(summary.min_soc_mwh,0)+"–"+num(summary.max_soc_mwh,0)+" MWh"} detail={"Ends at "+num(result?.optimization.terminal_soc_mwh,0)+" MWh · target "+battery.target_soc_mwh}/><Kpi label="Order Proposal" value={String(summary.order_count??0)+" "+(summary.order_count===1?"order":"orders")} detail={result?.approval_status?"Approved for demo export":result?.validation.status==="passed"?"Validated draft":result?"Requires attention":"Pending optimization"} tone={result?.validation.status==="passed"?"good":result?"warn":""}/></section>{message&&<div ref={errorRef} tabIndex={message.kind==="error"?-1:undefined} className={"status-message "+message.kind} role={message.kind==="error"?"alert":"status"} aria-live="polite">{message.kind==="error"?<AlertTriangle size={17}/>:<CheckCircle2 size={17}/>} {message.text}</div>}{dst&&<div className="status-message warning"><AlertTriangle size={17}/>DST delivery day: {result?.dispatch.length} unambiguous UTC intervals are shown.</div>}<nav className="tabs" role="tablist" aria-label="Optimization results">{tabs.map(([key,label],i)=><button key={key} id={"tab-"+key} role="tab" aria-selected={tab===key} aria-controls={"panel-"+key} tabIndex={tab===key?0:-1} className={tab===key?"active":""} onClick={()=>chooseTab(key)} onKeyDown={e=>tabKey(e,i)}>{label}</button>)}</nav><section id={"panel-"+tab} role="tabpanel" aria-labelledby={"tab-"+tab} className="panel result-panel">{tab==="schedule"&&<Schedule result={result} busy={busy}/>} {tab==="orders"&&<Orders result={result} busy={busy} selected={selected} choose={chooseOrder} close={()=>setSelected(undefined)} volume={volume} price={price} comment={comment} exclude={exclude} setVolume={setVolume} setPrice={setPrice} setComment={setComment} setExclude={setExclude} edit={edit} approve={approve}/>} {tab==="proof"&&<ProofView result={result} battery={battery}/>} {tab==="compare"&&<Compare result={result} baseline={baseline} delta={delta} scenario={scenario} setBase={()=>{if(result){setBaseline(result);setMessage({kind:"info",text:result.scenario_name+" is now the comparison baseline."});}}}/>}</section></div></section></main><footer><span>Interview prototype · illustrative data · <span translate="no">{result?.simulation_id??"not run"}</span></span><span>* Confirm exchange rules, timing, increments and order types with IWB.</span></footer></>;
+export default function Workbench() {
+  const [battery, setBattery] = useState(defaultBattery),
+    [market, setMarket] = useState(defaultMarket),
+    [date, setDate] = useState("2026-09-09"),
+    [scenario, setScenario] = useState("Expected forecast"),
+    [strategy, setStrategy] = useState("expected_value"),
+    [peak, setPeak] = useState(0),
+    [availability, setAvailability] = useState("Fully available"),
+    [unavailable, setUnavailable] = useState("");
+  const [result, setResult] = useState<Simulation>(),
+    [baseline, setBaseline] = useState<Simulation>(),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState<{ kind: string; text: string } | null>(
+      null,
+    ),
+    [dirty, setDirty] = useState(false),
+    [advanced, setAdvanced] = useState(false),
+    [tab, setTab] = useState<TabKey>("schedule"),
+    [selected, setSelected] = useState<Order>(),
+    [volume, setVolume] = useState(""),
+    [price, setPrice] = useState(""),
+    [comment, setComment] = useState(""),
+    [exclude, setExclude] = useState(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const run = async (first = false) => {
+    const error = validate(battery, date, unavailable);
+    if (error) {
+      setMessage({ kind: "error", text: error });
+      setTimeout(() => errorRef.current?.focus(), 0);
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      const next = await api<Simulation>("/api/simulations", {
+        method: "POST",
+        body: JSON.stringify({
+          delivery_date: date,
+          scenario_name: scenario,
+          battery: {
+            ...battery,
+            unavailable_intervals: parseIntervals(unavailable),
+          },
+          market,
+          strategy,
+          peak_reduction_eur_mwh: peak,
+        }),
+      });
+      setResult(next);
+      if (first || !baseline) setBaseline(next);
+      setDirty(false);
+      setSelected(undefined);
+      setMessage({
+        kind: next.validation.status === "passed" ? "success" : "error",
+        text:
+          "Optimization complete: " +
+          next.orders.length +
+          " draft orders generated; validation " +
+          next.validation.status +
+          ".",
+      });
+    } catch (e) {
+      setMessage({
+        kind: "error",
+        text:
+          (e instanceof Error ? e.message : "Simulation failed") +
+          ". Review the inputs and run again.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+  // Preload is intentionally tied to the initial workbench mount.
+  useEffect(() => {
+    const timer = setTimeout(() => void run(true), 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const change = () => {
+    if (result) setDirty(true);
+    setMessage(null);
+  };
+  const chooseTab = (key: TabKey) => {
+    setTab(key);
+    const url = new URL(location.href);
+    url.searchParams.set("tab", key);
+    history.replaceState({}, "", url);
+  };
+  const tabKey = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    e.preventDefault();
+    const n =
+      e.key === "Home"
+        ? 0
+        : e.key === "End"
+          ? tabs.length - 1
+          : (i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    chooseTab(tabs[n][0]);
+    document.getElementById("tab-" + tabs[n][0])?.focus();
+  };
+  const batteryChange = (key: keyof Battery, value: number) => {
+    setBattery((x) => ({ ...x, [key]: value }));
+    change();
+  };
+  const reset = () => {
+    setBattery(defaultBattery);
+    setMarket(defaultMarket);
+    setDate("2026-09-09");
+    setScenario("Expected forecast");
+    setStrategy("expected_value");
+    setPeak(0);
+    setAvailability("Fully available");
+    setUnavailable("");
+    setDirty(true);
+    setMessage({
+      kind: "info",
+      text: "Default inputs restored. Run the optimization to refresh results.",
+    });
+  };
+  const outage = (value: string) => {
+    setAvailability(value);
+    change();
+    const m = market.product_minutes === 15 ? 4 : 1;
+    setUnavailable(
+      value === "Morning outage"
+        ? String(6 * m) + ", " + String(7 * m)
+        : value === "Evening peak outage"
+          ? String(18 * m) + ", " + String(19 * m)
+          : value === "Custom"
+            ? unavailable
+            : "",
+    );
+  };
+  const chooseOrder = (o: Order) => {
+    setSelected(o);
+    setVolume(String(o.volume_mw));
+    setPrice(String(o.limit_price_eur_mwh));
+    setComment("");
+    setExclude(false);
+  };
+  const edit = async () => {
+    if (!result || !selected) return;
+    setBusy(true);
+    try {
+      const next = await api<Simulation>(
+        "/api/order-proposals/" + result.simulation_id,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            adjustments: [
+              {
+                order_id: selected.order_id,
+                volume_mw: volume ? Number(volume) : null,
+                limit_price_eur_mwh: price ? Number(price) : null,
+                exclude,
+                comment,
+              },
+            ],
+          }),
+        },
+      );
+      setResult(next);
+      setSelected(undefined);
+      setMessage({
+        kind: next.validation.status === "passed" ? "success" : "error",
+        text:
+          "Trader change recorded. Validation " + next.validation.status + ".",
+      });
+    } catch (e) {
+      setMessage({
+        kind: "error",
+        text:
+          (e instanceof Error ? e.message : "Order edit failed") +
+          ". Correct the order and retry.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const approve = async () => {
+    if (!result) return;
+    setBusy(true);
+    try {
+      const x = await api<{ approval_status: string }>(
+        "/api/order-proposals/" + result.simulation_id + "/approve",
+        { method: "POST" },
+      );
+      setResult({
+        ...result,
+        approval_status: x.approval_status,
+        orders: result.orders.map((o) => ({ ...o, status: "APPROVED" })),
+      });
+      setMessage({
+        kind: "success",
+        text: "Approved for demo export. No external submission occurred.",
+      });
+    } catch (e) {
+      setMessage({
+        kind: "error",
+        text:
+          (e instanceof Error ? e.message : "Approval failed") +
+          ". Resolve validation findings first.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const summary = result?.summary ?? {},
+    cyclePct = Math.min(
+      100,
+      ((summary.equivalent_cycles ?? 0) / battery.max_equivalent_cycles) * 100,
+    ),
+    delta =
+      result && baseline
+        ? result.summary.expected_contribution_eur -
+          baseline.summary.expected_contribution_eur
+        : undefined,
+    dst =
+      result &&
+      result.dispatch.length !== (market.product_minutes === 60 ? 24 : 96);
+  return (
+    <>
+      <a className="skip-link" href="#workbench">
+        Skip to Workbench
+      </a>
+      <header className="topbar">
+        <Link className="brand" href="/" aria-label="Workbench home">
+          <span className="logo" translate="no">
+            IWB
+          </span>
+          <span className="brand-copy">
+            <strong>BESS Day-Ahead Workbench</strong>
+            <span>Spot trading decision support</span>
+          </span>
+        </Link>
+        <div className="header-status">
+          <Link className="header-action" href="/audit/">
+            <History size={15} aria-hidden="true" /> Decision Log
+          </Link>
+          <span className="pill neutral">
+            <Info size={14} aria-hidden="true" />
+            Illustrative forecast
+          </span>
+          <span className="pill">
+            <Clock3 size={14} aria-hidden="true" />
+            Gate closes 12:00{" "}
+            <span className="desktop-only">Europe/Zurich*</span>
+          </span>
+        </div>
+      </header>
+      <div className="safety">
+        <ShieldCheck size={16} aria-hidden="true" />
+        <strong>MODELLING ENVIRONMENT</strong>
+        <span>
+          Indicative prices · no live market connectivity or order submission.
+        </span>
+      </div>
+      <main id="workbench">
+        <section className="context-bar">
+          <div>
+            <span className="eyebrow">DELIVERY CASE</span>
+            <h1>From Forecast to Feasible Orders</h1>
+            <p>
+              {formatDate(date)} · {market.bidding_zone} ·{" "}
+              {market.product_minutes}-minute products
+            </p>
+          </div>
+          <div className="battery-summary">
+            <BatteryCharging aria-hidden="true" />
+            <span>
+              <strong>100 MWh / 50 MW</strong>
+              <small>2-hour battery system</small>
+            </span>
+          </div>
+        </section>
+        <section className="workspace">
+          <aside className="panel inputs" aria-labelledby="input-title">
+            <div className="panel-title">
+              <div>
+                <span>01</span>
+                <h2 id="input-title">Configure the Case</h2>
+              </div>
+              <button
+                className="icon-button"
+                onClick={reset}
+                aria-label="Reset all inputs"
+                title="Reset case inputs"
+              >
+                <RotateCcw size={17} aria-hidden="true" />
+              </button>
+            </div>
+            <fieldset>
+              <legend>Delivery & Market</legend>
+              <label htmlFor="date">
+                Delivery date
+                <input
+                  id="date"
+                  name="date"
+                  autoComplete="off"
+                  type="date"
+                  value={date}
+                  onChange={(e) => {
+                    setDate(e.target.value);
+                    change();
+                  }}
+                />
+              </label>
+              <label htmlFor="duration">
+                Product duration <span className="assumption">assumption</span>
+                <select
+                  id="duration"
+                  name="duration"
+                  autoComplete="off"
+                  value={market.product_minutes}
+                  onChange={(e) => {
+                    setMarket({
+                      ...market,
+                      product_minutes: Number(e.target.value) as 15 | 60,
+                    });
+                    setAvailability("Fully available");
+                    setUnavailable("");
+                    change();
+                  }}
+                >
+                  <option value="60">60 minutes</option>
+                  <option value="15">15 minutes</option>
+                </select>
+              </label>
+              <label htmlFor="scenario">
+                Forecast scenario
+                <select
+                  id="scenario"
+                  name="scenario"
+                  autoComplete="off"
+                  value={scenario}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setScenario(v);
+                    if (v === "Downside") {
+                      setStrategy("conservative");
+                      setPeak(15);
+                    } else {
+                      setStrategy("expected_value");
+                      setPeak(v === "Peak compression" ? 25 : 0);
+                    }
+                    change();
+                  }}
+                >
+                  <option>Expected forecast</option>
+                  <option>Downside</option>
+                  <option>Peak compression</option>
+                  <option>Availability stress</option>
+                </select>
+                <small>{scenarioDescription(scenario)}</small>
+              </label>
+            </fieldset>
+            <fieldset>
+              <legend>Battery Constraints</legend>
+              <div className="field-grid">
+                <NF
+                  id="initial"
+                  label="Initial SoC"
+                  hint="Stored energy at 00:00"
+                  value={battery.initial_soc_mwh}
+                  unit="MWh"
+                  change={(v) => batteryChange("initial_soc_mwh", v)}
+                />
+                <NF
+                  id="target"
+                  label="End-of-day SoC"
+                  hint="Required terminal energy"
+                  value={battery.target_soc_mwh}
+                  unit="MWh"
+                  change={(v) => batteryChange("target_soc_mwh", v)}
+                />
+                <NF
+                  id="min"
+                  label="Minimum SoC"
+                  value={battery.min_soc_mwh}
+                  unit="MWh"
+                  change={(v) => batteryChange("min_soc_mwh", v)}
+                />
+                <NF
+                  id="max"
+                  label="Maximum SoC"
+                  value={battery.max_soc_mwh}
+                  unit="MWh"
+                  change={(v) => batteryChange("max_soc_mwh", v)}
+                />
+                <NF
+                  id="power"
+                  label="Power limit"
+                  hint="100 MWh ÷ 2 h"
+                  value={battery.grid_limit_mw}
+                  unit="MW"
+                  change={(v) => batteryChange("grid_limit_mw", v)}
+                />
+                <NF
+                  id="efficiency"
+                  label="Round-trip efficiency"
+                  value={battery.round_trip_efficiency * 100}
+                  unit="%"
+                  change={(v) =>
+                    batteryChange("round_trip_efficiency", v / 100)
+                  }
+                />
+                <NF
+                  id="degradation"
+                  label="Degradation cost"
+                  value={battery.degradation_cost_eur_per_mwh}
+                  unit="€/MWh"
+                  change={(v) =>
+                    batteryChange("degradation_cost_eur_per_mwh", v)
+                  }
+                />
+                <NF
+                  id="cycles"
+                  label="Daily cycle budget"
+                  hint="Equivalent full cycles"
+                  value={battery.max_equivalent_cycles}
+                  unit="EFC"
+                  step=".1"
+                  change={(v) => batteryChange("max_equivalent_cycles", v)}
+                />
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Asset Availability</legend>
+              <label htmlFor="availability">
+                Availability preset
+                <select
+                  id="availability"
+                  name="availability"
+                  autoComplete="off"
+                  value={availability}
+                  onChange={(e) => outage(e.target.value)}
+                >
+                  <option>Fully available</option>
+                  <option>Morning outage</option>
+                  <option>Evening peak outage</option>
+                  <option>Custom</option>
+                </select>
+              </label>
+              <button
+                className="advanced-toggle"
+                type="button"
+                aria-expanded={advanced}
+                onClick={() => setAdvanced((x) => !x)}
+              >
+                <SlidersHorizontal size={15} aria-hidden="true" />
+                Advanced Interval Input
+              </button>
+              {advanced && (
+                <label htmlFor="intervals">
+                  Unavailable interval indices
+                  <input
+                    id="intervals"
+                    name="intervals"
+                    autoComplete="off"
+                    inputMode="numeric"
+                    placeholder="Example: 6, 18…"
+                    value={unavailable}
+                    onChange={(e) => {
+                      setUnavailable(e.target.value);
+                      setAvailability("Custom");
+                      change();
+                    }}
+                  />
+                  <small>Advanced model input. Indices start at 0.</small>
+                </label>
+              )}
+            </fieldset>
+            {dirty && result && (
+              <div className="stale-note">
+                <AlertTriangle size={15} aria-hidden="true" />
+                Inputs changed. Results show the previous run.
+              </div>
+            )}
+            <button
+              className="primary run-button"
+              onClick={() => void run()}
+              disabled={busy}
+            >
+              {busy ? (
+                <LoaderCircle className="spinner" size={18} />
+              ) : (
+                <Play size={18} />
+              )}{" "}
+              {busy
+                ? "Optimizing…"
+                : result
+                  ? "Re-run Optimization"
+                  : "Run Optimization"}
+            </button>
+          </aside>
+          <div className="main-column">
+            <section className="kpis" aria-label="Optimization summary">
+              <Kpi
+                label="Expected Net Contribution"
+                value={money(summary.expected_contribution_eur)}
+                detail="Sales − purchases − degradation"
+                tone={result ? "good" : ""}
+              />
+              <Kpi
+                label="Daily Throughput"
+                value={
+                  num(summary.throughput_mwh) +
+                  " / " +
+                  num(
+                    2 * battery.capacity_mwh * battery.max_equivalent_cycles,
+                    0,
+                  ) +
+                  " MWh"
+                }
+                detail={
+                  num(summary.equivalent_cycles, 2) +
+                  " EFC · " +
+                  num(cyclePct, 0) +
+                  "% of budget"
+                }
+                progress={cyclePct}
+              />
+              <Kpi
+                label="State of Charge"
+                value={
+                  num(summary.min_soc_mwh, 0) +
+                  "–" +
+                  num(summary.max_soc_mwh, 0) +
+                  " MWh"
+                }
+                detail={
+                  "Ends at " +
+                  num(result?.optimization.terminal_soc_mwh, 0) +
+                  " MWh · target " +
+                  battery.target_soc_mwh
+                }
+              />
+              <Kpi
+                label="Order Proposal"
+                value={
+                  String(summary.order_count ?? 0) +
+                  " " +
+                  (summary.order_count === 1 ? "order" : "orders")
+                }
+                detail={
+                  result?.approval_status
+                    ? "Approved for demo export"
+                    : result?.validation.status === "passed"
+                      ? "Validated draft"
+                      : result
+                        ? "Requires attention"
+                        : "Pending optimization"
+                }
+                tone={
+                  result?.validation.status === "passed"
+                    ? "good"
+                    : result
+                      ? "warn"
+                      : ""
+                }
+              />
+            </section>
+            {message && (
+              <div
+                ref={errorRef}
+                tabIndex={message.kind === "error" ? -1 : undefined}
+                className={"status-message " + message.kind}
+                role={message.kind === "error" ? "alert" : "status"}
+                aria-live="polite"
+              >
+                {message.kind === "error" ? (
+                  <AlertTriangle size={17} />
+                ) : (
+                  <CheckCircle2 size={17} />
+                )}{" "}
+                {message.text}
+              </div>
+            )}
+            {dst && (
+              <div className="status-message warning">
+                <AlertTriangle size={17} />
+                DST delivery day: {result?.dispatch.length} unambiguous UTC
+                intervals are shown.
+              </div>
+            )}
+            <nav
+              className="tabs"
+              role="tablist"
+              aria-label="Optimization results"
+            >
+              {tabs.map(([key, label], i) => (
+                <button
+                  key={key}
+                  id={"tab-" + key}
+                  role="tab"
+                  aria-selected={tab === key}
+                  aria-controls={"panel-" + key}
+                  tabIndex={tab === key ? 0 : -1}
+                  className={tab === key ? "active" : ""}
+                  onClick={() => chooseTab(key)}
+                  onKeyDown={(e) => tabKey(e, i)}
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
+            <section
+              id={"panel-" + tab}
+              role="tabpanel"
+              aria-labelledby={"tab-" + tab}
+              className="panel result-panel"
+            >
+              {tab === "schedule" && <Schedule result={result} busy={busy} />}{" "}
+              {tab === "orders" && (
+                <Orders
+                  result={result}
+                  busy={busy}
+                  selected={selected}
+                  choose={chooseOrder}
+                  close={() => setSelected(undefined)}
+                  volume={volume}
+                  price={price}
+                  comment={comment}
+                  exclude={exclude}
+                  setVolume={setVolume}
+                  setPrice={setPrice}
+                  setComment={setComment}
+                  setExclude={setExclude}
+                  edit={edit}
+                  approve={approve}
+                />
+              )}{" "}
+              {tab === "proof" && (
+                <ProofView result={result} battery={battery} />
+              )}{" "}
+              {tab === "compare" && (
+                <Compare
+                  result={result}
+                  baseline={baseline}
+                  delta={delta}
+                  scenario={scenario}
+                  setBase={() => {
+                    if (result) {
+                      setBaseline(result);
+                      setMessage({
+                        kind: "info",
+                        text:
+                          result.scenario_name +
+                          " is now the comparison baseline.",
+                      });
+                    }
+                  }}
+                />
+              )}
+            </section>
+          </div>
+        </section>
+      </main>
+      <footer>
+        <span>
+          Illustrative data · run{" "}
+          <span translate="no">{result?.simulation_id ?? "not started"}</span>
+        </span>
+        <span>
+          * Confirm exchange rules, timing, increments and order types with IWB.
+        </span>
+      </footer>
+    </>
+  );
 }
 
-function Head({n,title,text,aside,action}:{n:string;title:string;text:string;aside?:string;action?:React.ReactNode}){return <div className="section-head"><div><span>{n}</span><div><h2>{title}</h2><p>{text}</p></div></div>{action??<small>{aside}</small>}</div>;}
-function Schedule({result,busy}:{result?:Simulation;busy:boolean}){return <><Head n="02" title="Optimized Dispatch" text="Price opportunity, battery response and state of charge across the delivery day." aside="Charge − · Discharge +"/>{busy?<Empty icon={<LoaderCircle className="spinner"/>} title="Optimizing delivery intervals…" text="Applying efficiency, SoC, power, availability and cycle constraints."/>:result?<DispatchChart rows={result.dispatch}/>:<Empty title="No result yet" text="Configure the case and run the optimization."/>}</>;}
-type OP={result?:Simulation;busy:boolean;selected?:Order;choose:(o:Order)=>void;close:()=>void;volume:string;price:string;comment:string;exclude:boolean;setVolume:(v:string)=>void;setPrice:(v:string)=>void;setComment:(v:string)=>void;setExclude:(v:boolean)=>void;edit:()=>void;approve:()=>void};
-function Orders(p:OP){const impact=p.selected?estimate(p.selected,p.volume)-p.selected.expected_contribution_eur:0;return <><Head n="03" title="Generated Day-Ahead Orders" text="Select a row to apply a controlled trader intervention." aside="No live submission"/><OrderTable orders={p.result?.orders??[]} selectedId={p.selected?.order_id} onSelect={p.choose}/>{p.selected&&<aside className="edit-drawer" aria-labelledby="edit-title"><div className="drawer-head"><div><span className={"side "+p.selected.side.toLowerCase()}>{p.selected.side}</span><h3 id="edit-title">Edit {orderTime(p.selected.delivery_local)} Order</h3></div><button className="icon-button" aria-label="Close order editor" onClick={p.close}><X size={18}/></button></div><div className="before-after"><span><small>Optimizer Volume</small><strong>{num(p.selected.volume_mw)} MW</strong></span><span><small>Optimizer Limit</small><strong>{perMwh(p.selected.limit_price_eur_mwh)}</strong></span><span><small>Estimated Impact</small><strong className={impact>=0?"positive":"negative"}>{signedMoney(impact)}</strong></span></div><div className="edit-fields"><TextNumber id="trade-volume" label="Trader volume" unit="MW" value={p.volume} step=".1" change={p.setVolume}/><TextNumber id="trade-price" label="Trader limit price" unit="€/MWh" value={p.price} step=".01" change={p.setPrice}/><label className="reason" htmlFor="reason">Decision rationale<input id="reason" name="reason" autoComplete="off" placeholder="Explain why this order should change…" value={p.comment} onChange={e=>p.setComment(e.target.value)}/><small>Required for audit trail · at least 3 characters</small></label><label className="check-label"><input type="checkbox" checked={p.exclude} onChange={e=>p.setExclude(e.target.checked)}/>Exclude this order</label></div><button className="secondary drawer-action" disabled={p.comment.trim().length<3||p.busy} onClick={p.edit}>{p.busy?"Revalidating…":"Apply Change & Revalidate"}</button></aside>}<div className="approval-bar"><div><strong>{p.result?.validation.status==="passed"?"Ready for trader approval":"Approval blocked"}</strong><span>{p.result?.validation.status==="passed"?"Physical and market validation passed.":"Resolve validation findings before export."}</span></div><div className="actions"><button className="secondary" disabled={!p.result||p.busy||p.result.validation.status!=="passed"} onClick={()=>p.result&&open(API+"/api/order-proposals/"+p.result.simulation_id+"/export")}><Download size={16}/>Export CSV</button><button className="primary compact" disabled={!p.result||p.result.validation.status!=="passed"||p.busy||Boolean(p.result.approval_status)} onClick={p.approve}><FileCheck2 size={16}/>{p.result?.approval_status?"Approved for Demo Export":"Approve for Demo Export"}</button></div></div></>;}
-function ProofView({result,battery}:{result?:Simulation;battery:Battery}){const s=result?.summary??{},power=result?Math.max(...result.dispatch.map(x=>Math.abs(x.power_mw))):0,rows=result?[["Power limit",num(battery.grid_limit_mw)+" MW",num(power)+" MW",num(Math.max(0,battery.grid_limit_mw-power))+" MW"],["Minimum SoC",num(battery.min_soc_mwh)+" MWh",num(s.min_soc_mwh)+" MWh",num(Math.max(0,(s.min_soc_mwh??0)-battery.min_soc_mwh))+" MWh"],["Maximum SoC",num(battery.max_soc_mwh)+" MWh",num(s.max_soc_mwh)+" MWh",num(Math.max(0,battery.max_soc_mwh-(s.max_soc_mwh??0)))+" MWh"],["Cycle budget",num(battery.max_equivalent_cycles,2)+" EFC",num(s.equivalent_cycles,2)+" EFC",num(Math.max(0,battery.max_equivalent_cycles-(s.equivalent_cycles??0)),2)+" EFC"],["Terminal SoC",num(battery.target_soc_mwh)+" MWh",num(result.optimization.terminal_soc_mwh)+" MWh",num(Math.abs(result.optimization.terminal_soc_mwh-battery.target_soc_mwh))+" MWh"]]:[];return <><Head n="04" title="Feasibility & Decision Proof" text="Every proposed order is reconciled with the physical battery schedule." aside={title(result?.validation.status??"pending")}/>{!result?<Empty title="No validation evidence yet" text="Run the optimization to produce a feasibility proof."/>:<><div className="proof-summary"><CheckCircle2 size={26}/><div><strong>Physical schedule and order package passed validation</strong><span>All modeled battery and market constraints are satisfied.</span></div></div><div className="constraint-table"><div className="constraint-row header"><strong>Constraint</strong><span>Limit</span><span>Observed</span><span>Headroom</span><span>Result</span></div>{rows.map(r=><div className="constraint-row" key={r[0]}><strong>{r[0]}</strong><span>{r[1]}</span><span>{r[2]}</span><span>{r[3]}</span><span className="binding">{r[3].startsWith("0.0")?"Binding":"Passed"}</span></div>)}</div><details className="solver-details"><summary>Solver & Model Details</summary><div className="proof-grid"><Proof label="Objective" value={result.optimization.objective}/><Proof label="Engine" value={result.optimization.engine}/><Proof label="Solver status" value={result.optimization.solver_status??"–"}/><Proof label="Solve time" value={num(result.optimization.solve_time_ms,2)+" ms"}/></div><ul className="checks">{result.optimization.constraints.map(x=><li key={x}><CheckCircle2 size={15}/>{title(x)}</li>)}</ul></details></>}</>;}
-function Compare({result,baseline,delta,scenario,setBase}:{result?:Simulation;baseline?:Simulation;delta?:number;scenario:string;setBase:()=>void}){const rows=[["Expected net contribution",money(baseline?.summary.expected_contribution_eur),money(result?.summary.expected_contribution_eur),signedMoney(delta)],["Daily throughput",num(baseline?.summary.throughput_mwh)+" MWh",num(result?.summary.throughput_mwh)+" MWh",signed((result?.summary.throughput_mwh??0)-(baseline?.summary.throughput_mwh??0)," MWh")],["Equivalent cycles",num(baseline?.summary.equivalent_cycles,2),num(result?.summary.equivalent_cycles,2),signed((result?.summary.equivalent_cycles??0)-(baseline?.summary.equivalent_cycles??0),"")],["Orders",String(baseline?.summary.order_count??0),String(result?.summary.order_count??0),signed((result?.summary.order_count??0)-(baseline?.summary.order_count??0),"")]];return <><Head n="05" title="Scenario Comparison" text="Measure how changed assumptions affect the recommendation." action={<button className="secondary small" disabled={!result} onClick={setBase}>Set as Comparison Baseline</button>}/><div className="scenario-callout"><strong>Current: {scenario}</strong><span>{result?.scenario_name===baseline?.scenario_name?"Run another scenario to reveal the optimization response.":"Compared with "+(baseline?.scenario_name??"the baseline")+"."}</span></div><div className="compare"><div className="compare-row compare-head"><strong>Metric</strong><span>Baseline</span><span>Current</span><span>Difference</span></div>{rows.map(r=><div className="compare-row" key={r[0]}><strong>{r[0]}</strong><span><small>Baseline</small>{r[1]}</span><span><small>Current</small>{r[2]}</span><span className={"delta "+(r[3].startsWith("−")?"negative":r[3]==="–"?"neutral":"positive")}><small>Difference</small>{r[3]}</span></div>)}</div></>;}
-function NF({id,label,hint,value,unit,step="1",change}:{id:string;label:string;hint?:string;value:number;unit:string;step?:string;change:(v:number)=>void}){return <label htmlFor={id}>{label}<div className="number"><input id={id} name={id} autoComplete="off" inputMode="decimal" type="number" step={step} value={value} onChange={e=>change(Number(e.target.value))}/><span>{unit}</span></div>{hint&&<small>{hint}</small>}</label>;}
-function TextNumber({id,label,unit,value,step,change}:{id:string;label:string;unit:string;value:string;step:string;change:(v:string)=>void}){return <label htmlFor={id}>{label}<div className="number"><input id={id} name={id} autoComplete="off" inputMode="decimal" type="number" step={step} value={value} onChange={e=>change(e.target.value)}/><span>{unit}</span></div></label>;}
-function Empty({icon,title,text}:{icon?:React.ReactNode;title:string;text:string}){return <div className="state-block">{icon}<strong>{title}</strong><span>{text}</span></div>;}function Proof({label,value}:{label:string;value:string}){return <div className="proof"><span>{label}</span><strong>{value}</strong></div>;}
-const num=(v?:number,d=1)=>typeof v==="number"?new Intl.NumberFormat("en-CH",{minimumFractionDigits:d,maximumFractionDigits:d}).format(v):"–";const money=(v?:number)=>typeof v==="number"?new Intl.NumberFormat("en-CH",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(v):"–";const signedMoney=(v?:number)=>typeof v!=="number"||Math.abs(v)<.005?"–":(v>0?"+ ":"− ")+money(Math.abs(v));const signed=(v:number,u:string)=>Math.abs(v)<.005?"–":(v>0?"+ ":"− ")+num(Math.abs(v),u.includes("MWh")?1:2)+u;const perMwh=(v:number)=>money(v)+"/MWh";const title=(v:string)=>v.replaceAll("_"," ").replace(/\b\w/g,c=>c.toUpperCase());
-function formatDate(v:string){const d=new Date(v+"T12:00:00Z");return new Intl.DateTimeFormat("en-CH",{day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"}).format(d);}function orderTime(v:string){const d=new Date(v);return Number.isNaN(d.getTime())?v:new Intl.DateTimeFormat("en-CH",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Zurich",timeZoneName:"short"}).format(d);}function estimate(o:Order,v:string){const n=Number(v);return Number.isFinite(n)&&o.volume_mw?o.expected_contribution_eur*n/o.volume_mw:o.expected_contribution_eur;}function scenarioDescription(v:string){return v==="Downside"?"Conservative forecast with a €15/MWh peak reduction.":v==="Peak compression"?"Peak prices reduced by €25/MWh to test spread risk.":v==="Availability stress"?"Dispatch re-optimizes around selected outage periods.":"Illustrative central Day-Ahead price forecast.";}
-function validate(b:Battery,d:string,u:string){if(!d)return"Choose a delivery date.";if(b.min_soc_mwh<0||b.max_soc_mwh>b.capacity_mwh||b.min_soc_mwh>=b.max_soc_mwh)return"Set a valid SoC envelope between 0 and 100 MWh.";if(b.initial_soc_mwh<b.min_soc_mwh||b.initial_soc_mwh>b.max_soc_mwh)return"Initial SoC must remain inside the configured envelope.";if(b.target_soc_mwh<b.min_soc_mwh||b.target_soc_mwh>b.max_soc_mwh)return"End-of-day SoC must remain inside the configured envelope.";try{parseIntervals(u);}catch(e){return e instanceof Error?e.message:"Check unavailable intervals.";}return"";}function parseIntervals(v:string){if(!v.trim())return[];const t=v.split(",").map(x=>x.trim());if(t.some(x=>x===""))throw new Error("Remove empty unavailable-interval entries.");const n=t.map(Number);if(n.some(x=>!Number.isInteger(x)||x<0))throw new Error("Unavailable intervals must be non-negative whole numbers.");return[...new Set(n)].sort((a,b)=>a-b);}
+function Head({
+  n,
+  title,
+  text,
+  aside,
+  action,
+}: {
+  n: string;
+  title: string;
+  text: string;
+  aside?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="section-head">
+      <div>
+        <span>{n}</span>
+        <div>
+          <h2>{title}</h2>
+          <p>{text}</p>
+        </div>
+      </div>
+      {action ?? <small>{aside}</small>}
+    </div>
+  );
+}
+function Schedule({ result, busy }: { result?: Simulation; busy: boolean }) {
+  return (
+    <>
+      <Head
+        n="02"
+        title="Optimized Dispatch"
+        text="Price opportunity, battery response and state of charge across the delivery day."
+        aside="Charge − · Discharge +"
+      />
+      {busy ? (
+        <Empty
+          icon={<LoaderCircle className="spinner" />}
+          title="Optimizing delivery intervals…"
+          text="Applying efficiency, SoC, power, availability and cycle constraints."
+        />
+      ) : result ? (
+        <DispatchChart rows={result.dispatch} />
+      ) : (
+        <Empty
+          title="No result yet"
+          text="Configure the case and run the optimization."
+        />
+      )}
+    </>
+  );
+}
+type OP = {
+  result?: Simulation;
+  busy: boolean;
+  selected?: Order;
+  choose: (o: Order) => void;
+  close: () => void;
+  volume: string;
+  price: string;
+  comment: string;
+  exclude: boolean;
+  setVolume: (v: string) => void;
+  setPrice: (v: string) => void;
+  setComment: (v: string) => void;
+  setExclude: (v: boolean) => void;
+  edit: () => void;
+  approve: () => void;
+};
+function Orders(p: OP) {
+  const impact = p.selected
+    ? estimate(p.selected, p.volume) - p.selected.expected_contribution_eur
+    : 0;
+  return (
+    <>
+      <Head
+        n="03"
+        title="Generated Day-Ahead Orders"
+        text="Select a row to apply a controlled trader intervention."
+        aside="No live submission"
+      />
+      <OrderTable
+        orders={p.result?.orders ?? []}
+        selectedId={p.selected?.order_id}
+        onSelect={p.choose}
+      />
+      {p.selected && (
+        <aside className="edit-drawer" aria-labelledby="edit-title">
+          <div className="drawer-head">
+            <div>
+              <span className={"side " + p.selected.side.toLowerCase()}>
+                {p.selected.side}
+              </span>
+              <h3 id="edit-title">
+                Edit {orderTime(p.selected.delivery_local)} Order
+              </h3>
+            </div>
+            <button
+              className="icon-button"
+              aria-label="Close order editor"
+              onClick={p.close}
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <div className="before-after">
+            <span>
+              <small>Optimizer Volume</small>
+              <strong>{num(p.selected.volume_mw)} MW</strong>
+            </span>
+            <span>
+              <small>Optimizer Limit</small>
+              <strong>{perMwh(p.selected.limit_price_eur_mwh)}</strong>
+            </span>
+            <span>
+              <small>Estimated Impact</small>
+              <strong className={impact >= 0 ? "positive" : "negative"}>
+                {signedMoney(impact)}
+              </strong>
+            </span>
+          </div>
+          <div className="edit-fields">
+            <TextNumber
+              id="trade-volume"
+              label="Trader volume"
+              unit="MW"
+              value={p.volume}
+              step=".1"
+              change={p.setVolume}
+            />
+            <TextNumber
+              id="trade-price"
+              label="Trader limit price"
+              unit="€/MWh"
+              value={p.price}
+              step=".01"
+              change={p.setPrice}
+            />
+            <label className="reason" htmlFor="reason">
+              Decision rationale
+              <input
+                id="reason"
+                name="reason"
+                autoComplete="off"
+                placeholder="Explain why this order should change…"
+                value={p.comment}
+                onChange={(e) => p.setComment(e.target.value)}
+              />
+              <small>Required for audit trail · at least 3 characters</small>
+            </label>
+            <label className="check-label">
+              <input
+                type="checkbox"
+                checked={p.exclude}
+                onChange={(e) => p.setExclude(e.target.checked)}
+              />
+              Exclude this order
+            </label>
+          </div>
+          <button
+            className="secondary drawer-action"
+            disabled={p.comment.trim().length < 3 || p.busy}
+            onClick={p.edit}
+          >
+            {p.busy ? "Revalidating…" : "Apply Change & Revalidate"}
+          </button>
+        </aside>
+      )}
+      <div className="approval-bar">
+        <div>
+          <strong>
+            {p.result?.validation.status === "passed"
+              ? "Ready for trader approval"
+              : "Approval blocked"}
+          </strong>
+          <span>
+            {p.result?.validation.status === "passed"
+              ? "Physical and market validation passed."
+              : "Resolve validation findings before export."}
+          </span>
+        </div>
+        <div className="actions">
+          <button
+            className="secondary"
+            disabled={
+              !p.result || p.busy || p.result.validation.status !== "passed"
+            }
+            onClick={() =>
+              p.result &&
+              open(
+                API +
+                  "/api/order-proposals/" +
+                  p.result.simulation_id +
+                  "/export",
+              )
+            }
+          >
+            <Download size={16} />
+            Export CSV
+          </button>
+          <button
+            className="primary compact"
+            disabled={
+              !p.result ||
+              p.result.validation.status !== "passed" ||
+              p.busy ||
+              Boolean(p.result.approval_status)
+            }
+            onClick={p.approve}
+          >
+            <FileCheck2 size={16} />
+            {p.result?.approval_status
+              ? "Approved for Demo Export"
+              : "Approve for Demo Export"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+function ProofView({
+  result,
+  battery,
+}: {
+  result?: Simulation;
+  battery: Battery;
+}) {
+  const s = result?.summary ?? {},
+    power = result
+      ? Math.max(...result.dispatch.map((x) => Math.abs(x.power_mw)))
+      : 0,
+    rows = result
+      ? [
+          [
+            "Power limit",
+            num(battery.grid_limit_mw) + " MW",
+            num(power) + " MW",
+            num(Math.max(0, battery.grid_limit_mw - power)) + " MW",
+          ],
+          [
+            "Minimum SoC",
+            num(battery.min_soc_mwh) + " MWh",
+            num(s.min_soc_mwh) + " MWh",
+            num(Math.max(0, (s.min_soc_mwh ?? 0) - battery.min_soc_mwh)) +
+              " MWh",
+          ],
+          [
+            "Maximum SoC",
+            num(battery.max_soc_mwh) + " MWh",
+            num(s.max_soc_mwh) + " MWh",
+            num(Math.max(0, battery.max_soc_mwh - (s.max_soc_mwh ?? 0))) +
+              " MWh",
+          ],
+          [
+            "Cycle budget",
+            num(battery.max_equivalent_cycles, 2) + " EFC",
+            num(s.equivalent_cycles, 2) + " EFC",
+            num(
+              Math.max(
+                0,
+                battery.max_equivalent_cycles - (s.equivalent_cycles ?? 0),
+              ),
+              2,
+            ) + " EFC",
+          ],
+          [
+            "Terminal SoC",
+            num(battery.target_soc_mwh) + " MWh",
+            num(result.optimization.terminal_soc_mwh) + " MWh",
+            num(
+              Math.abs(
+                result.optimization.terminal_soc_mwh - battery.target_soc_mwh,
+              ),
+            ) + " MWh",
+          ],
+        ]
+      : [];
+  return (
+    <>
+      <Head
+        n="04"
+        title="Feasibility & Decision Proof"
+        text="Every proposed order is reconciled with the physical battery schedule."
+        aside={title(result?.validation.status ?? "pending")}
+      />
+      {!result ? (
+        <Empty
+          title="No validation evidence yet"
+          text="Run the optimization to produce a feasibility proof."
+        />
+      ) : (
+        <>
+          <div className="proof-summary">
+            <CheckCircle2 size={26} />
+            <div>
+              <strong>
+                Physical schedule and order package passed validation
+              </strong>
+              <span>
+                All modeled battery and market constraints are satisfied.
+              </span>
+            </div>
+          </div>
+          <div className="constraint-table">
+            <div className="constraint-row header">
+              <strong>Constraint</strong>
+              <span>Limit</span>
+              <span>Observed</span>
+              <span>Headroom</span>
+              <span>Result</span>
+            </div>
+            {rows.map((r) => (
+              <div className="constraint-row" key={r[0]}>
+                <strong>{r[0]}</strong>
+                <span>{r[1]}</span>
+                <span>{r[2]}</span>
+                <span>{r[3]}</span>
+                <span className="binding">
+                  {r[3].startsWith("0.0") ? "Binding" : "Passed"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <details className="solver-details">
+            <summary>Solver & Model Details</summary>
+            <div className="proof-grid">
+              <Proof label="Objective" value={result.optimization.objective} />
+              <Proof label="Engine" value={result.optimization.engine} />
+              <Proof
+                label="Solver status"
+                value={result.optimization.solver_status ?? "–"}
+              />
+              <Proof
+                label="Solve time"
+                value={num(result.optimization.solve_time_ms, 2) + " ms"}
+              />
+            </div>
+            <ul className="checks">
+              {result.optimization.constraints.map((x) => (
+                <li key={x}>
+                  <CheckCircle2 size={15} />
+                  {title(x)}
+                </li>
+              ))}
+            </ul>
+          </details>
+        </>
+      )}
+    </>
+  );
+}
+function Compare({
+  result,
+  baseline,
+  delta,
+  scenario,
+  setBase,
+}: {
+  result?: Simulation;
+  baseline?: Simulation;
+  delta?: number;
+  scenario: string;
+  setBase: () => void;
+}) {
+  const rows = [
+    [
+      "Expected net contribution",
+      money(baseline?.summary.expected_contribution_eur),
+      money(result?.summary.expected_contribution_eur),
+      signedMoney(delta),
+    ],
+    [
+      "Daily throughput",
+      num(baseline?.summary.throughput_mwh) + " MWh",
+      num(result?.summary.throughput_mwh) + " MWh",
+      signed(
+        (result?.summary.throughput_mwh ?? 0) -
+          (baseline?.summary.throughput_mwh ?? 0),
+        " MWh",
+      ),
+    ],
+    [
+      "Equivalent cycles",
+      num(baseline?.summary.equivalent_cycles, 2),
+      num(result?.summary.equivalent_cycles, 2),
+      signed(
+        (result?.summary.equivalent_cycles ?? 0) -
+          (baseline?.summary.equivalent_cycles ?? 0),
+        "",
+      ),
+    ],
+    [
+      "Orders",
+      String(baseline?.summary.order_count ?? 0),
+      String(result?.summary.order_count ?? 0),
+      signed(
+        (result?.summary.order_count ?? 0) -
+          (baseline?.summary.order_count ?? 0),
+        "",
+      ),
+    ],
+  ];
+  return (
+    <>
+      <Head
+        n="05"
+        title="Scenario Comparison"
+        text="Measure how changed assumptions affect the recommendation."
+        action={
+          <button
+            className="secondary small"
+            disabled={!result}
+            onClick={setBase}
+          >
+            Set as Comparison Baseline
+          </button>
+        }
+      />
+      <div className="scenario-callout">
+        <strong>Current: {scenario}</strong>
+        <span>
+          {result?.scenario_name === baseline?.scenario_name
+            ? "Run another scenario to reveal the optimization response."
+            : "Compared with " +
+              (baseline?.scenario_name ?? "the baseline") +
+              "."}
+        </span>
+      </div>
+      <div className="compare">
+        <div className="compare-row compare-head">
+          <strong>Metric</strong>
+          <span>Baseline</span>
+          <span>Current</span>
+          <span>Difference</span>
+        </div>
+        {rows.map((r) => (
+          <div className="compare-row" key={r[0]}>
+            <strong>{r[0]}</strong>
+            <span>
+              <small>Baseline</small>
+              {r[1]}
+            </span>
+            <span>
+              <small>Current</small>
+              {r[2]}
+            </span>
+            <span
+              className={
+                "delta " +
+                (r[3].startsWith("−")
+                  ? "negative"
+                  : r[3] === "–"
+                    ? "neutral"
+                    : "positive")
+              }
+            >
+              <small>Difference</small>
+              {r[3]}
+            </span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+function NF({
+  id,
+  label,
+  hint,
+  value,
+  unit,
+  step = "1",
+  change,
+}: {
+  id: string;
+  label: string;
+  hint?: string;
+  value: number;
+  unit: string;
+  step?: string;
+  change: (v: number) => void;
+}) {
+  return (
+    <label htmlFor={id}>
+      {label}
+      <div className="number">
+        <input
+          id={id}
+          name={id}
+          autoComplete="off"
+          inputMode="decimal"
+          type="number"
+          step={step}
+          value={value}
+          onChange={(e) => change(Number(e.target.value))}
+        />
+        <span>{unit}</span>
+      </div>
+      {hint && <small>{hint}</small>}
+    </label>
+  );
+}
+function TextNumber({
+  id,
+  label,
+  unit,
+  value,
+  step,
+  change,
+}: {
+  id: string;
+  label: string;
+  unit: string;
+  value: string;
+  step: string;
+  change: (v: string) => void;
+}) {
+  return (
+    <label htmlFor={id}>
+      {label}
+      <div className="number">
+        <input
+          id={id}
+          name={id}
+          autoComplete="off"
+          inputMode="decimal"
+          type="number"
+          step={step}
+          value={value}
+          onChange={(e) => change(e.target.value)}
+        />
+        <span>{unit}</span>
+      </div>
+    </label>
+  );
+}
+function Empty({
+  icon,
+  title,
+  text,
+}: {
+  icon?: React.ReactNode;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="state-block">
+      {icon}
+      <strong>{title}</strong>
+      <span>{text}</span>
+    </div>
+  );
+}
+function Proof({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="proof">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+const num = (v?: number, d = 1) =>
+  typeof v === "number"
+    ? new Intl.NumberFormat("en-CH", {
+        minimumFractionDigits: d,
+        maximumFractionDigits: d,
+      }).format(v)
+    : "–";
+const money = (v?: number) =>
+  typeof v === "number"
+    ? new Intl.NumberFormat("en-CH", {
+        style: "currency",
+        currency: "EUR",
+        maximumFractionDigits: 0,
+      }).format(v)
+    : "–";
+const signedMoney = (v?: number) =>
+  typeof v !== "number" || Math.abs(v) < 0.005
+    ? "–"
+    : (v > 0 ? "+ " : "− ") + money(Math.abs(v));
+const signed = (v: number, u: string) =>
+  Math.abs(v) < 0.005
+    ? "–"
+    : (v > 0 ? "+ " : "− ") + num(Math.abs(v), u.includes("MWh") ? 1 : 2) + u;
+const perMwh = (v: number) => money(v) + "/MWh";
+const title = (v: string) =>
+  v.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+function formatDate(v: string) {
+  const d = new Date(v + "T12:00:00Z");
+  return new Intl.DateTimeFormat("en-CH", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(d);
+}
+function orderTime(v: string) {
+  const d = new Date(v);
+  return Number.isNaN(d.getTime())
+    ? v
+    : new Intl.DateTimeFormat("en-CH", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Europe/Zurich",
+        timeZoneName: "short",
+      }).format(d);
+}
+function estimate(o: Order, v: string) {
+  const n = Number(v);
+  return Number.isFinite(n) && o.volume_mw
+    ? (o.expected_contribution_eur * n) / o.volume_mw
+    : o.expected_contribution_eur;
+}
+function scenarioDescription(v: string) {
+  return v === "Downside"
+    ? "Conservative forecast with a €15/MWh peak reduction."
+    : v === "Peak compression"
+      ? "Peak prices reduced by €25/MWh to test spread risk."
+      : v === "Availability stress"
+        ? "Dispatch re-optimizes around selected outage periods."
+        : "Illustrative central Day-Ahead price forecast.";
+}
+function validate(b: Battery, d: string, u: string) {
+  if (!d) return "Choose a delivery date.";
+  if (
+    b.min_soc_mwh < 0 ||
+    b.max_soc_mwh > b.capacity_mwh ||
+    b.min_soc_mwh >= b.max_soc_mwh
+  )
+    return "Set a valid SoC envelope between 0 and 100 MWh.";
+  if (b.initial_soc_mwh < b.min_soc_mwh || b.initial_soc_mwh > b.max_soc_mwh)
+    return "Initial SoC must remain inside the configured envelope.";
+  if (b.target_soc_mwh < b.min_soc_mwh || b.target_soc_mwh > b.max_soc_mwh)
+    return "End-of-day SoC must remain inside the configured envelope.";
+  try {
+    parseIntervals(u);
+  } catch (e) {
+    return e instanceof Error ? e.message : "Check unavailable intervals.";
+  }
+  return "";
+}
+function parseIntervals(v: string) {
+  if (!v.trim()) return [];
+  const t = v.split(",").map((x) => x.trim());
+  if (t.some((x) => x === ""))
+    throw new Error("Remove empty unavailable-interval entries.");
+  const n = t.map(Number);
+  if (n.some((x) => !Number.isInteger(x) || x < 0))
+    throw new Error(
+      "Unavailable intervals must be non-negative whole numbers.",
+    );
+  return [...new Set(n)].sort((a, b) => a - b);
+}

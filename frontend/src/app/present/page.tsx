@@ -1,13 +1,180 @@
 import Link from "next/link";
-import { ArrowRight,BatteryCharging,ChartNoAxesCombined,ClipboardCheck,ShieldCheck,ShoppingCart } from "lucide-react";
+import {
+  ArrowRight,
+  BatteryCharging,
+  ChartNoAxesCombined,
+  Check,
+  ClipboardCheck,
+  History,
+  ShieldCheck,
+  ShoppingCart,
+} from "lucide-react";
 import "./present.css";
-const stages=[
- ["01","Frame","100 MWh / 50 MW","Define economics and physical limits.",<BatteryCharging key="a"/>],
- ["02","Optimize","Feasible dispatch","Maximize net contribution after losses and degradation.",<ChartNoAxesCombined key="b"/>],
- ["03","Generate","BUY & SELL orders","Translate each dispatch interval into an auction-ready draft.",<ShoppingCart key="c"/>],
- ["04","Validate","Physical proof","Check SoC, power, cycles, availability and terminal energy.",<ClipboardCheck key="d"/>],
- ["05","Control","Trader approval","Record interventions, revalidate and preserve an audit trail.",<ShieldCheck key="e"/>],
+
+const workflow = [
+  [
+    "01",
+    "Configure",
+    "Set the operating envelope",
+    "Capacity, power, efficiency, availability and cycle budget.",
+    BatteryCharging,
+  ],
+  [
+    "02",
+    "Optimize",
+    "Find the best feasible schedule",
+    "Maximize expected contribution after losses and degradation.",
+    ChartNoAxesCombined,
+  ],
+  [
+    "03",
+    "Translate",
+    "Create auction orders",
+    "Convert the dispatch into clear BUY and SELL instructions.",
+    ShoppingCart,
+  ],
+  [
+    "04",
+    "Verify",
+    "Prove physical feasibility",
+    "Check SoC, power, throughput, outages and terminal energy.",
+    ClipboardCheck,
+  ],
+  [
+    "05",
+    "Control",
+    "Keep the trader in charge",
+    "Review changes, revalidate the proposal and retain evidence.",
+    ShieldCheck,
+  ],
 ] as const;
-export default function Present(){
- return <main className="present"><header className="present-head"><div className="logo">IWB</div><div><span>SECOND INTERVIEW · 10-MINUTE LIVE DEMONSTRATION</span><h1>BESS Day-Ahead Workbench</h1><p>What should IWB trade tomorrow, why is it optimal, and can it be executed safely?</p></div></header><section className="present-outcome"><div><small>BUSINESS OUTCOME</small><strong>Profitable</strong><span>Net contribution after losses and degradation</span></div><div><small>PHYSICAL OUTCOME</small><strong>Feasible</strong><span>Battery and market limits proven before approval</span></div><div><small>OPERATING MODEL</small><strong>Controlled</strong><span>Trader-in-the-loop with reproducible evidence</span></div></section><section className="story" aria-label="Demonstration flow">{stages.map(([n,title,value,body,icon])=><article key={n}><span className="story-number">{n}</span>{icon}<div><small>{title}</small><h2>{value}</h2><p>{body}</p></div></article>)}</section><section className="present-close"><div><small>DESIGN PRINCIPLE</small><strong>Forecast → feasible schedule → explainable economics → validated orders → trader control</strong></div><Link href="/">Open Live Workbench <ArrowRight size={18}/></Link></section><footer><span>Illustrative interview prototype</span><span>Swiss auction parameters remain assumptions pending IWB confirmation.</span></footer></main>;
+
+export default function ProductOverview() {
+  return (
+    <main className="overview">
+      <div className="overview-shell">
+        <header className="overview-nav">
+          <Link
+            className="overview-brand"
+            href="/"
+            aria-label="IWB BESS workbench"
+          >
+            <span className="overview-logo" translate="no">
+              IWB
+            </span>
+            <span>
+              <strong>BESS Workbench</strong>
+              <small>Day-Ahead decision support</small>
+            </span>
+          </Link>
+          <Link className="overview-audit" href="/audit/">
+            <History size={16} aria-hidden="true" />
+            Decision Log
+          </Link>
+        </header>
+        <section className="overview-hero">
+          <div className="hero-copy">
+            <span className="overview-eyebrow">
+              BATTERY TRADING · DAY-AHEAD
+            </span>
+            <h1>From price forecast to feasible orders.</h1>
+            <p>
+              Build an explainable dispatch plan for a 100&nbsp;MWh battery,
+              test it against physical constraints and keep every trading
+              decision under human control.
+            </p>
+            <div className="hero-actions">
+              <Link className="overview-primary" href="/">
+                Launch Workbench <ArrowRight size={18} aria-hidden="true" />
+              </Link>
+              <span>
+                <Check size={15} aria-hidden="true" />
+                No live order submission
+              </span>
+            </div>
+          </div>
+          <aside className="decision-card" aria-label="Decision model summary">
+            <div className="decision-head">
+              <span>DECISION MODEL</span>
+              <span className="model-status">
+                <i />
+                Ready
+              </span>
+            </div>
+            <div className="asset-line">
+              <BatteryCharging aria-hidden="true" />
+              <div>
+                <strong>100 MWh</strong>
+                <span>50 MW · 2-hour system</span>
+              </div>
+            </div>
+            <div className="decision-flow">
+              <span>Forecast</span>
+              <i />
+              <span>Dispatch</span>
+              <i />
+              <span>Orders</span>
+            </div>
+            <dl>
+              <div>
+                <dt>Objective</dt>
+                <dd>Net contribution</dd>
+              </div>
+              <div>
+                <dt>Guardrails</dt>
+                <dd>Physical + market</dd>
+              </div>
+              <div>
+                <dt>Approval</dt>
+                <dd>Trader controlled</dd>
+              </div>
+            </dl>
+          </aside>
+        </section>
+        <section className="outcome-row" aria-label="Product outcomes">
+          <div>
+            <span>01 · VALUE</span>
+            <strong>Economically optimized</strong>
+            <p>Sales less purchases, efficiency losses and degradation.</p>
+          </div>
+          <div>
+            <span>02 · CONFIDENCE</span>
+            <strong>Physically feasible</strong>
+            <p>Every interval validated against the battery envelope.</p>
+          </div>
+          <div>
+            <span>03 · CONTROL</span>
+            <strong>Operationally governed</strong>
+            <p>Trader changes are revalidated and recorded.</p>
+          </div>
+        </section>
+        <section className="workflow-section">
+          <div className="workflow-heading">
+            <span>HOW IT WORKS</span>
+            <h2>One continuous decision path</h2>
+            <p>Each step produces the evidence required by the next.</p>
+          </div>
+          <div className="workflow-grid">
+            {workflow.map(([number, label, title, description, Icon]) => (
+              <article key={number}>
+                <div>
+                  <span>{number}</span>
+                  <Icon aria-hidden="true" />
+                </div>
+                <small>{label}</small>
+                <h3>{title}</h3>
+                <p>{description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+        <footer className="overview-footer">
+          <span>Illustrative market data</span>
+          <span>
+            Swiss auction parameters require configuration confirmation.
+          </span>
+        </footer>
+      </div>
+    </main>
+  );
 }
