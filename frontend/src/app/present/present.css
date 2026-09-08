@@ -72,7 +72,6 @@
 }
 .overview-eyebrow,
 .workflow-heading > span,
-.outcome-row > div > span,
 .decision-head > span:first-child {
   display: block;
   color: #087d78;
@@ -219,34 +218,9 @@
   font-size: 12px;
   font-weight: 750;
 }
-.outcome-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border: 1px solid #d7e3e0;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 8px 28px rgba(25, 63, 62, 0.05);
-}
-.outcome-row > div {
-  padding: 24px 26px;
-  border-right: 1px solid #dfe8e6;
-}
-.outcome-row > div:last-child {
-  border: 0;
-}
-.outcome-row strong {
-  display: block;
-  font-size: 17px;
-  margin: 8px 0 6px;
-}
-.outcome-row p {
-  margin: 0;
-  color: #6a807e;
-  font-size: 12px;
-  line-height: 1.5;
-}
 .workflow-section {
-  padding: 64px 0 46px;
+  padding: 18px 0 46px;
+  border-top: 1px solid #d9e4e1;
 }
 .workflow-heading {
   display: grid;
@@ -388,13 +362,8 @@
   .decision-card {
     padding: 20px;
   }
-  .outcome-row,
   .workflow-grid {
     grid-template-columns: 1fr;
-  }
-  .outcome-row > div {
-    border-right: 0;
-    border-bottom: 1px solid #dfe8e6;
   }
   .workflow-grid article:last-child {
     grid-column: auto;

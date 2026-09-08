@@ -1270,13 +1270,16 @@ function Compare({
               "."}
         </span>
       </div>
-      <div className="scenario-guide" aria-label="Available scenario definitions">
-        <article><strong>Expected Forecast</strong><span>Central illustrative Day-Ahead price expectation and normal availability.</span></article>
-        <article><strong>Downside</strong><span>Lower selling peaks and more expensive charging hours test a weaker arbitrage case.</span></article>
-        <article><strong>Peak Compression</strong><span>Reduces prices above €80/MWh by €25/MWh to test a narrower market spread.</span></article>
-        <article><strong>Availability Stress</strong><span>Removes the battery from operation from 18:00–20:00 to test loss of peak-hour flexibility.</span></article>
-      </div>
       <p className="scenario-instruction"><strong>How to compare:</strong> choose a scenario in the left panel, run the optimization, then return here. The previous baseline and new completed run will be shown side by side.</p>
+      <details className="scenario-definitions">
+        <summary>Scenario Definitions</summary>
+        <div className="scenario-guide" aria-label="Available scenario definitions">
+          <article><strong>Expected Forecast</strong><span>Central illustrative Day-Ahead price expectation and normal availability.</span></article>
+          <article><strong>Downside</strong><span>Lower selling peaks and more expensive charging hours test a weaker arbitrage case.</span></article>
+          <article><strong>Peak Compression</strong><span>Reduces prices above €80/MWh by €25/MWh to test a narrower market spread.</span></article>
+          <article><strong>Availability Stress</strong><span>Removes the battery from operation from 18:00–20:00 to test loss of peak-hour flexibility.</span></article>
+        </div>
+      </details>
       {result && baseline && (
         <ScenarioOutcomeChart baseline={baseline} current={result} />
       )}

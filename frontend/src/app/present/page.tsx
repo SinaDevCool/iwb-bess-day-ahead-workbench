@@ -132,23 +132,6 @@ export default function ProductOverview() {
             </dl>
           </aside>
         </section>
-        <section className="outcome-row" aria-label="Product outcomes">
-          <div>
-            <span>VALUE</span>
-            <strong>Economically optimized</strong>
-            <p>Sales less purchases, efficiency losses and degradation.</p>
-          </div>
-          <div>
-            <span>CONFIDENCE</span>
-            <strong>Physically feasible</strong>
-            <p>Every interval validated against the battery envelope.</p>
-          </div>
-          <div>
-            <span>CONTROL</span>
-            <strong>Operationally governed</strong>
-            <p>Trader changes are revalidated and recorded.</p>
-          </div>
-        </section>
         <section className="workflow-section">
           <div className="workflow-heading">
             <span>HOW IT WORKS</span>
