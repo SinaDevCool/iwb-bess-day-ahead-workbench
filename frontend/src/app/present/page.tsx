@@ -23,7 +23,7 @@ const workflow = [
     "02",
     "Optimize",
     "Optimize dispatch",
-    "Maximize expected contribution after losses and degradation.",
+    "Maximize expected contribution after losses, degradation and transaction fees.",
     ChartNoAxesCombined,
   ],
   [

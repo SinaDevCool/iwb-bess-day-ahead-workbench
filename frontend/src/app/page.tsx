@@ -56,6 +56,8 @@ const defaultMarket: Market = {
   price_increment_eur_mwh: 0.01,
   min_price_eur_mwh: -500,
   max_price_eur_mwh: 4000,
+  exchange_fee_eur_per_mwh: 0,
+  clearing_fee_eur_per_mwh: 0.015,
   assumptions_unverified: true,
 };
 const tabs = [
@@ -160,7 +162,9 @@ export default function Workbench() {
         setResult(latest);
         setBaseline(latest);
         setBattery(latest.battery);
-        setMarket(latest.market);
+        // Historical audit records may predate newly introduced configuration
+        // fields. Merge them over current defaults so the form remains complete.
+        setMarket({ ...configuration.market, ...latest.market });
         setDate(latest.delivery_date);
         setScenario(latest.scenario_name);
         setStrategy(latest.strategy ?? "expected_value");
@@ -530,6 +534,31 @@ export default function Workbench() {
                 </select>
                 <small>{scenarioDescription(scenario)}</small>
               </label>
+              <div className="field-grid">
+                <NF
+                  id="exchange-fee"
+                  label="Exchange trading fee"
+                  hint="Contract-specific; confirm with IWB"
+                  value={market.exchange_fee_eur_per_mwh}
+                  unit="€/MWh"
+                  min={0}
+                  step=".001"
+                  assumption
+                  change={(v) => { setMarket({ ...market, exchange_fee_eur_per_mwh: v }); change(); }}
+                />
+                <NF
+                  id="clearing-fee"
+                  label="ECC clearing fee"
+                  hint="Public 2026 price list: €0.015/MWh"
+                  value={market.clearing_fee_eur_per_mwh}
+                  unit="€/MWh"
+                  min={0}
+                  step=".001"
+                  assumption
+                  change={(v) => { setMarket({ ...market, clearing_fee_eur_per_mwh: v }); change(); }}
+                />
+              </div>
+              <small>Both fees apply to every executed MWh, whether BUY or SELL. Fixed membership costs are excluded from dispatch optimization.</small>
             </fieldset>
             <fieldset>
               <legend>Battery Constraints</legend>
@@ -721,7 +750,7 @@ export default function Workbench() {
               <Kpi
                 label="Expected Net Contribution"
                 value={money(summary.expected_contribution_eur)}
-                detail="Sales − purchases − degradation"
+                detail="Sales − purchases − degradation − transaction fees"
                 tone={result ? "good" : ""}
                 stale={dirty && Boolean(result)}
               />

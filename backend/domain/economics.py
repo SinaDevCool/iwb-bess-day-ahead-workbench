@@ -13,6 +13,7 @@ class IntervalEconomics:
     sales_revenue_eur: float
     purchase_cost_eur: float
     degradation_cost_eur: float
+    transaction_fee_eur: float
     contribution_eur: float
     soc_delta_mwh: float
 
@@ -23,11 +24,12 @@ def calculate_interval(
     duration_hours: float,
     price_eur_mwh: float,
     battery: BatteryConfig,
+    transaction_fee_eur_per_mwh: float = 0,
 ) -> IntervalEconomics:
     """Return the canonical grid, battery and financial values for one interval.
 
     Costs and revenues are positive magnitudes. Contribution is always
-    revenue minus purchases minus battery degradation.
+    revenue minus purchases, battery degradation and per-MWh transaction fees.
     """
     if side not in {"BUY", "SELL"}:
         raise ValueError("Side must be BUY or SELL")
@@ -40,13 +42,15 @@ def calculate_interval(
     sales = market_value if side == "SELL" else 0.0
     purchases = market_value if side == "BUY" else 0.0
     degradation = battery_energy * battery.degradation_cost_eur_per_mwh
-    contribution = sales - purchases - degradation
+    transaction_fee = grid_energy * transaction_fee_eur_per_mwh
+    contribution = sales - purchases - degradation - transaction_fee
     return IntervalEconomics(
         grid_energy_mwh=grid_energy,
         battery_energy_mwh=battery_energy,
         sales_revenue_eur=sales,
         purchase_cost_eur=purchases,
         degradation_cost_eur=degradation,
+        transaction_fee_eur=transaction_fee,
         contribution_eur=contribution,
         soc_delta_mwh=battery_energy if side == "BUY" else -battery_energy,
     )

@@ -78,6 +78,8 @@ def validate_order_proposal(orders: list[Order], market: MarketConfig, battery: 
     sales_revenue = 0.0
     purchase_cost = 0.0
     degradation_cost = 0.0
+    transaction_cost = 0.0
+    transaction_fee = market.exchange_fee_eur_per_mwh + market.clearing_fee_eur_per_mwh
     implied_soc = []
     implied_dispatch = []
     cumulative = 0.0
@@ -90,19 +92,21 @@ def validate_order_proposal(orders: list[Order], market: MarketConfig, battery: 
             if row.interval in unavailable:
                 findings.append(ValidationFinding(severity="error", code="order_unavailable", message=f"Order {order.order_id} is in an unavailable interval", interval=row.interval))
             if order.side == "BUY":
-                economics = calculate_interval("BUY", order.volume_mw, dt, order.expected_price_eur_mwh, battery)
+                economics = calculate_interval("BUY", order.volume_mw, dt, order.expected_price_eur_mwh, battery, transaction_fee)
             else:
-                economics = calculate_interval("SELL", order.volume_mw, dt, order.expected_price_eur_mwh, battery)
+                economics = calculate_interval("SELL", order.volume_mw, dt, order.expected_price_eur_mwh, battery, transaction_fee)
             soc += economics.soc_delta_mwh
             # Auction-order economics are presented to cents. Aggregate those
             # exact order values so the proposal reconciles with the CSV/UI.
             order_sales = round(economics.sales_revenue_eur, 2)
             order_purchase = round(economics.purchase_cost_eur, 2)
             order_degradation = round(economics.degradation_cost_eur, 2)
-            order_contribution = round(economics.contribution_eur, 2)
+            order_transaction = round(economics.transaction_fee_eur, 2)
+            order_contribution = round(order_sales - order_purchase - order_degradation - order_transaction, 2)
             sales_revenue += order_sales
             purchase_cost += order_purchase
             degradation_cost += order_degradation
+            transaction_cost += order_transaction
             contribution += order_contribution
             throughput += economics.battery_energy_mwh
             action = "charge" if order.side == "BUY" else "discharge"
@@ -113,7 +117,7 @@ def validate_order_proposal(orders: list[Order], market: MarketConfig, battery: 
         else:
             action, power, interval_contribution = "idle", 0.0, 0.0
             grid_energy = battery_energy = 0.0
-            order_sales = order_purchase = order_degradation = 0.0
+            order_sales = order_purchase = order_degradation = order_transaction = 0.0
         cumulative += interval_contribution
         implied_soc.append(round(soc, 6))
         implied_dispatch.append(DispatchRow(
@@ -123,6 +127,7 @@ def validate_order_proposal(orders: list[Order], market: MarketConfig, battery: 
             interval_pnl_eur=interval_contribution, cumulative_pnl_eur=round(cumulative, 2),
             sales_revenue_eur=order_sales, purchase_cost_eur=order_purchase,
             degradation_cost_eur=order_degradation,
+            transaction_fee_eur=order_transaction,
         ))
         if soc < battery.min_soc_mwh - SOC_TOLERANCE_MWH and not below_reported:
             findings.append(ValidationFinding(severity="error", code="proposal_soc_below_min", message=f"Edited orders drive SoC below minimum at interval {row.interval}", interval=row.interval))
@@ -145,6 +150,7 @@ def validate_order_proposal(orders: list[Order], market: MarketConfig, battery: 
         "proposal_sales_revenue_eur": round(sales_revenue, 2),
         "proposal_purchase_cost_eur": round(purchase_cost, 2),
         "proposal_degradation_cost_eur": round(degradation_cost, 2),
+        "proposal_transaction_fee_eur": round(transaction_cost, 2),
         "proposal_buy_volume_mwh": round(sum(order.energy_mwh for order in orders if order.side == "BUY"), 3),
         "proposal_sell_volume_mwh": round(sum(order.energy_mwh for order in orders if order.side == "SELL"), 3),
         "implied_soc_mwh": implied_soc,

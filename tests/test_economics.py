@@ -20,3 +20,12 @@ def test_round_trip_losses_require_more_battery_energy_to_sell():
     sell = calculate_interval("SELL", 10, 1, 0, battery)
     assert buy.battery_energy_mwh == 9
     assert round(sell.battery_energy_mwh, 6) == round(10 / 0.9, 6)
+
+
+def test_transaction_fee_applies_to_every_grid_mwh_on_both_sides():
+    battery = BatteryConfig(degradation_cost_eur_per_mwh=0)
+    buy = calculate_interval("BUY", 10, 0.25, 40, battery, 0.10)
+    sell = calculate_interval("SELL", 10, 0.25, 100, battery, 0.10)
+    assert buy.transaction_fee_eur == sell.transaction_fee_eur == 0.25
+    assert buy.contribution_eur == -100.25
+    assert sell.contribution_eur == 249.75

@@ -2,13 +2,13 @@
 
 Interview prototype for a 100 MWh / 50 MW battery participating in a configurable Day-Ahead auction. The product converts a price forecast and battery assumptions into a feasible dispatch, scenario comparison, explainable economics, and a validated preview-only order proposal.
 
-The dispatch is solved as a mixed-integer linear program with SciPy/HiGHS. It explicitly enforces SoC balance and bounds, power/grid limits, unavailable periods, minimum terminal SoC, cycle throughput, and mutually exclusive charging/discharging. A single domain economics module supplies battery-side energy, revenue, purchase, degradation and contribution calculations to dispatch, orders, edits and validation.
+The dispatch is solved as a mixed-integer linear program with SciPy/HiGHS. It explicitly enforces SoC balance and bounds, power/grid limits, unavailable periods, minimum terminal SoC, cycle throughput, and mutually exclusive charging/discharging. A single domain economics module supplies battery-side energy, revenue, purchase, degradation, transaction-fee and contribution calculations to dispatch, orders, edits and validation.
 
 ## Decision semantics
 
 - `Minimum end-of-day SoC` is a reserve floor, not an exact terminal target.
 - Equivalent full cycles use total battery-side throughput divided by twice nominal capacity.
-- Purchases and degradation are deducted from sales to calculate expected net contribution.
+- Purchases, degradation and configured per-MWh exchange/clearing fees are deducted from sales to calculate expected net contribution.
 - Expected, downside and peak-compression cases alter illustrative prices. Availability stress applies an illustrative 18:00–20:00 outage.
 - Proposal changes and their audit evidence are committed in one SQLite transaction.
 

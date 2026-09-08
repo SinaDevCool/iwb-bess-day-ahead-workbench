@@ -35,7 +35,9 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
     sales_revenue = sum(row.grid_energy_mwh * row.price_eur_mwh for row in dispatch if row.action == "discharge")
     throughput = sum(row.battery_energy_mwh for row in dispatch if row.action != "idle")
     degradation = throughput * request.battery.degradation_cost_eur_per_mwh
-    contribution = dispatch[-1].cumulative_pnl_eur if dispatch else 0
+    transaction_fees = sum(row.transaction_fee_eur for row in dispatch)
+    # Reconcile the public daily total to the cent-rounded interval ledger.
+    contribution = sum(row.interval_pnl_eur for row in dispatch)
     created_at = datetime.now(timezone.utc)
     input_hash = hashlib.sha256(json.dumps(request.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()[:16]
     result = SimulationResult(
@@ -60,6 +62,7 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
             "sales_revenue_eur": round(sales_revenue, 2),
             "purchase_cost_eur": round(charge_cost, 2),
             "degradation_cost_eur": round(degradation, 2),
+            "transaction_fee_eur": round(transaction_fees, 2),
             "charged_grid_mwh": round(charge_grid, 3),
             "discharged_grid_mwh": round(discharge_grid, 3),
             "throughput_mwh": round(throughput, 3),

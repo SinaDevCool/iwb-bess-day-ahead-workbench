@@ -4,7 +4,7 @@ import { Columns3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, Simulation } from "@/types/api";
 
-type OptionalColumn = "power" | "soc" | "energy" | "revenue" | "purchases" | "degradation";
+type OptionalColumn = "power" | "soc" | "energy" | "revenue" | "purchases" | "degradation" | "fees";
 
 const OPTIONAL_COLUMNS: Array<{ id: OptionalColumn; label: string }> = [
   { id: "power", label: "Power (MW)" },
@@ -13,6 +13,7 @@ const OPTIONAL_COLUMNS: Array<{ id: OptionalColumn; label: string }> = [
   { id: "revenue", label: "Revenue (€)" },
   { id: "purchases", label: "Purchases (€)" },
   { id: "degradation", label: "Degradation (€)" },
+  { id: "fees", label: "Transaction fees (€)" },
 ];
 const DEFAULT_COLUMNS: OptionalColumn[] = ["power", "soc"];
 
@@ -137,5 +138,6 @@ function columnValue(column: OptionalColumn, row: Dispatch) {
     case "revenue": return money(row.sales_revenue_eur);
     case "purchases": return money(row.purchase_cost_eur);
     case "degradation": return money(row.degradation_cost_eur);
+    case "fees": return money(row.transaction_fee_eur);
   }
 }

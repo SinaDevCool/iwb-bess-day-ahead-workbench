@@ -44,6 +44,8 @@ class MarketConfig(BaseModel):
     price_increment_eur_mwh: float = Field(0.01, gt=0)
     min_price_eur_mwh: float = -500
     max_price_eur_mwh: float = 4000
+    exchange_fee_eur_per_mwh: float = Field(0, ge=0)
+    clearing_fee_eur_per_mwh: float = Field(0.015, ge=0)
     assumptions_unverified: bool = True
 
     @model_validator(mode="after")
@@ -121,6 +123,7 @@ class DispatchRow(BaseModel):
     sales_revenue_eur: float = 0
     purchase_cost_eur: float = 0
     degradation_cost_eur: float = 0
+    transaction_fee_eur: float = 0
 
 
 class ValidationFinding(BaseModel):
@@ -150,6 +153,7 @@ class Order(BaseModel):
     sales_revenue_eur: float = 0
     purchase_cost_eur: float = 0
     degradation_cost_eur: float = 0
+    transaction_fee_eur: float = 0
     confidence: Literal["medium", "high"]
     status: Literal["DRAFT", "VALIDATED", "APPROVED"] = "DRAFT"
     explanation: str
@@ -200,6 +204,7 @@ class ProposalSummary(MappingModel):
     proposal_sales_revenue_eur: float
     proposal_purchase_cost_eur: float
     proposal_degradation_cost_eur: float
+    proposal_transaction_fee_eur: float
     proposal_buy_volume_mwh: float
     proposal_sell_volume_mwh: float
     implied_soc_mwh: list[float]
@@ -219,12 +224,14 @@ class SimulationSummary(MappingModel):
     proposal_sales_revenue_eur: float
     proposal_purchase_cost_eur: float
     proposal_degradation_cost_eur: float
+    proposal_transaction_fee_eur: float
     proposal_buy_volume_mwh: float
     proposal_sell_volume_mwh: float
     trader_adjustment_delta_eur: float
     sales_revenue_eur: float
     purchase_cost_eur: float
     degradation_cost_eur: float
+    transaction_fee_eur: float
     charged_grid_mwh: float
     discharged_grid_mwh: float
     throughput_mwh: float

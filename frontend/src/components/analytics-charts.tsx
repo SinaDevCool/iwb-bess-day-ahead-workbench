@@ -28,6 +28,7 @@ export function EconomicsPanel({ result }: { result: Simulation }) {
   const sales = result.summary.proposal_sales_revenue_eur ?? 0;
   const purchases = Math.abs(result.summary.proposal_purchase_cost_eur ?? 0);
   const degradation = result.summary.proposal_degradation_cost_eur ?? 0;
+  const fees = result.summary.proposal_transaction_fee_eur ?? 0;
   const net = result.summary.expected_contribution_eur ?? 0;
   return <section className="economics-section" aria-labelledby="economics-title">
     <div className="subsection-heading"><div><span className="chart-kicker">FINANCIAL RESULT</span><h3 id="economics-title">Where the Expected Contribution Comes From</h3><p>Interval values and the daily revenue bridge reconcile to the rounded auction-order proposal.</p></div></div>
@@ -49,8 +50,9 @@ export function EconomicsPanel({ result }: { result: Simulation }) {
         <div><span>Discharge Revenue</span><strong className="positive">+ {moneyExact(sales)}</strong></div>
         <div><span>Charging Purchases</span><strong>− {moneyExact(purchases)}</strong></div>
         <div><span>Battery Degradation</span><strong>− {moneyExact(degradation)}</strong></div>
+        <div><span>Transaction Fees</span><strong>− {moneyExact(fees)}</strong></div>
         <div className="bridge-total"><span>Expected Net Contribution</span><strong>{moneyExact(net)}</strong></div>
-        <small>Forecast-based value before fees, imbalance costs and taxes.</small>
+        <small>Forecast-based value after configured exchange and clearing fees; before imbalance costs and taxes.</small>
       </aside>
     </div>
   </section>;
@@ -60,7 +62,7 @@ function EconomicsTip({ active, payload }: { active?: boolean; payload?: Array<{
   if (!active || !payload?.[0]) return null;
   const row = payload[0].payload;
   const order = row.order;
-  return <div className="chart-tip"><span className="tip-time">{row.time} · Europe/Zurich</span><strong>{money(order?.expected_contribution_eur ?? 0)} order contribution</strong><dl><div><dt>Revenue</dt><dd>{money(order?.sales_revenue_eur ?? 0)}</dd></div><div><dt>Purchases</dt><dd>{money(order?.purchase_cost_eur ?? 0)}</dd></div><div><dt>Degradation</dt><dd>{money(order?.degradation_cost_eur ?? 0)}</dd></div></dl></div>;
+  return <div className="chart-tip"><span className="tip-time">{row.time} · Europe/Zurich</span><strong>{money(order?.expected_contribution_eur ?? 0)} order contribution</strong><dl><div><dt>Revenue</dt><dd>{money(order?.sales_revenue_eur ?? 0)}</dd></div><div><dt>Purchases</dt><dd>{money(order?.purchase_cost_eur ?? 0)}</dd></div><div><dt>Degradation</dt><dd>{money(order?.degradation_cost_eur ?? 0)}</dd></div><div><dt>Transaction fees</dt><dd>{money(order?.transaction_fee_eur ?? 0)}</dd></div></dl></div>;
 }
 
 export function OrderTimeline({ orders }: { orders: Order[] }) {

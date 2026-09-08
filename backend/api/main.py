@@ -131,11 +131,13 @@ def edit_proposal(simulation_id: str, edit: OrderProposalEdit):
             order["energy_mwh"] = round(adjustment.volume_mw * payload["market"]["product_minutes"] / 60, 6)
         if adjustment.limit_price_eur_mwh is not None:
             order["limit_price_eur_mwh"] = adjustment.limit_price_eur_mwh
-        economics = calculate_interval(order["side"], order["volume_mw"], payload["market"]["product_minutes"] / 60, order["expected_price_eur_mwh"], BatteryConfig.model_validate(payload["battery"]))
+        market = MarketConfig.model_validate(payload["market"])
+        economics = calculate_interval(order["side"], order["volume_mw"], market.product_minutes / 60, order["expected_price_eur_mwh"], BatteryConfig.model_validate(payload["battery"]), market.exchange_fee_eur_per_mwh + market.clearing_fee_eur_per_mwh)
         order["sales_revenue_eur"] = round(economics.sales_revenue_eur, 2)
         order["purchase_cost_eur"] = round(economics.purchase_cost_eur, 2)
         order["degradation_cost_eur"] = round(economics.degradation_cost_eur, 2)
-        order["expected_contribution_eur"] = round(economics.contribution_eur, 2)
+        order["transaction_fee_eur"] = round(economics.transaction_fee_eur, 2)
+        order["expected_contribution_eur"] = round(order["sales_revenue_eur"] - order["purchase_cost_eur"] - order["degradation_cost_eur"] - order["transaction_fee_eur"], 2)
         order["status"] = "DRAFT"
         if adjustment.comment:
             order["explanation"] += f" Trader note: {adjustment.comment}"

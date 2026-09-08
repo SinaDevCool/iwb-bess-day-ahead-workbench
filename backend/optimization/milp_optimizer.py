@@ -20,13 +20,14 @@ def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: 
         raise ValueError("No price intervals supplied")
     dt = market.product_minutes / 60
     eta = math.sqrt(battery.round_trip_efficiency)
+    transaction_fee = market.exchange_fee_eur_per_mwh + market.clearing_fee_eur_per_mwh
     charge_offset, discharge_offset, soc_offset, mode_offset = 0, n, 2 * n, 3 * n + 1
     variable_count = 4 * n + 1
 
     objective = np.zeros(variable_count)
     for t, point in enumerate(prices):
-        objective[charge_offset + t] = dt * (point.price_eur_mwh + battery.degradation_cost_eur_per_mwh * eta)
-        objective[discharge_offset + t] = dt * (-point.price_eur_mwh + battery.degradation_cost_eur_per_mwh / eta)
+        objective[charge_offset + t] = dt * (point.price_eur_mwh + transaction_fee + battery.degradation_cost_eur_per_mwh * eta)
+        objective[discharge_offset + t] = dt * (-point.price_eur_mwh + transaction_fee + battery.degradation_cost_eur_per_mwh / eta)
 
     lower = np.zeros(variable_count)
     upper = np.full(variable_count, np.inf)
@@ -100,16 +101,16 @@ def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: 
         discharge = 0 if result.x[discharge_offset + t] < 1e-7 else result.x[discharge_offset + t]
         if charge > 0:
             action, power = "charge", -charge
-            economics = calculate_interval("BUY", charge, dt, point.price_eur_mwh, battery)
+            economics = calculate_interval("BUY", charge, dt, point.price_eur_mwh, battery, transaction_fee)
         elif discharge > 0:
             action, power = "discharge", discharge
-            economics = calculate_interval("SELL", discharge, dt, point.price_eur_mwh, battery)
+            economics = calculate_interval("SELL", discharge, dt, point.price_eur_mwh, battery, transaction_fee)
         else:
             action, power = "idle", 0.0
             economics = None
         if economics is None:
             grid_energy = battery_energy = pnl = 0.0
-            sales_revenue = purchase_cost = degradation_cost = 0.0
+            sales_revenue = purchase_cost = degradation_cost = transaction_cost = 0.0
         else:
             grid_energy = economics.grid_energy_mwh
             battery_energy = economics.battery_energy_mwh
@@ -117,6 +118,14 @@ def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: 
             sales_revenue = economics.sales_revenue_eur
             purchase_cost = economics.purchase_cost_eur
             degradation_cost = economics.degradation_cost_eur
+            transaction_cost = economics.transaction_fee_eur
+        # The UI and exported ledger operate at cent precision, so derive net
+        # contribution from the same rounded components users can reconcile.
+        sales_revenue = round(sales_revenue, 2)
+        purchase_cost = round(purchase_cost, 2)
+        degradation_cost = round(degradation_cost, 2)
+        transaction_cost = round(transaction_cost, 2)
+        pnl = round(sales_revenue - purchase_cost - degradation_cost - transaction_cost, 2)
         throughput += battery_energy
         cumulative += pnl
         dispatch.append(DispatchRow(
@@ -134,6 +143,7 @@ def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: 
             sales_revenue_eur=round(sales_revenue, 2),
             purchase_cost_eur=round(purchase_cost, 2),
             degradation_cost_eur=round(degradation_cost, 2),
+            transaction_fee_eur=round(transaction_cost, 2),
         ))
     return dispatch, {
         "engine": "scipy_highs_milp_v1",
@@ -141,7 +151,7 @@ def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: 
         "solver_status": "optimal",
         "solve_time_ms": solve_time_ms,
         "mip_gap": float(getattr(result, "mip_gap", 0) or 0),
-        "objective": "maximize energy sales - purchases - degradation",
+        "objective": "maximize energy sales - purchases - degradation - transaction fees",
         "objective_value_eur": round(-result.fun, 2),
         "terminal_soc_mwh": round(result.x[soc_offset + n], 6),
         "throughput_mwh": round(throughput, 6),

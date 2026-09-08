@@ -8,19 +8,20 @@ export type Market = {
   market_name: string; bidding_zone: string; currency: string; timezone: string;
   product_minutes: 15 | 60; gate_closure_local: string; volume_increment_mw: number;
   price_increment_eur_mwh: number; min_price_eur_mwh: number; max_price_eur_mwh: number;
+  exchange_fee_eur_per_mwh: number; clearing_fee_eur_per_mwh: number;
   assumptions_unverified: boolean;
 };
 export type Dispatch = {
   interval: number; timestamp_utc: string; timestamp_local: string; price_eur_mwh: number;
   action: "charge" | "discharge" | "idle"; power_mw: number; grid_energy_mwh: number;
   battery_energy_mwh: number; soc_mwh: number; interval_pnl_eur: number; cumulative_pnl_eur: number;
-  sales_revenue_eur: number; purchase_cost_eur: number; degradation_cost_eur: number;
+  sales_revenue_eur: number; purchase_cost_eur: number; degradation_cost_eur: number; transaction_fee_eur: number;
 };
 export type Order = {
   order_id: string; delivery_start_utc: string; delivery_end_utc: string; delivery_local: string;
   product: string; side: "BUY" | "SELL"; volume_mw: number; energy_mwh: number;
   limit_price_eur_mwh: number; expected_price_eur_mwh: number; expected_contribution_eur: number;
-  sales_revenue_eur: number; purchase_cost_eur: number; degradation_cost_eur: number;
+  sales_revenue_eur: number; purchase_cost_eur: number; degradation_cost_eur: number; transaction_fee_eur: number;
   confidence: string; status: string; explanation: string;
 };
 export type Simulation = {

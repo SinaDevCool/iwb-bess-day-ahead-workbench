@@ -15,10 +15,20 @@ def test_iwb_case_is_feasible_and_profitable():
     assert result.dispatch[-1].soc_mwh >= 50
     assert round(sum(row.interval_pnl_eur for row in result.dispatch), 2) == result.summary["optimized_contribution_eur"]
     for row in result.dispatch:
-        assert round(row.sales_revenue_eur - row.purchase_cost_eur - row.degradation_cost_eur, 2) == row.interval_pnl_eur
+        assert round(row.sales_revenue_eur - row.purchase_cost_eur - row.degradation_cost_eur - row.transaction_fee_eur, 2) == row.interval_pnl_eur
     assert round(sum(order.expected_contribution_eur for order in result.orders), 2) == result.summary["expected_contribution_eur"]
     for order in result.orders:
-        assert round(order.sales_revenue_eur - order.purchase_cost_eur - order.degradation_cost_eur, 2) == order.expected_contribution_eur
+        assert round(order.sales_revenue_eur - order.purchase_cost_eur - order.degradation_cost_eur - order.transaction_fee_eur, 2) == order.expected_contribution_eur
+
+
+def test_fees_are_optimized_and_reconciled_across_product_durations():
+    for duration in (15, 60):
+        market = MarketConfig(product_minutes=duration, exchange_fee_eur_per_mwh=0.08, clearing_fee_eur_per_mwh=0.015)
+        result = run_simulation(SimulationRequest(market=market))
+        traded_grid_mwh = result.summary["charged_grid_mwh"] + result.summary["discharged_grid_mwh"]
+        assert abs(result.summary["transaction_fee_eur"] - traded_grid_mwh * 0.095) < 0.1
+        assert result.summary["proposal_transaction_fee_eur"] == round(sum(order.transaction_fee_eur for order in result.orders), 2)
+        assert "transaction fees" in result.optimization["objective"]
 
 
 def test_flat_prices_do_not_create_unprofitable_cycles():
