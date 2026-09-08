@@ -254,6 +254,12 @@ select {
 .battery-summary small {
   color: #d7efec;
 }
+.battery-summary .summary-label {
+  color: #8fc9c4;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.8px;
+}
 .workspace {
   display: grid;
   grid-template-columns: 330px minmax(0, 1fr);

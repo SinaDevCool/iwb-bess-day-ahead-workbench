@@ -36,7 +36,7 @@ export default function AuditPage() {
         Skip to Audit Events
       </a>
       <header className="topbar">
-        <Link className="brand" href="/">
+        <Link className="brand" href="/present/">
           <span className="logo">IWB</span>
           <span className="brand-copy">
             <strong>Decision Log</strong>

@@ -15,36 +15,36 @@ const workflow = [
   [
     "01",
     "Configure",
-    "Set the operating envelope",
+    "Configure market & battery",
     "Capacity, power, efficiency, availability and cycle budget.",
     BatteryCharging,
   ],
   [
     "02",
     "Optimize",
-    "Find the best feasible schedule",
+    "Optimize dispatch",
     "Maximize expected contribution after losses and degradation.",
     ChartNoAxesCombined,
   ],
   [
     "03",
-    "Translate",
-    "Create auction orders",
+    "Generate",
+    "Generate Day-Ahead orders",
     "Convert the dispatch into clear BUY and SELL instructions.",
     ShoppingCart,
   ],
   [
     "04",
-    "Verify",
-    "Prove physical feasibility",
+    "Validate",
+    "Validate feasibility",
     "Check SoC, power, throughput, outages and terminal energy.",
     ClipboardCheck,
   ],
   [
     "05",
-    "Control",
-    "Keep the trader in charge",
-    "Review changes, revalidate the proposal and retain evidence.",
+    "Compare",
+    "Compare scenarios",
+    "Measure how changed prices and availability affect the recommendation.",
     ShieldCheck,
   ],
 ] as const;
@@ -77,11 +77,11 @@ export default function ProductOverview() {
             <span className="overview-eyebrow">
               BATTERY TRADING · DAY-AHEAD
             </span>
-            <h1>From price forecast to feasible orders.</h1>
+            <h1>Day-Ahead Battery Dispatch &amp; Order Optimizer</h1>
             <p>
-              Build an explainable dispatch plan for a 100&nbsp;MWh battery,
-              test it against physical constraints and keep every trading
-              decision under human control.
+              Simulate the contribution-maximizing operation of a 100&nbsp;MWh
+              battery and generate physically feasible Day-Ahead auction orders
+              under trader control.
             </p>
             <div className="hero-actions">
               <Link className="overview-primary" href="/">
@@ -95,7 +95,7 @@ export default function ProductOverview() {
           </div>
           <aside className="decision-card" aria-label="Decision model summary">
             <div className="decision-head">
-              <span>DECISION MODEL</span>
+              <span>ASSET IN SCOPE</span>
               <span className="model-status">
                 <i />
                 Ready
@@ -133,17 +133,17 @@ export default function ProductOverview() {
         </section>
         <section className="outcome-row" aria-label="Product outcomes">
           <div>
-            <span>01 · VALUE</span>
+            <span>VALUE</span>
             <strong>Economically optimized</strong>
             <p>Sales less purchases, efficiency losses and degradation.</p>
           </div>
           <div>
-            <span>02 · CONFIDENCE</span>
+            <span>CONFIDENCE</span>
             <strong>Physically feasible</strong>
             <p>Every interval validated against the battery envelope.</p>
           </div>
           <div>
-            <span>03 · CONTROL</span>
+            <span>CONTROL</span>
             <strong>Operationally governed</strong>
             <p>Trader changes are revalidated and recorded.</p>
           </div>

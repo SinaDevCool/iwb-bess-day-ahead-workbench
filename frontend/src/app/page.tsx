@@ -10,6 +10,7 @@ import {
   FileCheck2,
   History,
   Info,
+  LayoutDashboard,
   LoaderCircle,
   Play,
   RotateCcw,
@@ -285,7 +286,11 @@ export default function Workbench() {
         Skip to Workbench
       </a>
       <header className="topbar">
-        <Link className="brand" href="/" aria-label="Workbench home">
+        <Link
+          className="brand"
+          href="/present/"
+          aria-label="Return to product overview"
+        >
           <span className="logo" translate="no">
             IWB
           </span>
@@ -295,6 +300,9 @@ export default function Workbench() {
           </span>
         </Link>
         <div className="header-status">
+          <Link className="header-action" href="/present/">
+            <LayoutDashboard size={15} aria-hidden="true" /> Overview
+          </Link>
           <Link className="header-action" href="/audit/">
             <History size={15} aria-hidden="true" /> Decision Log
           </Link>
@@ -319,8 +327,8 @@ export default function Workbench() {
       <main id="workbench">
         <section className="context-bar">
           <div>
-            <span className="eyebrow">DELIVERY CASE</span>
-            <h1>From Forecast to Feasible Orders</h1>
+            <span className="eyebrow">BESS DAY-AHEAD AUCTION</span>
+            <h1>Battery Dispatch &amp; Order Optimizer</h1>
             <p>
               {formatDate(date)} · {market.bidding_zone} ·{" "}
               {market.product_minutes}-minute products
@@ -329,8 +337,15 @@ export default function Workbench() {
           <div className="battery-summary">
             <BatteryCharging aria-hidden="true" />
             <span>
-              <strong>100 MWh / 50 MW</strong>
-              <small>2-hour battery system</small>
+              <small className="summary-label">CURRENT CONFIGURATION</small>
+              <strong>
+                {num(battery.capacity_mwh, 0)} MWh ·{" "}
+                {num(battery.grid_limit_mw, 0)} MW
+              </strong>
+              <small>
+                SoC {num(battery.min_soc_mwh, 0)}–{num(battery.max_soc_mwh, 0)}{" "}
+                MWh
+              </small>
             </span>
           </div>
         </section>
@@ -339,7 +354,7 @@ export default function Workbench() {
             <div className="panel-title">
               <div>
                 <span>01</span>
-                <h2 id="input-title">Configure the Case</h2>
+                <h2 id="input-title">Configure Market &amp; Battery</h2>
               </div>
               <button
                 className="icon-button"
@@ -761,7 +776,7 @@ function Schedule({ result, busy }: { result?: Simulation; busy: boolean }) {
     <>
       <Head
         n="02"
-        title="Optimized Dispatch"
+        title="Optimize Dispatch"
         text="Price opportunity, battery response and state of charge across the delivery day."
         aside="Charge − · Discharge +"
       />
@@ -807,7 +822,7 @@ function Orders(p: OP) {
     <>
       <Head
         n="03"
-        title="Generated Day-Ahead Orders"
+        title="Generate Day-Ahead Orders"
         text="Select a row to apply a controlled trader intervention."
         aside="No live submission"
       />
@@ -1011,7 +1026,7 @@ function ProofView({
     <>
       <Head
         n="04"
-        title="Feasibility & Decision Proof"
+        title="Validate Feasibility"
         text="Every proposed order is reconciled with the physical battery schedule."
         aside={title(result?.validation.status ?? "pending")}
       />
@@ -1136,7 +1151,7 @@ function Compare({
     <>
       <Head
         n="05"
-        title="Scenario Comparison"
+        title="Compare Scenarios"
         text="Measure how changed assumptions affect the recommendation."
         action={
           <button
