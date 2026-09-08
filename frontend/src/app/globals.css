@@ -865,6 +865,13 @@ td {
   font-size: 14px;
   margin-top: 3px;
 }
+.before-after em {
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1.35;
+  margin-top: 3px;
+}
 .edit-fields {
   display: grid;
   grid-template-columns: 1fr 1fr 2fr auto;
@@ -890,6 +897,20 @@ td {
 .drawer-action {
   margin-left: auto;
   display: flex;
+}
+.edit-guidance {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 10px 0;
+}
+.edit-guidance.invalid {
+  color: var(--error);
+}
+.edit-drawer input:disabled {
+  background: #edf2f1;
+  color: var(--muted);
+  cursor: not-allowed;
 }
 .approval-bar {
   display: flex;

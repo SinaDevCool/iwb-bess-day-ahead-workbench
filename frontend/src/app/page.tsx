@@ -204,6 +204,7 @@ export default function Workbench() {
   }, []);
   const change = () => {
     if (result) setDirty(true);
+    setSelected(undefined);
     setMessage(null);
   };
   const chooseTab = (key: TabKey) => {
@@ -282,16 +283,15 @@ export default function Workbench() {
         "/api/order-proposals/" + result.simulation_id,
         {
           method: "PATCH",
-          body: JSON.stringify({
-            adjustments: [
-              {
+          body: JSON.stringify({ adjustments: [exclude
+            ? { order_id: selected.order_id, exclude: true, comment: comment.trim() }
+            : {
                 order_id: selected.order_id,
-                volume_mw: volume ? Number(volume) : null,
-                limit_price_eur_mwh: price ? Number(price) : null,
-                exclude,
-                comment,
-              },
-            ],
+                volume_mw: Number(volume),
+                limit_price_eur_mwh: Number(price),
+                exclude: false,
+                comment: comment.trim(),
+              }],
           }),
         },
       );
@@ -1009,9 +1009,13 @@ type OP = {
   exportProposal: () => void;
 };
 function Orders(p: OP) {
-  const hasEffectiveChange = Boolean(p.selected) && (p.exclude || Number(p.volume) !== p.selected?.volume_mw || Number(p.price) !== p.selected?.limit_price_eur_mwh);
+  const issue = traderEditIssue(p);
+  const volumeChanged = Boolean(p.selected) && Number(p.volume) !== p.selected?.volume_mw;
+  const priceChanged = Boolean(p.selected) && Number(p.price) !== p.selected?.limit_price_eur_mwh;
   const impact = p.selected
-    ? estimate(p.selected, p.volume) - p.selected.expected_contribution_eur
+    ? p.exclude
+      ? -p.selected.expected_contribution_eur
+      : estimate(p.selected, p.volume) - p.selected.expected_contribution_eur
     : 0;
   return (
     <>
@@ -1059,10 +1063,11 @@ function Orders(p: OP) {
               <strong>{perMwh(p.selected.limit_price_eur_mwh)}</strong>
             </span>
             <span>
-              <small>Estimated Impact</small>
+              <small>Expected Contribution Change</small>
               <strong className={impact >= 0 ? "positive" : "negative"}>
                 {signedMoney(impact)}
               </strong>
+              {priceChanged && !volumeChanged && !p.exclude && <em>Limit price only; forecast value unchanged</em>}
             </span>
           </div>
           <div className="edit-fields">
@@ -1072,6 +1077,11 @@ function Orders(p: OP) {
               unit="MW"
               value={p.volume}
               step=".1"
+              min="0.1"
+              max={String(p.selected.side === "BUY"
+                ? Math.min(p.result?.battery.max_charge_power_mw ?? 0, p.result?.battery.grid_limit_mw ?? 0)
+                : Math.min(p.result?.battery.max_discharge_power_mw ?? 0, p.result?.battery.grid_limit_mw ?? 0))}
+              disabled={p.exclude}
               change={p.setVolume}
             />
             <TextNumber
@@ -1080,6 +1090,9 @@ function Orders(p: OP) {
               unit="€/MWh"
               value={p.price}
               step=".01"
+              min={String(p.result?.market.min_price_eur_mwh ?? -500)}
+              max={String(p.result?.market.max_price_eur_mwh ?? 4000)}
+              disabled={p.exclude}
               change={p.setPrice}
             />
             <label className="reason" htmlFor="reason">
@@ -1103,9 +1116,12 @@ function Orders(p: OP) {
               Exclude this order
             </label>
           </div>
+          <p className={`edit-guidance${issue ? " invalid" : ""}`} role="status">
+            {issue ?? "The backend will reconstruct SoC, throughput and contribution before accepting the revised proposal."}
+          </p>
           <button
             className="secondary drawer-action"
-            disabled={p.comment.trim().length < 3 || p.busy || !hasEffectiveChange}
+            disabled={Boolean(issue) || p.busy}
             onClick={p.edit}
           >
             {p.busy ? "Revalidating…" : "Apply Change & Revalidate"}
@@ -1439,6 +1455,9 @@ function TextNumber({
   unit,
   value,
   step,
+  min,
+  max,
+  disabled = false,
   change,
 }: {
   id: string;
@@ -1446,6 +1465,9 @@ function TextNumber({
   unit: string;
   value: string;
   step: string;
+  min?: string;
+  max?: string;
+  disabled?: boolean;
   change: (v: string) => void;
 }) {
   return (
@@ -1459,6 +1481,9 @@ function TextNumber({
           inputMode="decimal"
           type="number"
           step={step}
+          min={min}
+          max={max}
+          disabled={disabled}
           value={value}
           onChange={(e) => change(e.target.value)}
         />
@@ -1587,6 +1612,27 @@ function estimate(o: Order, v: string) {
   return Number.isFinite(n) && o.volume_mw
     ? (o.expected_contribution_eur * n) / o.volume_mw
     : o.expected_contribution_eur;
+}
+function traderEditIssue(p: OP) {
+  if (!p.selected || !p.result) return "Select an order to edit.";
+  if (p.comment.trim().length < 3) return "Add a decision rationale of at least 3 characters.";
+  if (p.exclude) return null;
+  const volume = Number(p.volume);
+  const price = Number(p.price);
+  if (!p.volume.trim() || !Number.isFinite(volume) || volume <= 0) return "Enter a positive trader volume.";
+  const powerLimit = p.selected.side === "BUY"
+    ? Math.min(p.result.battery.max_charge_power_mw, p.result.battery.grid_limit_mw)
+    : Math.min(p.result.battery.max_discharge_power_mw, p.result.battery.grid_limit_mw);
+  if (volume > powerLimit + 1e-6) return `Volume cannot exceed the ${num(powerLimit)} MW physical limit.`;
+  if (!isIncrement(volume, p.result.market.volume_increment_mw)) return `Volume must use ${p.result.market.volume_increment_mw} MW increments.`;
+  if (!p.price.trim() || !Number.isFinite(price)) return "Enter a valid trader limit price.";
+  if (price < p.result.market.min_price_eur_mwh || price > p.result.market.max_price_eur_mwh) return `Limit price must be between ${perMwh(p.result.market.min_price_eur_mwh)} and ${perMwh(p.result.market.max_price_eur_mwh)}.`;
+  if (!isIncrement(price, p.result.market.price_increment_eur_mwh)) return `Limit price must use ${p.result.market.price_increment_eur_mwh} €/MWh increments.`;
+  if (Math.abs(volume - p.selected.volume_mw) < 1e-9 && Math.abs(price - p.selected.limit_price_eur_mwh) < 1e-9) return "Change the volume or limit price, or exclude the order.";
+  return null;
+}
+function isIncrement(value: number, increment: number) {
+  return Math.abs(value / increment - Math.round(value / increment)) < 1e-6;
 }
 function scenarioDescription(v: string) {
   return v === "Downside"
