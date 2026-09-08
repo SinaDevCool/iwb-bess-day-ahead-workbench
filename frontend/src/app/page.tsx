@@ -131,11 +131,32 @@ export default function Workbench() {
       setBusy(false);
     }
   };
-  // Preload is intentionally tied to the initial workbench mount.
+  // Viewing the workbench must not create an audit event. Restore the most
+  // recent saved decision as read-only context; only the Run button writes.
   useEffect(() => {
-    const timer = setTimeout(() => void run(true), 0);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let active = true;
+    api<{ items: Simulation[] }>("/api/simulations")
+      .then(({ items }) => {
+        if (!active || !items.length) return;
+        const latest = items[0];
+        setResult(latest);
+        setBaseline(latest);
+        setBattery(latest.battery);
+        setMarket(latest.market);
+        setDate(latest.delivery_date);
+        setScenario(latest.scenario_name);
+        setUnavailable(latest.battery.unavailable_intervals.join(", "));
+        setMessage({
+          kind: "info",
+          text: "Latest saved run loaded. Change inputs and run the optimization to create a new decision record.",
+        });
+      })
+      .catch(() => {
+        // A fresh deployment simply starts without a saved result.
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   const change = () => {
     if (result) setDirty(true);
@@ -1301,7 +1322,9 @@ function NF({
         />
         <span>{unit}</span>
       </div>
-      {hint && <small>{hint}</small>}
+      <small className={!hint ? "empty-hint" : undefined}>
+        {hint ?? "No additional assumption"}
+      </small>
     </label>
   );
 }
