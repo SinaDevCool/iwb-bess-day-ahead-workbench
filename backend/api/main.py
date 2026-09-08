@@ -129,7 +129,10 @@ def edit_proposal(simulation_id: str, edit: OrderProposalEdit):
         battery_energy = order["energy_mwh"] * (eta if order["side"] == "BUY" else 1 / eta)
         gross = order["energy_mwh"] * order["expected_price_eur_mwh"]
         degradation = battery_energy * payload["battery"]["degradation_cost_eur_per_mwh"]
-        order["expected_contribution_eur"] = round(-gross - degradation if order["side"] == "BUY" else gross - degradation, 2)
+        order["sales_revenue_eur"] = round(gross if order["side"] == "SELL" else 0, 2)
+        order["purchase_cost_eur"] = round(gross if order["side"] == "BUY" else 0, 2)
+        order["degradation_cost_eur"] = round(degradation, 2)
+        order["expected_contribution_eur"] = round(order["sales_revenue_eur"] - order["purchase_cost_eur"] - degradation, 2)
         order["status"] = "DRAFT"
         if adjustment.comment:
             order["explanation"] += f" Trader note: {adjustment.comment}"

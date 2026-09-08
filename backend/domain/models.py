@@ -75,6 +75,9 @@ class DispatchRow(BaseModel):
     soc_mwh: float
     interval_pnl_eur: float
     cumulative_pnl_eur: float
+    sales_revenue_eur: float = 0
+    purchase_cost_eur: float = 0
+    degradation_cost_eur: float = 0
 
 
 class ValidationFinding(BaseModel):
@@ -101,6 +104,9 @@ class Order(BaseModel):
     limit_price_eur_mwh: float
     expected_price_eur_mwh: float
     expected_contribution_eur: float
+    sales_revenue_eur: float = 0
+    purchase_cost_eur: float = 0
+    degradation_cost_eur: float = 0
     confidence: Literal["medium", "high"]
     status: Literal["DRAFT", "VALIDATED", "APPROVED"] = "DRAFT"
     explanation: str

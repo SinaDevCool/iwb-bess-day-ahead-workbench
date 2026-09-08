@@ -13,6 +13,12 @@ def test_iwb_case_is_feasible_and_profitable():
     assert all(10 <= row.soc_mwh <= 90 for row in result.dispatch)
     assert all(abs(row.power_mw) <= 50.001 for row in result.dispatch)
     assert result.dispatch[-1].soc_mwh >= 50
+    assert round(sum(row.interval_pnl_eur for row in result.dispatch), 2) == result.summary["optimized_contribution_eur"]
+    for row in result.dispatch:
+        assert round(row.sales_revenue_eur - row.purchase_cost_eur - row.degradation_cost_eur, 2) == row.interval_pnl_eur
+    assert round(sum(order.expected_contribution_eur for order in result.orders), 2) == result.summary["expected_contribution_eur"]
+    for order in result.orders:
+        assert round(order.sales_revenue_eur - order.purchase_cost_eur - order.degradation_cost_eur, 2) == order.expected_contribution_eur
 
 
 def test_flat_prices_do_not_create_unprofitable_cycles():

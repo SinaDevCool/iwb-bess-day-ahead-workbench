@@ -20,6 +20,12 @@ import {
 import { DispatchChart } from "@/components/dispatch-chart";
 import { Kpi } from "@/components/kpi";
 import { OrderTable } from "@/components/order-table";
+import {
+  ConstraintUtilization,
+  EconomicsPanel,
+  OrderTimeline,
+  ScenarioOutcomeChart,
+} from "@/components/analytics-charts";
 import { api, API } from "@/lib/api";
 import type { Battery, Market, Order, Simulation } from "@/types/api";
 import "./editor.css";
@@ -52,7 +58,7 @@ const defaultMarket: Market = {
   assumptions_unverified: true,
 };
 const tabs = [
-  ["schedule", "Dispatch & SoC"],
+  ["schedule", "Dispatch & Economics"],
   ["orders", "Auction Orders"],
   ["proof", "Feasibility Proof"],
   ["compare", "Scenario Comparison"],
@@ -157,6 +163,15 @@ export default function Workbench() {
     return () => {
       active = false;
     };
+  }, []);
+  useEffect(() => {
+    const restoreTab = () => {
+      const requested = new URLSearchParams(location.search).get("tab");
+      if (tabs.some(([key]) => key === requested)) setTab(requested as TabKey);
+    };
+    restoreTab();
+    addEventListener("popstate", restoreTab);
+    return () => removeEventListener("popstate", restoreTab);
   }, []);
   const change = () => {
     if (result) setDirty(true);
@@ -855,7 +870,10 @@ function Schedule({
           text="Applying efficiency, SoC, power, availability and cycle constraints."
         />
       ) : result ? (
-        <DispatchChart rows={result.dispatch} battery={battery} />
+        <>
+          <DispatchChart rows={result.dispatch} battery={battery} />
+          <EconomicsPanel result={result} />
+        </>
       ) : (
         <Empty
           title="No result yet"
@@ -894,6 +912,9 @@ function Orders(p: OP) {
         text="Select a row to apply a controlled trader intervention."
         aside="No live submission"
       />
+      {p.result && (
+        <OrderTimeline orders={p.result.orders} />
+      )}
       <OrderTable
         orders={p.result?.orders ?? []}
         selectedId={p.selected?.order_id}
@@ -1105,6 +1126,7 @@ function ProofView({
         />
       ) : (
         <>
+          <ConstraintUtilization result={result} battery={battery} />
           <div className="proof-summary">
             <CheckCircle2 size={26} />
             <div>
@@ -1241,6 +1263,9 @@ function Compare({
               "."}
         </span>
       </div>
+      {result && baseline && (
+        <ScenarioOutcomeChart baseline={baseline} current={result} />
+      )}
       <div className="compare">
         <div className="compare-row compare-head">
           <strong>Metric</strong>

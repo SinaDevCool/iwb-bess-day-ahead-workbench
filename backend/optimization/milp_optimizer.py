@@ -101,12 +101,17 @@ def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: 
             action, power = "charge", -charge
             grid_energy, battery_energy = charge * dt, charge * eta * dt
             pnl = -grid_energy * point.price_eur_mwh - battery_energy * battery.degradation_cost_eur_per_mwh
+            sales_revenue, purchase_cost = 0.0, grid_energy * point.price_eur_mwh
+            degradation_cost = battery_energy * battery.degradation_cost_eur_per_mwh
         elif discharge > 0:
             action, power = "discharge", discharge
             grid_energy, battery_energy = discharge * dt, discharge / eta * dt
             pnl = grid_energy * point.price_eur_mwh - battery_energy * battery.degradation_cost_eur_per_mwh
+            sales_revenue, purchase_cost = grid_energy * point.price_eur_mwh, 0.0
+            degradation_cost = battery_energy * battery.degradation_cost_eur_per_mwh
         else:
             action, power, grid_energy, battery_energy, pnl = "idle", 0.0, 0.0, 0.0, 0.0
+            sales_revenue, purchase_cost, degradation_cost = 0.0, 0.0, 0.0
         throughput += battery_energy
         cumulative += pnl
         dispatch.append(DispatchRow(
@@ -121,6 +126,9 @@ def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: 
             soc_mwh=round(result.x[soc_offset + t + 1], 6),
             interval_pnl_eur=round(pnl, 2),
             cumulative_pnl_eur=round(cumulative, 2),
+            sales_revenue_eur=round(sales_revenue, 2),
+            purchase_cost_eur=round(purchase_cost, 2),
+            degradation_cost_eur=round(degradation_cost, 2),
         ))
     return dispatch, {
         "engine": "scipy_highs_milp_v1",

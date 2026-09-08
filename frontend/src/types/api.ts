@@ -14,11 +14,13 @@ export type Dispatch = {
   interval: number; timestamp_utc: string; timestamp_local: string; price_eur_mwh: number;
   action: "charge" | "discharge" | "idle"; power_mw: number; grid_energy_mwh: number;
   battery_energy_mwh: number; soc_mwh: number; interval_pnl_eur: number; cumulative_pnl_eur: number;
+  sales_revenue_eur: number; purchase_cost_eur: number; degradation_cost_eur: number;
 };
 export type Order = {
   order_id: string; delivery_start_utc: string; delivery_end_utc: string; delivery_local: string;
   product: string; side: "BUY" | "SELL"; volume_mw: number; energy_mwh: number;
   limit_price_eur_mwh: number; expected_price_eur_mwh: number; expected_contribution_eur: number;
+  sales_revenue_eur: number; purchase_cost_eur: number; degradation_cost_eur: number;
   confidence: string; status: string; explanation: string;
 };
 export type Simulation = {

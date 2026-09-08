@@ -87,17 +87,22 @@ def validate_order_proposal(orders: list[Order], market: MarketConfig, battery: 
                 soc += battery_energy
                 energy_value = order.energy_mwh * order.expected_price_eur_mwh
                 wear = battery_energy * battery.degradation_cost_eur_per_mwh
-                purchase_cost -= energy_value
-                degradation_cost += wear
-                contribution -= energy_value + wear
+                order.sales_revenue_eur = 0
+                order.purchase_cost_eur = round(energy_value, 2)
+                order.degradation_cost_eur = round(wear, 2)
             else:
                 battery_energy = order.energy_mwh / eta
                 soc -= battery_energy
                 energy_value = order.energy_mwh * order.expected_price_eur_mwh
                 wear = battery_energy * battery.degradation_cost_eur_per_mwh
-                sales_revenue += energy_value
-                degradation_cost += wear
-                contribution += energy_value - wear
+                order.sales_revenue_eur = round(energy_value, 2)
+                order.purchase_cost_eur = 0
+                order.degradation_cost_eur = round(wear, 2)
+            order.expected_contribution_eur = round(order.sales_revenue_eur - order.purchase_cost_eur - order.degradation_cost_eur, 2)
+            sales_revenue += order.sales_revenue_eur
+            purchase_cost -= order.purchase_cost_eur
+            degradation_cost += order.degradation_cost_eur
+            contribution += order.expected_contribution_eur
             throughput += battery_energy
         implied_soc.append(round(soc, 6))
         if soc < battery.min_soc_mwh - 0.15 and not below_reported:

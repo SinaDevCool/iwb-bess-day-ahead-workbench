@@ -23,7 +23,7 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
     )
     dispatch, optimization = optimize_dispatch(prices, request.battery, request.market)
     simulation_id = f"sim-{uuid4().hex[:10]}"
-    orders = build_orders(simulation_id, dispatch, request.market)
+    orders = build_orders(simulation_id, dispatch, request.market, request.battery)
     dispatch_validation = validate_dispatch(dispatch, request.battery)
     order_validation, proposal = validate_order_proposal(orders, request.market, request.battery, dispatch)
     findings = dispatch_validation.findings + order_validation.findings
