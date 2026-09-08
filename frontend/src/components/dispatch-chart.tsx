@@ -71,7 +71,7 @@ export function DispatchChart({
       <div className="plot-card price-plot">
         <div className="plot-heading">
           <span>
-            <i className="legend-line price" />
+            <i className="legend-line price" aria-hidden="true" />
             Illustrative Day-Ahead Price Forecast
           </span>
           <strong>€/MWh</strong>
@@ -93,16 +93,17 @@ export function DispatchChart({
                   <stop offset="100%" stopColor="#1d5963" stopOpacity=".02" />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#dce5e3" strokeDasharray="3 3" vertical />
+              <CartesianGrid stroke="#e3ebe9" strokeDasharray="2 4" vertical={false} />
               <XAxis dataKey="time" hide />
               <YAxis
                 width={55}
                 tick={{ fontSize: 11, fill: "#607477" }}
                 axisLine={false}
                 tickLine={false}
+                tickMargin={8}
                 tickFormatter={(value) => `€${value}`}
               />
-              <Tooltip content={<Tip />} />
+              <Tooltip content={<Tip />} cursor={{ stroke: "#9bb2af", strokeDasharray: "3 3" }} />
               <Area
                 dataKey="price_eur_mwh"
                 name="Illustrative DA price forecast"
@@ -118,11 +119,11 @@ export function DispatchChart({
       <div className="plot-card dispatch-plot">
         <div className="plot-heading">
           <span>
-            <i className="legend-block charge" />
+            <i className="legend-block charge" aria-hidden="true" />
             Charge <b>−</b>
-            <i className="legend-block discharge" />
+            <i className="legend-block discharge" aria-hidden="true" />
             Discharge <b>+</b>
-            <i className="legend-line soc" />
+            <i className="legend-line soc" aria-hidden="true" />
             State of Charge
           </span>
           <span className="axis-units">
@@ -147,13 +148,14 @@ export function DispatchChart({
                   <stop offset="100%" stopColor="#655fb4" stopOpacity=".02" />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#dce5e3" strokeDasharray="3 3" vertical />
+              <CartesianGrid stroke="#e3ebe9" strokeDasharray="2 4" vertical={false} />
               <XAxis
                 dataKey="time"
                 interval={Math.max(Math.floor(rows.length / 8), 0)}
                 tick={{ fontSize: 11, fill: "#607477" }}
                 axisLine={{ stroke: "#aebfbc" }}
                 tickLine={false}
+                tickMargin={9}
                 height={34}
               />
               <YAxis
@@ -164,6 +166,7 @@ export function DispatchChart({
                 tick={{ fontSize: 11, fill: "#607477" }}
                 axisLine={false}
                 tickLine={false}
+                tickMargin={7}
                 tickFormatter={(value) => `${value} MW`}
               />
               <YAxis
@@ -175,9 +178,10 @@ export function DispatchChart({
                 tick={{ fontSize: 11, fill: "#655fb4" }}
                 axisLine={false}
                 tickLine={false}
+                tickMargin={7}
                 tickFormatter={(value) => `${value} MWh`}
               />
-              <Tooltip content={<Tip />} />
+              <Tooltip content={<Tip />} cursor={{ fill: "rgba(8, 125, 120, .045)" }} />
               <ReferenceLine
                 yAxisId="power"
                 y={0}
@@ -228,7 +232,7 @@ export function DispatchChart({
       </div>
       <div className="chart-foot">
         <span>
-          <i className="bound" />
+          <i className="bound" aria-hidden="true" />
           Dashed lines: configured {number(battery.min_soc_mwh)}–
           {number(battery.max_soc_mwh)} MWh SoC envelope
         </span>
