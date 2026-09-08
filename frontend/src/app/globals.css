@@ -1171,6 +1171,9 @@ td {
   color: #244c4f;
   white-space: pre-wrap;
 }
+.evidence pre code {
+  white-space: inherit;
+}
 .sr-only {
   position: absolute;
   width: 1px;
