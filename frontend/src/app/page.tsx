@@ -21,7 +21,6 @@ import { DispatchChart } from "@/components/dispatch-chart";
 import { Kpi } from "@/components/kpi";
 import { OrderTable } from "@/components/order-table";
 import {
-  ConstraintUtilization,
   EconomicsPanel,
   OrderTimeline,
   ScenarioOutcomeChart,
@@ -59,7 +58,7 @@ const defaultMarket: Market = {
 const tabs = [
   ["schedule", "Dispatch & Economics"],
   ["orders", "Auction Orders"],
-  ["proof", "Feasibility Proof"],
+  ["proof", "Physical Validation"],
   ["compare", "Scenario Comparison"],
 ] as const;
 type TabKey = (typeof tabs)[number][0];
@@ -1101,31 +1100,38 @@ function ProofView({
   result?: Simulation;
   battery: Battery;
 }) {
-  const s = result?.summary ?? {},
-    proposalDispatch = result?.proposal?.implied_dispatch ?? result?.dispatch ?? [],
-    power = result
-      ? Math.max(0, ...proposalDispatch.map((x) => Math.abs(x.power_mw)))
-      : 0,
+  const proposalDispatch = result?.proposal?.implied_dispatch ?? result?.dispatch ?? [],
+    chargePower = Math.max(0, ...proposalDispatch.filter((x) => x.power_mw < 0).map((x) => Math.abs(x.power_mw))),
+    dischargePower = Math.max(0, ...proposalDispatch.filter((x) => x.power_mw > 0).map((x) => x.power_mw)),
+    proposalMinSoc = result?.proposal?.proposal_min_soc_mwh ?? result?.summary.min_soc_mwh ?? 0,
+    proposalMaxSoc = result?.proposal?.proposal_max_soc_mwh ?? result?.summary.max_soc_mwh ?? 0,
+    proposalCycles = result?.proposal?.proposal_equivalent_cycles ?? result?.summary.equivalent_cycles ?? 0,
     proposalTerminalSoc =
       result?.proposal?.proposal_terminal_soc_mwh ??
       result?.optimization.terminal_soc_mwh ??
       0,
     rows = result
       ? [
-          constraintRow("Power limit", battery.grid_limit_mw, power, "MW", "maximum"),
-          constraintRow("Minimum SoC", battery.min_soc_mwh, s.min_soc_mwh ?? 0, "MWh", "minimum"),
-          constraintRow("Maximum SoC", battery.max_soc_mwh, s.max_soc_mwh ?? 0, "MWh", "maximum"),
-          constraintRow("Cycle budget", battery.max_equivalent_cycles, s.equivalent_cycles ?? 0, "EFC", "maximum", 2),
-          constraintRow("Terminal SoC", battery.target_soc_mwh, proposalTerminalSoc, "MWh", "minimum"),
+          constraintRow("Charge power", Math.min(battery.max_charge_power_mw, battery.grid_limit_mw), chargePower, "MW", "maximum"),
+          constraintRow("Discharge power", Math.min(battery.max_discharge_power_mw, battery.grid_limit_mw), dischargePower, "MW", "maximum"),
+          envelopeRow(battery.min_soc_mwh, battery.max_soc_mwh, proposalMinSoc, proposalMaxSoc),
+          constraintRow("Cycle budget", battery.max_equivalent_cycles, proposalCycles, "EFC", "maximum", 2),
+          constraintRow("End-of-day reserve", battery.target_soc_mwh, proposalTerminalSoc, "MWh", "minimum"),
         ]
       : [];
+  const failedCount = rows.filter((row) => row.status === "Failed").length;
+  const bindingCount = rows.filter((row) => row.status === "Binding").length;
+  const validationSummary = result?.validation.status === "passed"
+    ? `All ${rows.length} physical checks passed${bindingCount ? `; ${bindingCount} ${bindingCount === 1 ? "limit is" : "limits are"} fully utilized` : ""}.`
+    : failedCount
+      ? `${failedCount} physical ${failedCount === 1 ? "limit is" : "limits are"} exceeded.`
+      : "Physical limits pass; review the order and market findings below.";
   return (
     <>
       <Head
         n="04"
-        title="Validate Feasibility"
-        text="Every proposed order is reconciled with the physical battery schedule."
-        aside={title(result?.validation.status ?? "pending")}
+        title="Physical Validation"
+        text="Confirm that the proposed orders can be executed within the battery limits."
       />
       {!result ? (
         <Empty
@@ -1134,36 +1140,28 @@ function ProofView({
         />
       ) : (
         <>
-          <div className="meaning-note">
-            <strong>What “Binding” Means</strong>
-            <span>A binding limit is fully used by the optimizer. It is not an error and normally should not be changed; it shows which constraint currently prevents additional value.</span>
-          </div>
-          <ConstraintUtilization result={result} battery={battery} />
-          <div className={`proof-summary ${result.validation.status}`}>
+          <div className={`validation-summary ${result.validation.status}`} role="status">
             {result.validation.status === "passed" ? <CheckCircle2 size={26} aria-hidden="true" /> : <AlertTriangle size={26} aria-hidden="true" />}
             <div>
-              <strong>{result.validation.status === "passed" ? "Proposal Is Physically Feasible" : result.validation.status === "warning" ? "Proposal Passed with Warnings" : "Proposal Is Not Feasible"}</strong>
-              <span>{result.validation.status === "passed" ? "All modeled battery and market constraints are satisfied." : "Review the validation findings below before approval or export."}</span>
+              <strong>{result.validation.status === "passed" ? "Physically Feasible" : result.validation.status === "warning" ? "Feasible with Warnings" : "Not Physically Feasible"}</strong>
+              <span>{validationSummary}</span>
             </div>
+            <small><strong>Binding</strong> means a limit is fully used, not violated.</small>
           </div>
           {result.validation.findings.length > 0 && <ul className="checks">{result.validation.findings.map((finding) => <li key={`${finding.code}-${finding.interval ?? "run"}`}><AlertTriangle size={15} aria-hidden="true" />{finding.message}</li>)}</ul>}
-          <div className="constraint-table">
-            <div className="constraint-row header">
-              <strong>Constraint</strong>
-              <span>Limit</span>
-              <span>Observed</span>
-              <span>Headroom</span>
-              <span>Result</span>
-            </div>
-            {rows.map((r) => (
-              <div className="constraint-row" key={r.label}>
-                <strong>{r.label}</strong>
-                <span>{r.limit}</span>
-                <span>{r.observed}</span>
-                <span>{r.headroom}</span>
-                <span className={r.status.toLowerCase()}>{r.status}</span>
-              </div>
-            ))}
+          <div className="table-scroll validation-table">
+            <table>
+              <caption className="sr-only">Physical validation of the proposed battery schedule</caption>
+              <thead><tr><th scope="col">Physical check</th><th scope="col">Observed / allowed</th><th scope="col">Remaining margin</th><th scope="col">Status</th></tr></thead>
+              <tbody>{rows.map((row) => (
+                <tr key={row.label}>
+                  <th scope="row">{row.label}</th>
+                  <td>{row.observed} / {row.limit}</td>
+                  <td>{row.headroom}</td>
+                  <td><span className={`validation-state ${row.status.toLowerCase()}`}>{row.status}</span></td>
+                </tr>
+              ))}</tbody>
+            </table>
           </div>
           <details className="solver-details">
             <summary>Solver & Model Details</summary>
@@ -1449,6 +1447,25 @@ function constraintRow(
     limit: num(limit, digits) + " " + unit,
     observed: num(observed, digits) + " " + unit,
     headroom: margin < -tolerance ? magnitude + " short" : magnitude,
+    status,
+  };
+}
+function envelopeRow(
+  minimum: number,
+  maximum: number,
+  observedMinimum: number,
+  observedMaximum: number,
+) {
+  const lowerMargin = observedMinimum - minimum;
+  const upperMargin = maximum - observedMaximum;
+  const margin = Math.min(lowerMargin, upperMargin);
+  const tolerance = 0.05;
+  const status = margin < -tolerance ? "Failed" : Math.abs(margin) <= tolerance ? "Binding" : "Passed";
+  return {
+    label: "State-of-charge envelope",
+    limit: `${num(minimum)}–${num(maximum)} MWh`,
+    observed: `${num(observedMinimum)}–${num(observedMaximum)} MWh`,
+    headroom: margin < -tolerance ? `${num(Math.abs(margin))} MWh outside` : `${num(margin)} MWh nearest limit`,
     status,
   };
 }

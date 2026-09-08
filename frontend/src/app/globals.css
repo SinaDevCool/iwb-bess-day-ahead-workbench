@@ -875,7 +875,7 @@ td {
   display: flex;
   gap: 8px;
 }
-.proof-summary {
+.validation-summary {
   display: flex;
   gap: 11px;
   align-items: center;
@@ -885,43 +885,56 @@ td {
   border-radius: 8px;
   margin-bottom: 13px;
 }
-.proof-summary > div {
+.validation-summary.warning {
+  background: #fff4e6;
+  color: var(--warning);
+}
+.validation-summary.failed {
+  background: #fff0ed;
+  color: var(--error);
+}
+.validation-summary > div {
   display: flex;
   flex-direction: column;
 }
-.proof-summary span {
+.validation-summary span {
   font-size: 11px;
 }
-.constraint-table {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.constraint-row {
-  display: grid;
-  grid-template-columns: 1.3fr repeat(4, 1fr);
-  gap: 8px;
-  padding: 11px 13px;
-  border-bottom: 1px solid #e6edeb;
-  font-variant-numeric: tabular-nums;
-}
-.constraint-row.header {
-  background: #f4f8f7;
-  text-transform: uppercase;
-  color: var(--muted);
+.validation-summary > small {
+  margin-left: auto;
+  color: currentColor;
   font-size: 10px;
+  white-space: nowrap;
 }
-.constraint-row .binding {
+.validation-table {
+  margin-top: 0;
+}
+.validation-table th[scope="row"] {
+  color: var(--ink);
+  background: #fff;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  position: static;
+}
+.validation-state {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 800;
+}
+.validation-state.binding {
+  background: #fff2df;
   color: var(--warning);
-  font-weight: 750;
 }
-.constraint-row .failed {
+.validation-state.failed {
+  background: #fff0ed;
   color: var(--error);
-  font-weight: 750;
 }
-.constraint-row .passed {
+.validation-state.passed {
+  background: #e7f6ef;
   color: var(--success);
-  font-weight: 700;
 }
 .proof-grid {
   display: grid;
@@ -1286,17 +1299,8 @@ footer {
   .actions button {
     width: 100%;
   }
-  .constraint-row {
-    grid-template-columns: 1fr 1fr;
-  }
-  .constraint-row.header {
-    display: none;
-  }
-  .constraint-row span:before {
-    display: block;
-    font-size: 9px;
-    color: var(--muted);
-  }
+  .validation-summary { align-items: flex-start; flex-wrap: wrap; }
+  .validation-summary > small { width: 100%; margin-left: 37px; white-space: normal; }
   .proof-grid,
   .checks {
     grid-template-columns: 1fr;
@@ -1548,9 +1552,6 @@ body {
 .data-table-toggle tbody tr { transition: background-color 140ms ease, color 140ms ease, font-weight 140ms ease; }
 .data-table-toggle tbody tr:hover { background:#eaf6f4; color:#073f3d; font-weight:700; }
 .data-table-toggle tbody tr:focus-within { background:#eaf6f4; color:#073f3d; }
-.meaning-note { display:flex; gap:10px; align-items:flex-start; padding:11px 13px; margin-bottom:12px; border:1px solid #c9ddd9; border-radius:8px; background:#f1f8f7; }
-.meaning-note strong { white-space:nowrap; color:#075f5b; }
-.meaning-note span { color:var(--muted); line-height:1.45; }
 .scenario-guide { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; margin:12px 0; }
 .scenario-guide article { display:flex; flex-direction:column; gap:5px; min-width:0; padding:12px; border:1px solid var(--line); border-radius:8px; background:#fbfcfc; }
 .scenario-guide article strong { color:var(--ink); }
@@ -1559,19 +1560,6 @@ body {
 .scenario-definitions { margin:0 0 14px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:10px 2px; }
 .scenario-definitions summary { color:var(--teal); cursor:pointer; font-size:12px; font-weight:800; }
 .scenario-definitions summary:hover { color:var(--teal-dark); }
-.utilization { margin:0 0 18px; }
-.utilization-list { border:1px solid var(--line); border-radius:9px; overflow:hidden; }
-.utilization-row { display:grid; grid-template-columns:190px minmax(160px,1fr) 110px; align-items:center; gap:16px; padding:12px 14px; border-bottom:1px solid var(--line); }
-.utilization-row:last-child { border-bottom:0; }
-.utilization-row > div:first-child { display:flex; justify-content:space-between; gap:12px; }
-.utilization-row strong { font-size:11px; }
-.utilization-row span { font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums; }
-.utilization-track { height:8px; background:#e5edeb; border-radius:99px; overflow:hidden; }
-.utilization-track i { display:block; height:100%; background:#218e87; border-radius:inherit; }
-.utilization-track i.failed { background:var(--error); }
-.utilization-row > .binding { color:#8b4b0d; font-weight:800; }
-.utilization-row > .headroom { color:var(--success); font-weight:750; }
-.utilization-row > .failed { color:var(--error); font-weight:800; }
 @media (max-width:1200px) {
   .economics-grid { grid-template-columns:1fr; }
   .economics-bridge { min-height:230px; }
@@ -1584,9 +1572,6 @@ body {
   .economics-area { height:260px; }
   .order-area { height:280px; }
   .scenario-area { height:250px; }
-}
-@media (max-width:900px) {
-  .utilization-row { grid-template-columns:170px minmax(140px,1fr) 100px; }
 }
 @media (max-width: 700px) {
   .chart-overview {
@@ -1615,6 +1600,4 @@ body {
     padding: 15px 18px;
   }
   .economics-chart figcaption,.order-timeline figcaption,.scenario-chart figcaption { flex-direction:column; gap:2px; }
-  .utilization-row { grid-template-columns:1fr; gap:7px; }
-  .utilization-row > div:first-child { justify-content:space-between; }
 }

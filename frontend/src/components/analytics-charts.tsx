@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { Battery, Dispatch, Order, Simulation } from "@/types/api";
+import type { Dispatch, Order, Simulation } from "@/types/api";
 
 const money = (value: number) => new Intl.NumberFormat("en-CH", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value);
 const moneyExact = (value: number) => new Intl.NumberFormat("en-CH", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
@@ -86,20 +86,6 @@ function OrderTip({ active, payload }: { active?: boolean; payload?: Array<{ pay
   if (!active || !payload?.[0]) return null;
   const order = payload[0].payload;
   return <div className="chart-tip"><span className="tip-time">{order.time} · Europe/Zurich</span><strong>{order.side} {number(order.volume_mw)} MW</strong><dl><div><dt>Limit price</dt><dd>{money(order.limit_price_eur_mwh)}/MWh</dd></div><div><dt>Expected price</dt><dd>{money(order.expected_price_eur_mwh)}/MWh</dd></div><div><dt>Contribution</dt><dd>{money(order.expected_contribution_eur)}</dd></div></dl></div>;
-}
-
-export function ConstraintUtilization({ result, battery }: { result: Simulation; battery: Battery }) {
-  const s = result.summary;
-  const proposalDispatch = result.proposal?.implied_dispatch ?? result.dispatch;
-  const observedCharge = Math.max(0, ...proposalDispatch.filter((r) => r.power_mw < 0).map((r) => Math.abs(r.power_mw)));
-  const observedDischarge = Math.max(0, ...proposalDispatch.filter((r) => r.power_mw > 0).map((r) => r.power_mw));
-  const limits = [
-    ["Charge power", observedCharge, Math.min(battery.max_charge_power_mw, battery.grid_limit_mw), "MW"],
-    ["Discharge power", observedDischarge, Math.min(battery.max_discharge_power_mw, battery.grid_limit_mw), "MW"],
-    ["Maximum SoC", s.max_soc_mwh ?? 0, battery.max_soc_mwh, "MWh"],
-    ["Cycle budget", s.equivalent_cycles ?? 0, battery.max_equivalent_cycles, "EFC"],
-  ] as const;
-  return <section className="utilization" aria-labelledby="utilization-title"><div className="subsection-heading"><div><span className="chart-kicker">CAPACITY HEADROOM</span><h3 id="utilization-title">Binding Constraint Overview</h3><p>Shows which physical limits restrict additional market value.</p></div></div><div className="utilization-list">{limits.map(([label, observed, limit, unit]) => { const rawPct = limit ? observed / limit * 100 : 0; const pct = Math.min(100, rawPct); const failed = rawPct > 100.5; const binding = !failed && rawPct >= 99.5; const state = failed ? `Exceeded by ${number(observed - limit, 2)} ${unit}` : binding ? "Binding" : `${number(100 - rawPct, 0)}% headroom`; return <div className="utilization-row" key={label}><div><strong>{label}</strong><span>{number(observed, 2)} / {number(limit, 2)} {unit}</span></div><div className="utilization-track" role="progressbar" aria-label={`${label} utilization`} aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}><i className={failed ? "failed" : undefined} style={{ width: `${pct}%` }} /></div><span className={failed ? "failed" : binding ? "binding" : "headroom"}>{state}</span></div>; })}</div></section>;
 }
 
 export function ScenarioOutcomeChart({ baseline, current }: { baseline: Simulation; current: Simulation }) {
