@@ -607,13 +607,13 @@ export default function Workbench() {
               </label>
               {horizonPolicy === "terminal_value" && <NF id="terminal-value" label="Terminal energy value" hint="Illustrative value for stored energy above the end-of-day reserve" value={terminalValue} unit="€/MWh" min={0} change={(v) => { setTerminalValue(v); change(); }} />}
               {horizonPolicy === "next_day_proxy" && <NF id="lookahead-hours" label="Next-day look-ahead" hint="Uses the earliest next-day forecast intervals as a replacement-value proxy" value={lookaheadHours} unit="hours" min={1} max={12} change={(v) => { setLookaheadHours(v); change(); }} />}
-              <button className="advanced-toggle" type="button" aria-expanded={policyAdvanced} onClick={() => setPolicyAdvanced((value) => !value)}><SlidersHorizontal size={15} aria-hidden="true" /> Scenario probabilities</button>
-              {policyAdvanced && <div className="field-grid probability-grid">
-                <NF id="prob-downside" label="Downside" value={scenarioProbabilities.downside} unit="%" min={0} max={100} change={(v) => { setScenarioProbabilities({ ...scenarioProbabilities, downside: v }); change(); }} />
-                <NF id="prob-expected" label="Expected" value={scenarioProbabilities.expected} unit="%" min={0} max={100} change={(v) => { setScenarioProbabilities({ ...scenarioProbabilities, expected: v }); change(); }} />
-                <NF id="prob-upside" label="Upside" value={scenarioProbabilities.upside} unit="%" min={0} max={100} change={(v) => { setScenarioProbabilities({ ...scenarioProbabilities, upside: v }); change(); }} />
-                <div className={`probability-total ${Math.abs(scenarioProbabilities.downside + scenarioProbabilities.expected + scenarioProbabilities.upside - 100) < .001 ? "valid" : "invalid"}`}><span>Total</span><strong>{num(scenarioProbabilities.downside + scenarioProbabilities.expected + scenarioProbabilities.upside, 0)}%</strong></div>
-              </div>}
+              <button className="advanced-toggle" type="button" aria-expanded={policyAdvanced} aria-controls="scenario-probability-editor" onClick={() => setPolicyAdvanced((value) => !value)}><SlidersHorizontal size={15} aria-hidden="true" /> Scenario probabilities</button>
+              {policyAdvanced && (
+                <ScenarioProbabilityEditor
+                  value={scenarioProbabilities}
+                  onChange={(next) => { setScenarioProbabilities(next); change(); }}
+                />
+              )}
             </fieldset>
             <fieldset className="config-group">
               <legend>3 · Battery &amp; Availability</legend>
@@ -1391,6 +1391,67 @@ function NF({
         {hint ?? "No additional assumption"}
       </small>
     </label>
+  );
+}
+
+type ScenarioProbabilities = { downside: number; expected: number; upside: number };
+
+function ScenarioProbabilityEditor({ value, onChange }: { value: ScenarioProbabilities; onChange: (value: ScenarioProbabilities) => void }) {
+  const total = value.downside + value.expected + value.upside;
+  const valid = Object.values(value).every((probability) => Number.isFinite(probability) && probability >= 0 && probability <= 100)
+    && Math.abs(total - 100) < .001;
+  const difference = Math.abs(100 - total);
+  const scenarios: Array<{ key: keyof ScenarioProbabilities; label: string; description: string }> = [
+    { key: "downside", label: "Downside", description: "Lower-price case" },
+    { key: "expected", label: "Expected", description: "Central forecast" },
+    { key: "upside", label: "Upside", description: "Higher-price case" },
+  ];
+
+  return (
+    <fieldset id="scenario-probability-editor" className={`probability-editor ${valid ? "valid" : "invalid"}`}>
+      <legend className="sr-only">Scenario probability allocation</legend>
+      <div className="probability-editor-heading">
+        <span>Probability allocation</span>
+        <strong className={valid ? "valid" : "invalid"}>{num(total, 0)}%</strong>
+      </div>
+      <p>Weights used to score each feasible schedule across the three price cases.</p>
+      <div className="probability-bar" role="img" aria-label={`Downside ${num(value.downside, 0)}%, expected ${num(value.expected, 0)}%, upside ${num(value.upside, 0)}%`}>
+        {scenarios.map(({ key }) => value[key] > 0 && (
+          <span key={key} className={`probability-segment ${key}`} style={{ flexGrow: value[key] }} />
+        ))}
+      </div>
+      <div className="probability-rows">
+        {scenarios.map(({ key, label, description }) => (
+          <label key={key} htmlFor={`prob-${key}`}>
+            <span className={`probability-key ${key}`} aria-hidden="true" />
+            <span className="probability-copy"><strong>{label}</strong><small>{description}</small></span>
+            <span className="probability-input">
+              <input
+                id={`prob-${key}`}
+                name={`prob-${key}`}
+                type="number"
+                inputMode="decimal"
+                autoComplete="off"
+                min={0}
+                max={100}
+                step="1"
+                value={value[key]}
+                onChange={(event) => onChange({ ...value, [key]: Number(event.target.value) })}
+                aria-describedby="scenario-probability-status"
+              />
+              <span>%</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      <div id="scenario-probability-status" className="probability-status" role="status" aria-live="polite">
+        {valid ? (
+          <><CheckCircle2 size={14} aria-hidden="true" /><span>100% allocated</span></>
+        ) : (
+          <><AlertTriangle size={14} aria-hidden="true" /><span>{total > 100 ? `Reduce by ${num(difference, 0)} percentage points.` : `Allocate ${num(difference, 0)} more percentage points.`}</span></>
+        )}
+      </div>
+    </fieldset>
   );
 }
 function TextNumber({
