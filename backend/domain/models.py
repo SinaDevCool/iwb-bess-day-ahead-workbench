@@ -337,3 +337,26 @@ class SimulationResult(BaseModel):
     risk: RiskSummary
     horizon: HorizonSummary
     approval_status: str | None = None
+
+
+class SimulationRunSummary(BaseModel):
+    """Compact, immutable projection used to discover comparable saved runs."""
+
+    simulation_id: str
+    created_at_utc: datetime
+    display_name: str
+    delivery_date: str
+    scenario_name: str
+    product_minutes: Literal[15, 60]
+    risk_posture: str
+    horizon_policy: str
+    capacity_mwh: float
+    validation_status: str
+    modified_by_trader: bool
+    expected_contribution_eur: float
+    downside_contribution_eur: float | None = None
+    upside_contribution_eur: float | None = None
+    throughput_mwh: float
+    equivalent_cycles: float
+    order_count: int
+    input_hash: str

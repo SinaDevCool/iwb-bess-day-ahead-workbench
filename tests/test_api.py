@@ -154,3 +154,44 @@ def test_initial_result_versions_and_proposal_metrics_are_present():
     assert payload["audit"]["validation_version"] == "order_proposal_validation_v2"
     assert payload["optimization"]["engine"] == "scipy_highs_milp_v1"
     assert payload["summary"]["baseline_proposal_contribution_eur"] == payload["summary"]["proposal_contribution_eur"]
+
+
+def test_saved_run_catalogue_is_compact_and_filterable():
+    hourly = client.post(
+        "/api/simulations",
+        json={"scenario_name": "Expected forecast", "market": {"product_minutes": 60}},
+    ).json()
+    quarter_hourly = client.post(
+        "/api/simulations",
+        json={"scenario_name": "Downside", "market": {"product_minutes": 15}},
+    ).json()
+
+    response = client.get("/api/simulation-runs", params={"limit": 100})
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert {hourly["simulation_id"], quarter_hourly["simulation_id"]} <= {
+        item["simulation_id"] for item in items
+    }
+    summary = next(item for item in items if item["simulation_id"] == quarter_hourly["simulation_id"])
+    assert "dispatch" not in summary
+    assert "orders" not in summary
+    assert summary["product_minutes"] == 15
+    assert summary["expected_contribution_eur"] == quarter_hourly["summary"]["expected_contribution_eur"]
+    assert summary["downside_contribution_eur"] == quarter_hourly["risk"]["downside_contribution_eur"]
+    assert summary["input_hash"] == quarter_hourly["audit"]["input_hash"]
+
+    filtered = client.get(
+        "/api/simulation-runs",
+        params={"product_minutes": 15, "validation_status": "passed", "scenario": "down"},
+    )
+    assert filtered.status_code == 200
+    assert filtered.json()["items"]
+    assert all(item["product_minutes"] == 15 for item in filtered.json()["items"])
+    assert all("down" in item["scenario_name"].lower() for item in filtered.json()["items"])
+
+
+def test_saved_run_catalogue_rejects_invalid_filters():
+    assert client.get("/api/simulation-runs", params={"limit": 0}).status_code == 422
+    assert client.get("/api/simulation-runs", params={"limit": 101}).status_code == 422
+    assert client.get("/api/simulation-runs", params={"product_minutes": 30}).status_code == 422
+    assert client.get("/api/simulation-runs", params={"validation_status": "unknown"}).status_code == 422

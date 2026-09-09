@@ -26,10 +26,10 @@ import { OrderTable } from "@/components/order-table";
 import {
   EconomicsPanel,
   OrderTimeline,
-  ScenarioOutcomeChart,
 } from "@/components/analytics-charts";
+import { SavedRunComparison } from "@/components/comparison/saved-run-comparison";
 import { api, download } from "@/lib/api";
-import type { Battery, Market, Order, Simulation } from "@/types/api";
+import type { Battery, Market, Order, Simulation, SimulationSummary } from "@/types/api";
 
 const defaultBattery: Battery = {
   capacity_mwh: 100,
@@ -64,7 +64,7 @@ const tabs = [
   ["schedule", "Dispatch & Economics"],
   ["orders", "Auction Orders"],
   ["proof", "Physical Validation"],
-  ["compare", "Scenario Comparison"],
+  ["compare", "Compare Runs"],
 ] as const;
 type TabKey = (typeof tabs)[number][0];
 const compactTabLabels: Record<TabKey, string> = {
@@ -87,7 +87,6 @@ export default function Workbench() {
     [availability, setAvailability] = useState("Fully available"),
     [unavailable, setUnavailable] = useState("");
   const [result, setResult] = useState<Simulation>(),
-    [baseline, setBaseline] = useState<Simulation>(),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState<{ kind: string; text: string } | null>(
       null,
@@ -102,7 +101,7 @@ export default function Workbench() {
     [comment, setComment] = useState(""),
     [exclude, setExclude] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
-  const run = async (first = false) => {
+  const run = async () => {
     const error = validate(battery, date, unavailable);
     if (error) {
       setMessage({ kind: "error", text: error });
@@ -130,7 +129,6 @@ export default function Workbench() {
         }),
       });
       setResult(next);
-      if (first || !baseline) setBaseline(next);
       setDirty(false);
       setSelected(undefined);
       setMessage({
@@ -172,7 +170,6 @@ export default function Workbench() {
         if (!items.length) return;
         const latest = items[0];
         setResult(latest);
-        setBaseline(latest);
         setBattery(latest.battery);
         // Historical audit records may predate newly introduced configuration
         // fields. Merge them over current defaults so the form remains complete.
@@ -369,18 +366,13 @@ export default function Workbench() {
       setBusy(false);
     }
   };
-  const summary = result?.summary ?? {},
+  const summary: Partial<SimulationSummary> = result?.summary ?? {},
     resultBattery = result?.battery ?? battery,
     resultMarket = result?.market ?? market,
     cyclePct = Math.min(
       100,
       ((summary.equivalent_cycles ?? 0) / resultBattery.max_equivalent_cycles) * 100,
     ),
-    delta =
-      result && baseline
-        ? result.summary.expected_contribution_eur -
-          baseline.summary.expected_contribution_eur
-        : undefined,
     dst =
       result &&
       result.dispatch.length !== (resultMarket.product_minutes === 60 ? 24 : 96);
@@ -935,24 +927,7 @@ export default function Workbench() {
                 <ProofView result={result} battery={resultBattery} />
               )}{" "}
               {tab === "compare" && (
-                <Compare
-                  result={result}
-                  baseline={baseline}
-                  delta={delta}
-                  scenario={scenario}
-                  riskPosture={riskPosture}
-                  setBase={() => {
-                    if (result) {
-                      setBaseline(result);
-                      setMessage({
-                        kind: "info",
-                        text:
-                          result.scenario_name +
-                          " is now the comparison baseline.",
-                      });
-                    }
-                  }}
-                />
+                <><Head n="05" title="Compare Saved Simulation Runs" text="Select completed runs, inspect their exact inputs and compare results across market outcomes." /><SavedRunComparison key={result?.simulation_id ?? "empty"} /></>
               )}
             </section>
           </div>
@@ -1323,150 +1298,6 @@ function ProofView({
     </>
   );
 }
-function Compare({
-  result,
-  baseline,
-  delta,
-  scenario,
-  riskPosture,
-  setBase,
-}: {
-  result?: Simulation;
-  baseline?: Simulation;
-  delta?: number;
-  scenario: string;
-  riskPosture: string;
-  setBase: () => void;
-}) {
-  const rows = [
-    [
-      "Expected net contribution",
-      money(baseline?.summary.expected_contribution_eur),
-      money(result?.summary.expected_contribution_eur),
-      signedMoney(delta),
-    ],
-    [
-      "Daily throughput",
-      num(baseline?.summary.throughput_mwh) + " MWh",
-      num(result?.summary.throughput_mwh) + " MWh",
-      signed(
-        (result?.summary.throughput_mwh ?? 0) -
-          (baseline?.summary.throughput_mwh ?? 0),
-        " MWh",
-      ),
-    ],
-    [
-      "Equivalent cycles",
-      num(baseline?.summary.equivalent_cycles, 2),
-      num(result?.summary.equivalent_cycles, 2),
-      signed(
-        (result?.summary.equivalent_cycles ?? 0) -
-          (baseline?.summary.equivalent_cycles ?? 0),
-        "",
-      ),
-    ],
-    [
-      "Orders",
-      String(baseline?.summary.order_count ?? 0),
-      String(result?.summary.order_count ?? 0),
-      signed(
-        (result?.summary.order_count ?? 0) -
-          (baseline?.summary.order_count ?? 0),
-        "",
-      ),
-    ],
-  ];
-  return (
-    <>
-      <Head
-        n="05"
-        title="Compare Scenarios"
-        text="Measure how changed assumptions affect the recommendation."
-        action={
-          <button
-            className="secondary small"
-            disabled={!result}
-            onClick={setBase}
-          >
-            Set as Comparison Baseline
-          </button>
-        }
-      />
-      <div className="scenario-callout">
-        <strong>Current run: {scenario}</strong>
-        <span>
-          {result?.scenario_name === baseline?.scenario_name
-            ? "Run another scenario to reveal the optimization response."
-            : "Compared with " +
-              (baseline?.scenario_name ?? "the baseline") +
-              "."}
-        </span>
-      </div>
-      <p className="scenario-instruction"><strong>How to compare:</strong> choose a scenario in the left panel, run the optimization, then return here. The previous baseline and new completed run will be shown side by side.</p>
-      {result?.risk && <section className="portfolio-robustness" aria-labelledby="robustness-title">
-        <div className="robustness-heading">
-          <div><span className="eyebrow">PORTFOLIO ROBUSTNESS</span><h3 id="robustness-title">Recommended Portfolio: {result.risk.recommended_scenario}</h3></div>
-          <span className="posture-badge">{riskPosture.replaceAll("_", " ")}</span>
-        </div>
-        <p>Selected because the current decision posture is <strong>{riskPosture.replaceAll("_", " ")}</strong>. The same executable orders are valued under all three price cases.</p>
-        <div className="risk-outcomes" aria-label="Portfolio contribution across price cases">
-          <div><span>Downside Case</span><strong>{money(result.risk.downside_contribution_eur)}</strong></div>
-          <div><span>Probability-Weighted</span><strong>{money(result.risk.expected_contribution_eur)}</strong></div>
-          <div><span>Upside Case</span><strong>{money(result.risk.upside_contribution_eur)}</strong></div>
-        </div>
-      </section>}
-      <details className="scenario-definitions">
-        <summary>Scenario Definitions</summary>
-        <div className="scenario-guide" aria-label="Available scenario definitions">
-          <article><strong>Expected Forecast</strong><span>Central illustrative Day-Ahead price expectation and normal availability.</span></article>
-          <article><strong>Downside</strong><span>Lower selling peaks and more expensive charging hours test a weaker arbitrage case.</span></article>
-          <article><strong>Peak Compression</strong><span>Reduces prices above €80/MWh by €25/MWh to test a narrower market spread.</span></article>
-          <article><strong>Availability Stress</strong><span>Removes the battery from operation from 18:00–20:00 to test loss of peak-hour flexibility.</span></article>
-        </div>
-      </details>
-      {result && baseline && (
-        <section aria-labelledby="run-comparison-title">
-          <div className="subsection-heading"><div><span className="eyebrow">RUN-TO-RUN COMPARISON</span><h3 id="run-comparison-title">Baseline vs Current Run</h3></div></div>
-          <ScenarioOutcomeChart baseline={baseline} current={result} />
-        </section>
-      )}
-      <div className="compare">
-        <div className="compare-row compare-head">
-          <strong>Metric</strong>
-          <span>Baseline</span>
-          <span>Current</span>
-          <span>Difference</span>
-        </div>
-        {rows.map((r) => (
-          <div className="compare-row" key={r[0]}>
-            <strong>{r[0]}</strong>
-            <span>
-              <small>Baseline</small>
-              {r[1]}
-            </span>
-            <span>
-              <small>Current</small>
-              {r[2]}
-            </span>
-            <span
-              className={
-                "delta " +
-                (r[3].startsWith("−")
-                  ? "negative"
-                  : r[3] === "–"
-                    ? "neutral"
-                    : "positive")
-              }
-            >
-              <small>Difference</small>
-              {r[3]}
-            </span>
-          </div>
-        ))}
-      </div>
-    </>
-  );
-}
 function NF({
   id,
   label,
@@ -1652,10 +1483,6 @@ const signedMoney = (v?: number) =>
   typeof v !== "number" || Math.abs(v) < 0.005
     ? "–"
     : (v > 0 ? "+ " : "− ") + money(Math.abs(v));
-const signed = (v: number, u: string) =>
-  Math.abs(v) < 0.005
-    ? "–"
-    : (v > 0 ? "+ " : "− ") + num(Math.abs(v), u.includes("MWh") ? 1 : 2) + u;
 const perMwh = (v: number) => money(v) + "/MWh";
 const title = (v: string) =>
   v.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());

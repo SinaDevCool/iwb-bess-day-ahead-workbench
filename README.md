@@ -13,6 +13,7 @@ The dispatch is solved as a mixed-integer linear program with SciPy/HiGHS. It ex
 - Proposal changes and their audit evidence are committed in one SQLite transaction.
 - Continuous MILP quantities are floored to the configured auction increment, reconstructed, and repaired until the executable order package passes the physical validator.
 - The scenario view evaluates each candidate's same executable orders under downside, expected and upside prices with explicit illustrative probabilities; the selected decision posture can therefore change the recommended dispatch and order portfolio.
+- The saved-run comparison keeps each completed simulation immutable, supports two to four selected runs and one explicit reference, and reveals the exact market, strategy, battery and availability inputs behind every result.
 - End-of-day energy can use the hard minimum reserve alone, a configured terminal value, or an explicitly illustrative next-day forecast proxy. Cash contribution and continuation value remain separate.
 
 ## Safety boundary

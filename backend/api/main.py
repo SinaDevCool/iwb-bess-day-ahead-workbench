@@ -6,15 +6,16 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
+from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.config.defaults import DEFAULT_BATTERY, DEFAULT_MARKET
 from backend.db.repository import add_audit_event, get_simulation, initialize, list_audit_events, list_simulations, save_simulation_with_event
-from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order, OrderProposalEdit, SimulationRequest
+from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order, OrderProposalEdit, SimulationRequest, SimulationRunSummary
 from backend.domain.economics import calculate_interval
 from backend.services.forecast_service import build_demo_forecast
 from backend.services.simulation_service import run_simulation
@@ -94,6 +95,56 @@ def simulate(request: SimulationRequest):
 @app.get("/api/simulations")
 def simulations():
     return {"items": list_simulations()}
+
+
+def _run_summary(payload: dict) -> SimulationRunSummary:
+    created = datetime.fromisoformat(str(payload["created_at_utc"]).replace("Z", "+00:00"))
+    scenario = payload.get("scenario_name", "Unnamed run")
+    product_minutes = payload.get("market", {}).get("product_minutes", 60)
+    return SimulationRunSummary(
+        simulation_id=payload["simulation_id"],
+        created_at_utc=created,
+        display_name=f"{scenario} · {product_minutes} min · {created.astimezone(ZoneInfo('Europe/Zurich')).strftime('%d %b %H:%M')}",
+        delivery_date=payload["delivery_date"],
+        scenario_name=scenario,
+        product_minutes=product_minutes,
+        risk_posture=payload.get("risk_posture", "balanced"),
+        horizon_policy=payload.get("horizon_policy", "minimum_reserve"),
+        capacity_mwh=payload.get("battery", {}).get("capacity_mwh", 0),
+        validation_status=payload.get("validation", {}).get("status", "unknown"),
+        modified_by_trader=bool(payload.get("audit", {}).get("modified_by_trader", False)),
+        expected_contribution_eur=payload.get("summary", {}).get("expected_contribution_eur", 0),
+        downside_contribution_eur=payload.get("risk", {}).get("downside_contribution_eur"),
+        upside_contribution_eur=payload.get("risk", {}).get("upside_contribution_eur"),
+        throughput_mwh=payload.get("summary", {}).get("throughput_mwh", 0),
+        equivalent_cycles=payload.get("summary", {}).get("equivalent_cycles", 0),
+        order_count=payload.get("summary", {}).get("order_count", len(payload.get("orders", []))),
+        input_hash=str(payload.get("audit", {}).get("input_hash", "not-recorded")),
+    )
+
+
+@app.get("/api/simulation-runs")
+def simulation_runs(
+    limit: int = Query(30, ge=1, le=100),
+    delivery_date: str | None = None,
+    product_minutes: int | None = Query(None, ge=15, le=60),
+    validation_status: Literal["passed", "warning", "failed"] | None = None,
+    scenario: str | None = None,
+):
+    """Return compact saved-run metadata without dispatch and order arrays."""
+    if product_minutes is not None and product_minutes not in (15, 60):
+        raise HTTPException(status_code=422, detail="product_minutes must be 15 or 60")
+    candidates = list_simulations(100)
+    if delivery_date:
+        candidates = [item for item in candidates if item.get("delivery_date") == delivery_date]
+    if product_minutes:
+        candidates = [item for item in candidates if item.get("market", {}).get("product_minutes") == product_minutes]
+    if validation_status:
+        candidates = [item for item in candidates if item.get("validation", {}).get("status") == validation_status]
+    if scenario:
+        needle = scenario.casefold()
+        candidates = [item for item in candidates if needle in item.get("scenario_name", "").casefold()]
+    return {"items": [_run_summary(item) for item in candidates[:limit]]}
 
 
 @app.get("/api/simulations/{simulation_id}")
