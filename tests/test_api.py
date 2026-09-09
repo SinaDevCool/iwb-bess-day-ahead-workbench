@@ -185,11 +185,25 @@ def test_orders_expose_break_even_evidence_and_result_has_sensitivities():
     assert payload["orders"]
     assert all("break_even_price_eur_mwh" in order for order in payload["orders"])
     assert all("margin_to_break_even_eur_mwh" in order for order in payload["orders"])
-    assert {item["key"] for item in payload["sensitivities"]} >= {"cycles", "grid", "efficiency", "degradation"}
-    efficiency = next(item for item in payload["sensitivities"] if item["key"] == "efficiency")
-    assert efficiency["baseline_value"] == 90
-    assert efficiency["tested_value"] == 91
-    assert efficiency["unit"] == "%"
+    items = {item["key"]: item for item in payload["sensitivities"]}
+    assert set(items) >= {"terminal_reserve", "cycles", "operating_power", "soc_window", "availability"}
+    assert not ({"capacity", "efficiency", "degradation", "grid"} & set(items))
+    assert sum(item["default_selected"] for item in items.values()) == 5
+    assert all(item["calculation"] == "full_reoptimization" for item in items.values())
+    assert items["operating_power"]["upper_case"] is None
+    assert items["operating_power"]["lower_case"]["value"] == 45
+    assert items["terminal_value"]["category"] == "strategy"
+    assert items["downside_weight"]["category"] == "strategy"
+
+
+def test_sensitivity_cases_reconcile_to_full_optimizer_results():
+    payload = client.post("/api/simulations", json={}).json()
+    baseline = payload["summary"]["optimized_contribution_eur"]
+    for item in payload["sensitivities"]:
+        for case_name in ("lower_case", "upper_case"):
+            case = item[case_name]
+            if case and case["feasible"]:
+                assert round(case["contribution_eur"] - baseline, 2) == case["delta_eur"]
 
 
 def test_multi_day_policy_records_continuation_assumption():

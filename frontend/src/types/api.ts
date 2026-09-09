@@ -60,6 +60,17 @@ export type SimulationRunSummary = {
   throughput_mwh: number; equivalent_cycles: number; order_count: number; input_hash: string;
 };
 export type ComparisonMetric = "contribution" | "throughput" | "cycles" | "orders";
+export type SensitivityCase = {
+  value: number; unit: string; contribution_eur: number; delta_eur: number;
+  feasible: boolean; bounded?: boolean; explanation: string;
+};
+export type SensitivityItem = {
+  key: string; label: string; baseline_value: number; tested_value: number; unit: string;
+  contribution_delta_eur: number; marginal_value_eur: number; interpretation: string;
+  category?: "operational" | "strategy"; default_selected?: boolean;
+  lower_case?: SensitivityCase | null; upper_case?: SensitivityCase | null;
+  calculation?: "full_reoptimization";
+};
 export type Simulation = {
   simulation_id: string; created_at_utc: string; delivery_date: string; scenario_name: string;
   strategy?: "expected_value" | "conservative"; risk_posture?: "expected_value" | "balanced" | "downside_protected"; horizon_policy?: "minimum_reserve" | "terminal_value" | "next_day_proxy" | "multi_day"; terminal_value_eur_per_mwh?: number; price_multiplier?: number; peak_reduction_eur_mwh?: number; scenario_probabilities?: { downside: number; expected: number; upside: number }; lookahead_hours?: number; proposal_revision?: number;
@@ -73,5 +84,5 @@ export type Simulation = {
   horizon?: { policy: string; terminal_value_eur_per_mwh: number; reserve_soc_mwh: number; terminal_soc_mwh: number; incremental_stored_energy_mwh: number; terminal_energy_value_eur: number };
   forecast?: { source_type: "illustrative" | "manual" | "file"; source_name: string; version: string; created_at_utc?: string; bidding_zone: string };
   forecast_points?: { timestamp_utc: string; timestamp_local: string; price_eur_mwh: number }[];
-  sensitivities?: { key: string; label: string; baseline_value: number; tested_value: number; unit: string; contribution_delta_eur: number; marginal_value_eur: number; interpretation: string }[];
+  sensitivities?: SensitivityItem[];
 };

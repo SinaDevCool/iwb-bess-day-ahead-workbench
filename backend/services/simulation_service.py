@@ -51,7 +51,7 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         "created_at_utc": request.forecast.created_at_utc or created_at,
     })
     input_hash = hashlib.sha256(json.dumps(request.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()[:16]
-    sensitivities = _sensitivities(request, prices, round(contribution, 2), terminal_value)
+    sensitivities = _sensitivities(request, base_prices, prices, dispatch, round(contribution, 2), terminal_value)
     result = SimulationResult(
         simulation_id=simulation_id,
         created_at_utc=created_at,
@@ -124,37 +124,148 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
     return result
 
 
-def _sensitivities(request, prices, baseline, terminal_value):
-    """Small deterministic perturbations, calculated from the same forecast snapshot."""
-    specs = [
-        ("cycles", "Daily cycle budget", "max_equivalent_cycles", 0.1, "EFC"),
-        ("grid", "Grid connection", "grid_limit_mw", 1.0, "MW"),
-        ("capacity", "Usable energy capacity", "max_soc_mwh", 1.0, "MWh"),
-        ("efficiency", "Round-trip efficiency", "round_trip_efficiency", 0.01, "%"),
-        ("degradation", "Degradation cost", "degradation_cost_eur_per_mwh", 1.0, "€/MWh"),
+def _sensitivities(request, base_prices, prices, baseline_dispatch, baseline, terminal_value):
+    """Re-optimize feasible operating decisions without presenting fixed asset facts as trader levers."""
+    capacity = request.battery.capacity_mwh
+    step_mwh = max(1.0, capacity * 0.10)
+    power_baseline = min(
+        request.battery.max_charge_power_mw,
+        request.battery.max_discharge_power_mw,
+        request.battery.grid_limit_mw,
+    )
+    soc_window = request.battery.max_soc_mwh - request.battery.min_soc_mwh
+    active_intervals = [row.interval for row in baseline_dispatch if row.action != "idle"]
+    outage_candidate = max(
+        active_intervals,
+        key=lambda index: abs(baseline_dispatch[index].interval_pnl_eur),
+        default=None,
+    )
+
+    definitions = [
+        {
+            "key": "terminal_reserve", "label": "End-of-day reserve", "unit": "MWh",
+            "baseline": request.battery.target_soc_mwh,
+            "lower": max(request.battery.min_soc_mwh, request.battery.target_soc_mwh - step_mwh),
+            "upper": min(request.battery.max_soc_mwh, request.battery.target_soc_mwh + step_mwh),
+            "updates": lambda value: {"target_soc_mwh": value},
+            "interpretation": "Value of carrying more or less energy beyond the delivery day.",
+        },
+        {
+            "key": "cycles", "label": "Daily cycle budget", "unit": "EFC",
+            "baseline": request.battery.max_equivalent_cycles,
+            "lower": max(0.25, request.battery.max_equivalent_cycles - 0.25),
+            "upper": min(3.0, request.battery.max_equivalent_cycles + 0.25),
+            "updates": lambda value: {"max_equivalent_cycles": value},
+            "interpretation": "Value of tightening or relaxing today's approved throughput budget.",
+        },
+        {
+            "key": "operating_power", "label": "Operating power cap", "unit": "MW",
+            "baseline": power_baseline, "lower": round(power_baseline * 0.90, 3), "upper": None,
+            "updates": lambda value: {
+                "max_charge_power_mw": min(request.battery.max_charge_power_mw, value),
+                "max_discharge_power_mw": min(request.battery.max_discharge_power_mw, value),
+                "grid_limit_mw": min(request.battery.grid_limit_mw, value),
+            },
+            "interpretation": "Cost of a temporary symmetric operating-power derating.",
+        },
+        {
+            "key": "soc_window", "label": "Operating SoC window", "unit": "MWh",
+            "baseline": soc_window, "lower": max(1.0, soc_window - step_mwh), "upper": None,
+            "updates": lambda value: {
+                "min_soc_mwh": request.battery.min_soc_mwh + (soc_window - value) / 2,
+                "max_soc_mwh": request.battery.max_soc_mwh - (soc_window - value) / 2,
+                "initial_soc_mwh": min(
+                    request.battery.max_soc_mwh - (soc_window - value) / 2,
+                    max(request.battery.min_soc_mwh + (soc_window - value) / 2, request.battery.initial_soc_mwh),
+                ),
+                "target_soc_mwh": min(
+                    request.battery.max_soc_mwh - (soc_window - value) / 2,
+                    max(request.battery.min_soc_mwh + (soc_window - value) / 2, request.battery.target_soc_mwh),
+                ),
+            },
+            "interpretation": "Cost of tightening the approved operating SoC envelope.",
+        },
+        {
+            "key": "availability", "label": "Asset availability", "unit": "unavailable intervals",
+            "baseline": float(len(request.battery.unavailable_intervals)),
+            "lower": 0.0 if request.battery.unavailable_intervals else None,
+            "upper": float(len(request.battery.unavailable_intervals) + 1) if outage_candidate is not None else None,
+            "updates": lambda value: {
+                "unavailable_intervals": [] if value == 0 else sorted(set([
+                    *request.battery.unavailable_intervals,
+                    *([] if outage_candidate is None else [outage_candidate]),
+                ])),
+            },
+            "interpretation": "Value gained from restoring availability or lost through one material outage interval.",
+        },
+        {
+            "key": "terminal_value", "label": "Terminal energy value", "unit": "€/MWh",
+            "category": "strategy", "scope": "request", "baseline": terminal_value,
+            "lower": max(0.0, terminal_value - 10.0), "upper": terminal_value + 10.0,
+            "updates": lambda value: {
+                "horizon_policy": "terminal_value", "terminal_value_eur_per_mwh": value,
+            },
+            "interpretation": "How the assumed value of stored energy beyond the auction day changes today's schedule.",
+        },
+        {
+            "key": "downside_weight", "label": "Downside scenario weight", "unit": "%",
+            "category": "strategy", "scope": "request",
+            "baseline": request.scenario_probabilities.downside * 100,
+            "lower": max(0.0, request.scenario_probabilities.downside * 100 - 10.0),
+            "upper": min(90.0, request.scenario_probabilities.downside * 100 + 10.0),
+            "updates": lambda value: {"scenario_probabilities": request.scenario_probabilities.model_copy(update={
+                "downside": value / 100,
+                "expected": request.scenario_probabilities.expected + request.scenario_probabilities.downside - value / 100,
+            })},
+            "interpretation": "How a more or less downside-focused probability view changes the preferred schedule.",
+        },
     ]
-    items = []
-    for key, label, field, delta, unit in specs:
-        before = getattr(request.battery, field)
-        after = before + delta
-        if field == "max_soc_mwh": after = min(request.battery.capacity_mwh, after)
-        if field == "round_trip_efficiency": after = min(1.0, after)
-        if after == before:
-            continue
-        battery = request.battery.model_copy(update={field: after})
+
+    def evaluate(definition, value, direction):
+        if value is None or abs(value - definition["baseline"]) < 1e-9:
+            return None
         try:
-            dispatch, _ = optimize_dispatch(prices, battery, request.market, terminal_value)
-            value = round(sum(row.interval_pnl_eur for row in dispatch), 2)
-            change = round(value - baseline, 2)
-        except ValueError:
-            change = 0.0
-        display_before = before * 100 if field == "round_trip_efficiency" else before
-        display_after = after * 100 if field == "round_trip_efficiency" else after
-        display_delta = display_after - display_before
+            if definition.get("scope") == "request":
+                candidate_request = request.model_copy(update=definition["updates"](value))
+            else:
+                battery = request.battery.model_copy(update=definition["updates"](value))
+                candidate_request = request.model_copy(update={"battery": battery})
+            candidate_dispatch, _, _, _ = select_risk_aware_dispatch(
+                candidate_request, base_prices, prices, resolve_terminal_value(candidate_request)
+            )
+            contribution = round(sum(row.interval_pnl_eur for row in candidate_dispatch), 2)
+            return {
+                "value": value, "unit": definition["unit"], "contribution_eur": contribution,
+                "delta_eur": round(contribution - baseline, 2), "feasible": True,
+                "explanation": f"Full re-optimization with the {direction} tested value.",
+            }
+        except ValueError as error:
+            return {
+                "value": value, "unit": definition["unit"], "contribution_eur": baseline,
+                "delta_eur": 0.0, "feasible": False, "explanation": str(error),
+            }
+
+    items = []
+    for definition in definitions:
+        lower_case = evaluate(definition, definition["lower"], "lower")
+        upper_case = evaluate(definition, definition["upper"], "upper")
+        cases = [case for case in (lower_case, upper_case) if case and case["feasible"]]
+        representative = max(cases, key=lambda case: abs(case["delta_eur"]), default=None)
+        if representative is None:
+            continue
+        display_delta = representative["value"] - definition["baseline"]
         items.append({
-            "key": key, "label": label, "baseline_value": display_before, "tested_value": display_after,
-            "unit": unit, "contribution_delta_eur": change,
-            "marginal_value_eur": round(change / display_delta, 2),
-            "interpretation": "Local sensitivity under the same forecast and all other saved assumptions.",
+            "key": definition["key"], "label": definition["label"],
+            "baseline_value": definition["baseline"], "tested_value": representative["value"],
+            "unit": definition["unit"], "contribution_delta_eur": representative["delta_eur"],
+            "marginal_value_eur": round(representative["delta_eur"] / display_delta, 2) if display_delta else 0,
+            "interpretation": definition["interpretation"],
+            "category": definition.get("category", "operational"),
+            "default_selected": definition.get("category", "operational") == "operational",
+            "lower_case": lower_case, "upper_case": upper_case,
+            "calculation": "full_reoptimization",
         })
-    return sorted(items, key=lambda item: abs(item["contribution_delta_eur"]), reverse=True)
+    return sorted(items, key=lambda item: max(
+        abs((item["lower_case"] or {}).get("delta_eur", 0)),
+        abs((item["upper_case"] or {}).get("delta_eur", 0)),
+    ), reverse=True)

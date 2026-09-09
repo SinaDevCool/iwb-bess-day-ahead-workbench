@@ -349,6 +349,16 @@ class HorizonSummary(MappingModel):
     continuation_forecast_version: str | None = None
 
 
+class SensitivityCase(MappingModel):
+    value: float
+    unit: str
+    contribution_eur: float
+    delta_eur: float
+    feasible: bool = True
+    bounded: bool = False
+    explanation: str = ""
+
+
 class SensitivityItem(MappingModel):
     key: str
     label: str
@@ -358,6 +368,11 @@ class SensitivityItem(MappingModel):
     contribution_delta_eur: float
     marginal_value_eur: float
     interpretation: str
+    category: Literal["operational", "strategy"] = "operational"
+    default_selected: bool = False
+    lower_case: SensitivityCase | None = None
+    upper_case: SensitivityCase | None = None
+    calculation: Literal["full_reoptimization"] = "full_reoptimization"
 
 
 class OptimizationEvidence(MappingModel):

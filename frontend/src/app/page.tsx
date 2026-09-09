@@ -28,6 +28,7 @@ import {
   OrderTimeline,
 } from "@/components/analytics-charts";
 import { SavedRunComparison } from "@/components/comparison/saved-run-comparison";
+import { SensitivityPanel } from "@/components/sensitivity-panel";
 import { api, download } from "@/lib/api";
 import type { Battery, Market, Order, Simulation, SimulationSummary } from "@/types/api";
 
@@ -1073,7 +1074,7 @@ function Schedule({
 function ValueDrivers({ result }: { result: Simulation }) {
   const items = result.sensitivities ?? [];
   if (!items.length) return null;
-  return <section className="value-drivers" aria-labelledby="value-drivers-title"><div className="value-drivers-head"><div><span className="eyebrow">DECISION SUPPORT</span><h3 id="value-drivers-title">What Could Change Value?</h3><p>Local sensitivities use the same saved forecast and assumptions.</p></div></div><div className="value-driver-list">{items.slice(0, 5).map((item) => <div className="value-driver" key={item.key}><div><strong>{item.label}</strong><small>{num(item.baseline_value)} → {num(item.tested_value)} {item.unit}</small></div><div className="value-driver-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.max(4, Math.abs(item.contribution_delta_eur) / Math.max(...items.map(x => Math.abs(x.contribution_delta_eur)), 1) * 100))}%` }} /></div><b className={item.contribution_delta_eur >= 0 ? "positive" : "negative"}>{signedMoney(item.contribution_delta_eur)}</b></div>)}</div><small>Directional estimate, not a guarantee. Re-run with the tested value before making a decision.</small></section>;
+  return <SensitivityPanel key={result.simulation_id} items={items} />;
 }
 type OP = {
   result?: Simulation;
