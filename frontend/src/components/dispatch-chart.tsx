@@ -15,9 +15,11 @@ import type { Battery, Dispatch } from "@/types/api";
 export function DispatchChart({
   rows,
   battery,
+  forecast,
 }: {
   rows: Dispatch[];
   battery: Battery;
+  forecast?: { source_type: "illustrative" | "manual" | "file"; source_name: string; version: string };
 }) {
   const data = rows.map((row) => ({
     ...row,
@@ -45,6 +47,7 @@ export function DispatchChart({
     ]),
   ].sort((a, b) => a - b);
   const summary = `The battery charges in ${charges.length} low-price intervals and discharges in ${discharges.length} high-price intervals.`;
+  const forecastLabel = forecast?.source_type === "manual" ? forecast.source_name : "Illustrative Day-Ahead Price Forecast";
   return (
     <figure className="dispatch-figure">
       <div className="chart-overview">
@@ -72,14 +75,14 @@ export function DispatchChart({
         <div className="plot-heading">
           <span>
             <i className="legend-line price" aria-hidden="true" />
-            Illustrative Day-Ahead Price Forecast
+            {forecastLabel}
           </span>
           <strong>€/MWh</strong>
         </div>
         <div
           className="plot-area"
           role="img"
-          aria-label={`Illustrative Day-Ahead auction price forecast in euros per megawatt-hour. ${summary}`}
+          aria-label={`${forecastLabel} in euros per megawatt-hour. ${summary}`}
         >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
@@ -106,7 +109,7 @@ export function DispatchChart({
               <Tooltip content={<Tip />} cursor={{ stroke: "#9bb2af", strokeDasharray: "3 3" }} />
               <Area
                 dataKey="price_eur_mwh"
-                name="Illustrative DA price forecast"
+                name={forecastLabel}
                 stroke="#174b56"
                 fill="url(#priceFill)"
                 strokeWidth={2.5}

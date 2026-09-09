@@ -150,11 +150,52 @@ def test_approval_is_idempotent():
 
 def test_initial_result_versions_and_proposal_metrics_are_present():
     payload = client.post("/api/simulations", json={}).json()
-    assert payload["audit"]["schema_version"] == 4
+    assert payload["audit"]["schema_version"] == 5
     assert payload["audit"]["assumption_sources"]["market.exchange_fee"] == "Excluded; IWB confirmation required"
     assert payload["audit"]["validation_version"] == "physical_and_order_validation_v4"
     assert payload["optimization"]["engine"] == "scipy_highs_milp_v1"
     assert payload["summary"]["baseline_proposal_contribution_eur"] == payload["summary"]["proposal_contribution_eur"]
+
+
+def test_manual_forecast_is_used_and_preserved_with_provenance():
+    prices = [float(20 + index) for index in range(24)]
+    response = client.post("/api/simulations", json={
+        "price_values": prices,
+        "forecast": {
+            "source_type": "manual",
+            "source_name": "Trader curve",
+            "version": "desk-curve-17",
+            "bidding_zone": "CH",
+        },
+    })
+    assert response.status_code == 200
+    payload = response.json()
+    assert [point["price_eur_mwh"] for point in payload["forecast_points"]] == prices
+    assert payload["forecast"]["source_name"] == "Trader curve"
+    assert payload["audit"]["forecast_version"] == "desk-curve-17"
+
+
+def test_manual_forecast_must_match_the_product_interval_count():
+    response = client.post("/api/simulations", json={"price_values": [20.0] * 23})
+    assert response.status_code == 422
+
+
+def test_orders_expose_break_even_evidence_and_result_has_sensitivities():
+    payload = client.post("/api/simulations", json={}).json()
+    assert payload["orders"]
+    assert all("break_even_price_eur_mwh" in order for order in payload["orders"])
+    assert all("margin_to_break_even_eur_mwh" in order for order in payload["orders"])
+    assert {item["key"] for item in payload["sensitivities"]} >= {"cycles", "grid", "efficiency", "degradation"}
+
+
+def test_multi_day_policy_records_continuation_assumption():
+    payload = client.post("/api/simulations", json={
+        "horizon_policy": "multi_day",
+        "lookahead_hours": 12,
+    }).json()
+    assert payload["horizon"]["policy"] == "multi_day"
+    assert payload["horizon"]["lookahead_hours"] == 12
+    assert payload["horizon"]["continuation_forecast_version"] == payload["forecast"]["version"]
 
 
 def test_saved_run_catalogue_is_compact_and_filterable():

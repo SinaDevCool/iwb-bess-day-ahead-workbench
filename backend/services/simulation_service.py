@@ -9,11 +9,14 @@ from backend.db.repository import save_simulation_with_event
 from backend.domain.models import SimulationRequest, SimulationResult
 from backend.services.forecast_service import apply_scenario, build_demo_forecast
 from backend.services.decision_support_service import build_executable_orders, resolve_terminal_value, select_risk_aware_dispatch
+from backend.optimization.milp_optimizer import optimize_dispatch
 from backend.validation.validators import validate_dispatch
 
 
 def run_simulation(request: SimulationRequest) -> SimulationResult:
     base_prices = request.prices or build_demo_forecast(request.delivery_date, request.market)
+    if request.price_values is not None:
+        base_prices = [point.model_copy(update={"price_eur_mwh": value}) for point, value in zip(base_prices, request.price_values)]
     prices = apply_scenario(
         base_prices,
         multiplier=request.price_multiplier,
@@ -44,7 +47,11 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
             order.confidence = "high"
             order.explanation += "; direction is stable across downside, expected and upside cases"
     created_at = datetime.now(timezone.utc)
+    forecast_metadata = request.forecast.model_copy(update={
+        "created_at_utc": request.forecast.created_at_utc or created_at,
+    })
     input_hash = hashlib.sha256(json.dumps(request.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()[:16]
+    sensitivities = _sensitivities(request, prices, round(contribution, 2), terminal_value)
     result = SimulationResult(
         simulation_id=simulation_id,
         created_at_utc=created_at,
@@ -88,13 +95,13 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         },
         optimization=optimization,
         proposal=proposal,
-        audit={"schema_version": 4, "input_hash": input_hash, "forecast_version": "illustrative-v1", "optimizer_version": optimization["engine"], "validation_version": "physical_and_order_validation_v4", "modified_by_trader": False, "assumption_sources": {
+        audit={"schema_version": 5, "input_hash": input_hash, "forecast_version": request.forecast.version, "optimizer_version": optimization["engine"], "validation_version": "physical_and_order_validation_v4", "modified_by_trader": False, "assumption_sources": {
             "battery.capacity_mwh": "IWB task baseline",
             "battery.power_limits": "IWB task baseline / user input",
             "market.product_minutes": "Market configuration assumption",
             "market.exchange_fee": "IWB contract value" if request.market.exchange_fee_policy == "configured" else "Excluded; IWB confirmation required",
             "market.clearing_fee": "ECC public tariff assumption",
-            "forecast": "Illustrative deterministic profile",
+            "forecast": f"{request.forecast.source_type}: {request.forecast.source_name}",
         }},
         order_generation=order_generation,
         risk=risk,
@@ -105,8 +112,46 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
             "terminal_soc_mwh": proposal["proposal_terminal_soc_mwh"],
             "incremental_stored_energy_mwh": round(incremental_energy, 3),
             "terminal_energy_value_eur": terminal_energy_value,
+            "lookahead_hours": request.lookahead_hours if request.horizon_policy in {"next_day_proxy", "multi_day"} else 0,
+            "continuation_forecast_version": request.forecast.version if request.horizon_policy in {"next_day_proxy", "multi_day"} else None,
         },
+        forecast=forecast_metadata,
+        forecast_points=base_prices,
+        sensitivities=sensitivities,
     )
     payload = result.model_dump(mode="json")
-    save_simulation_with_event(payload, created_at.isoformat(), "SIMULATION_CREATED", {"schema_version": 4, "input_hash": input_hash, "validation": validation_status, "optimizer": optimization["engine"]})
+    save_simulation_with_event(payload, created_at.isoformat(), "SIMULATION_CREATED", {"schema_version": 5, "input_hash": input_hash, "validation": validation_status, "optimizer": optimization["engine"]})
     return result
+
+
+def _sensitivities(request, prices, baseline, terminal_value):
+    """Small deterministic perturbations, calculated from the same forecast snapshot."""
+    specs = [
+        ("cycles", "Daily cycle budget", "max_equivalent_cycles", 0.1, "EFC"),
+        ("grid", "Grid connection", "grid_limit_mw", 1.0, "MW"),
+        ("capacity", "Usable energy capacity", "max_soc_mwh", 1.0, "MWh"),
+        ("efficiency", "Round-trip efficiency", "round_trip_efficiency", 0.01, "pp"),
+        ("degradation", "Degradation cost", "degradation_cost_eur_per_mwh", 1.0, "€/MWh"),
+    ]
+    items = []
+    for key, label, field, delta, unit in specs:
+        before = getattr(request.battery, field)
+        after = before + delta
+        if field == "max_soc_mwh": after = min(request.battery.capacity_mwh, after)
+        if field == "round_trip_efficiency": after = min(1.0, after)
+        if after == before:
+            continue
+        battery = request.battery.model_copy(update={field: after})
+        try:
+            dispatch, _ = optimize_dispatch(prices, battery, request.market, terminal_value)
+            value = round(sum(row.interval_pnl_eur for row in dispatch), 2)
+            change = round(value - baseline, 2)
+        except ValueError:
+            change = 0.0
+        items.append({
+            "key": key, "label": label, "baseline_value": before, "tested_value": after,
+            "unit": unit, "contribution_delta_eur": change,
+            "marginal_value_eur": round(change / (after - before), 2),
+            "interpretation": "Local sensitivity under the same forecast and all other saved assumptions.",
+        })
+    return sorted(items, key=lambda item: abs(item["contribution_delta_eur"]), reverse=True)

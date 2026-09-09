@@ -21,6 +21,7 @@ export type Order = {
   order_id: string; delivery_start_utc: string; delivery_end_utc: string; delivery_local: string;
   product: string; side: "BUY" | "SELL"; volume_mw: number; energy_mwh: number;
   limit_price_eur_mwh: number; expected_price_eur_mwh: number; expected_contribution_eur: number;
+  break_even_price_eur_mwh: number; margin_to_break_even_eur_mwh: number; pricing_posture: "execution" | "balanced" | "margin";
   sales_revenue_eur: number; purchase_cost_eur: number; degradation_cost_eur: number; transaction_fee_eur: number;
   confidence: string; status: string; explanation: string;
 };
@@ -61,7 +62,7 @@ export type SimulationRunSummary = {
 export type ComparisonMetric = "contribution" | "throughput" | "cycles" | "orders";
 export type Simulation = {
   simulation_id: string; created_at_utc: string; delivery_date: string; scenario_name: string;
-  strategy?: "expected_value" | "conservative"; risk_posture?: "expected_value" | "balanced" | "downside_protected"; horizon_policy?: "minimum_reserve" | "terminal_value" | "next_day_proxy"; terminal_value_eur_per_mwh?: number; price_multiplier?: number; peak_reduction_eur_mwh?: number; scenario_probabilities?: { downside: number; expected: number; upside: number }; lookahead_hours?: number; proposal_revision?: number;
+  strategy?: "expected_value" | "conservative"; risk_posture?: "expected_value" | "balanced" | "downside_protected"; horizon_policy?: "minimum_reserve" | "terminal_value" | "next_day_proxy" | "multi_day"; terminal_value_eur_per_mwh?: number; price_multiplier?: number; peak_reduction_eur_mwh?: number; scenario_probabilities?: { downside: number; expected: number; upside: number }; lookahead_hours?: number; proposal_revision?: number;
   data_mode: string; submission_mode: string; battery: Battery; market: Market; dispatch: Dispatch[];
   orders: Order[]; validation: { status: ValidationStatus; findings: { severity: string; code: string; message: string; interval?: number; observed_value?: number; configured_limit?: number; difference?: number; tolerance?: number; unit?: string; source?: string }[] };
   summary: SimulationSummary; optimization: { engine: string; prototype_solver: boolean; solver_status?: string; solve_time_ms?: number; mip_gap?: number; objective: string; objective_value_eur: number; terminal_soc_mwh: number; constraint_status: string; constraints: string[] };
@@ -70,4 +71,7 @@ export type Simulation = {
   order_generation?: { method: string; volume_increment_mw: number; adjusted_order_count: number; repaired_order_count: number; volume_reduction_mwh: number; contribution_delta_eur: number; validation_status: string };
   risk?: RiskSummary;
   horizon?: { policy: string; terminal_value_eur_per_mwh: number; reserve_soc_mwh: number; terminal_soc_mwh: number; incremental_stored_energy_mwh: number; terminal_energy_value_eur: number };
+  forecast?: { source_type: "illustrative" | "manual" | "file"; source_name: string; version: string; created_at_utc?: string; bidding_zone: string };
+  forecast_points?: { timestamp_utc: string; timestamp_local: string; price_eur_mwh: number }[];
+  sensitivities?: { key: string; label: string; baseline_value: number; tested_value: number; unit: string; contribution_delta_eur: number; marginal_value_eur: number; interpretation: string }[];
 };

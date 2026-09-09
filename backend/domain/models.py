@@ -99,19 +99,29 @@ class PricePoint(BaseModel):
     high_eur_mwh: float | None = None
 
 
+class ForecastMetadata(BaseModel):
+    source_type: Literal["illustrative", "manual", "file"] = "illustrative"
+    source_name: str = "IWB illustrative profile"
+    version: str = "illustrative-v1"
+    created_at_utc: datetime | None = None
+    bidding_zone: str = "CH"
+
+
 class SimulationRequest(BaseModel):
     delivery_date: str = "2026-09-09"
     scenario_name: str = "Expected forecast"
     battery: BatteryConfig = Field(default_factory=BatteryConfig)
     market: MarketConfig = Field(default_factory=MarketConfig)
     prices: list[PricePoint] | None = None
+    price_values: list[float] | None = None
+    forecast: ForecastMetadata = Field(default_factory=ForecastMetadata)
     price_multiplier: float = Field(1, gt=0)
     peak_reduction_eur_mwh: float = Field(0, ge=0)
     strategy: Literal["expected_value", "conservative"] = "expected_value"
     risk_posture: Literal["expected_value", "balanced", "downside_protected"] = "balanced"
-    horizon_policy: Literal["minimum_reserve", "terminal_value", "next_day_proxy"] = "minimum_reserve"
+    horizon_policy: Literal["minimum_reserve", "terminal_value", "next_day_proxy", "multi_day"] = "minimum_reserve"
     terminal_value_eur_per_mwh: float = Field(0, ge=0)
-    lookahead_hours: int = Field(4, ge=1, le=12)
+    lookahead_hours: int = Field(4, ge=1, le=24)
     scenario_probabilities: ScenarioProbability = Field(default_factory=ScenarioProbability)
 
     @model_validator(mode="after")
@@ -129,12 +139,27 @@ class SimulationRequest(BaseModel):
         interval_count = int((end - start).total_seconds() / 60 / self.market.product_minutes)
         if any(index < 0 or index >= interval_count for index in self.battery.unavailable_intervals):
             raise ValueError(f"Unavailable intervals must be between 0 and {interval_count - 1} for this delivery day")
-        if self.prices:
+        if self.prices is not None and self.price_values is not None:
+            raise ValueError("Provide either timestamped forecast points or a manual price series, not both")
+        if self.forecast.source_type == "manual" and self.prices is None and self.price_values is None:
+            raise ValueError("A manual forecast source requires forecast prices")
+        if self.forecast.bidding_zone != self.market.bidding_zone:
+            raise ValueError("Forecast bidding zone must match the configured market")
+        if self.prices is not None:
             timestamps = [point.timestamp_utc for point in self.prices]
             if timestamps != sorted(timestamps) or len(timestamps) != len(set(timestamps)):
                 raise ValueError("Forecast timestamps must be unique and chronological")
             if any(not self.market.min_price_eur_mwh <= point.price_eur_mwh <= self.market.max_price_eur_mwh for point in self.prices):
                 raise ValueError("Forecast price is outside configured market limits")
+            if len(self.prices) != interval_count:
+                raise ValueError(f"Forecast must contain exactly {interval_count} delivery intervals")
+            if any(point.timestamp_utc < start or point.timestamp_utc >= end for point in self.prices):
+                raise ValueError("Forecast timestamps must cover only the configured local delivery day")
+        if self.price_values is not None:
+            if len(self.price_values) != interval_count:
+                raise ValueError(f"Manual forecast must contain exactly {interval_count} prices")
+            if any(not self.market.min_price_eur_mwh <= value <= self.market.max_price_eur_mwh for value in self.price_values):
+                raise ValueError("Manual forecast price is outside configured market limits")
         return self
 
 
@@ -185,6 +210,9 @@ class Order(BaseModel):
     energy_mwh: float
     limit_price_eur_mwh: float
     expected_price_eur_mwh: float
+    break_even_price_eur_mwh: float = 0
+    margin_to_break_even_eur_mwh: float = 0
+    pricing_posture: Literal["execution", "balanced", "margin"] = "balanced"
     expected_contribution_eur: float
     sales_revenue_eur: float = 0
     purchase_cost_eur: float = 0
@@ -317,6 +345,19 @@ class HorizonSummary(MappingModel):
     terminal_soc_mwh: float
     incremental_stored_energy_mwh: float
     terminal_energy_value_eur: float
+    lookahead_hours: int = 0
+    continuation_forecast_version: str | None = None
+
+
+class SensitivityItem(MappingModel):
+    key: str
+    label: str
+    baseline_value: float
+    tested_value: float
+    unit: str
+    contribution_delta_eur: float
+    marginal_value_eur: float
+    interpretation: str
 
 
 class OptimizationEvidence(MappingModel):
@@ -350,7 +391,7 @@ class SimulationResult(BaseModel):
     scenario_name: str
     strategy: Literal["expected_value", "conservative"] = "expected_value"
     risk_posture: Literal["expected_value", "balanced", "downside_protected"] = "balanced"
-    horizon_policy: Literal["minimum_reserve", "terminal_value", "next_day_proxy"] = "minimum_reserve"
+    horizon_policy: Literal["minimum_reserve", "terminal_value", "next_day_proxy", "multi_day"] = "minimum_reserve"
     terminal_value_eur_per_mwh: float = 0
     price_multiplier: float = 1
     peak_reduction_eur_mwh: float = 0
@@ -371,6 +412,9 @@ class SimulationResult(BaseModel):
     order_generation: OrderGenerationEvidence
     risk: RiskSummary
     horizon: HorizonSummary
+    forecast: ForecastMetadata = Field(default_factory=ForecastMetadata)
+    forecast_points: list[PricePoint] = Field(default_factory=list)
+    sensitivities: list[SensitivityItem] = Field(default_factory=list)
     approval_status: str | None = None
 
 

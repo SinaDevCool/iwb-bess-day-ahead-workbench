@@ -14,9 +14,11 @@ The dispatch is solved as a mixed-integer linear program with SciPy/HiGHS. It ex
 - Continuous MILP quantities are floored to the configured auction increment, reconstructed, and repaired until the executable order package passes the physical validator.
 - The scenario view evaluates each candidate's same executable orders under downside, expected and upside prices with explicit illustrative probabilities; the selected decision posture can therefore change the recommended dispatch and order portfolio.
 - The saved-run comparison keeps each completed simulation immutable, supports two to four selected runs and one explicit reference, and reveals the exact market, strategy, battery and availability inputs behind every result.
-- End-of-day energy can use the hard minimum reserve alone, a configured terminal value, or an explicitly illustrative next-day forecast proxy. Cash contribution and continuation value remain separate.
+- Forecast inputs carry source, version and bidding-zone provenance. A trader can use the built-in illustrative curve or paste a complete 24-hour hourly/quarter-hourly curve; incomplete curves are rejected before optimization.
+- End-of-day energy can use the hard minimum reserve alone, a configured terminal value, an illustrative next-day forecast proxy, or a multi-day opportunity-value policy. Cash contribution and continuation value remain separate.
+- Every generated order exposes an efficiency-, wear- and fee-adjusted break-even price, while local sensitivity calculations identify which configurable battery limit most changes value under the saved forecast.
 - Exchange fees distinguish an unconfigured/excluded contract value from a confirmed numeric zero. The ECC clearing fee remains a documented public-tariff assumption.
-- New decision records use audit schema v4 and preserve assumption provenance, scenario probabilities, forecast version, optimizer version and validation version.
+- New decision records use audit schema v5 and preserve assumption provenance, the full forecast snapshot, scenario probabilities, forecast version, optimizer version and validation version.
 - Executable orders are checked against strict SoC boundaries after market-increment rounding. Numerical solver tolerance, energy-balance tolerance and display precision are deliberately separate concepts.
 
 ## Safety boundary

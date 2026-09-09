@@ -21,7 +21,13 @@ def resolve_terminal_value(request: SimulationRequest) -> float:
     count = max(1, int(request.lookahead_hours * 60 / request.market.product_minutes))
     # Replacement-value proxy from the early next-day forecast. It is exposed
     # explicitly as illustrative in the API/UI, not mixed into cash contribution.
-    return round(sum(p.price_eur_mwh for p in next_prices[:count]) / min(count, len(next_prices)), 2)
+    window = next_prices[:count]
+    if request.horizon_policy == "multi_day":
+        # Opportunity value of stored energy over the explicit continuation
+        # window, net of one discharge's marginal wear and execution costs.
+        gross = max(p.price_eur_mwh for p in window) * request.battery.round_trip_efficiency
+        return round(max(0, gross - request.battery.degradation_cost_eur_per_mwh - effective_transaction_fee(request.market)), 2)
+    return round(sum(p.price_eur_mwh for p in window) / min(count, len(next_prices)), 2)
 
 
 def build_executable_orders(simulation_id, dispatch, market, battery):

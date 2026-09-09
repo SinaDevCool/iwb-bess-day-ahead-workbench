@@ -12,6 +12,9 @@ def build_orders(simulation_id: str, rows: list[DispatchRow], market: MarketConf
     orders = []
     transaction_fee = effective_transaction_fee(market)
     zone = ZoneInfo(market.timezone)
+    prices = [row.price_eur_mwh for row in rows]
+    eta2 = battery.round_trip_efficiency
+    eta = math.sqrt(eta2)
     for row in rows:
         if row.action == "idle" or abs(row.power_mw) < 1e-8:
             continue
@@ -21,6 +24,19 @@ def build_orders(simulation_id: str, rows: list[DispatchRow], market: MarketConf
         volume = _floor_increment(abs(row.power_mw), market.volume_increment_mw)
         if volume <= 0:
             continue
+        fee = transaction_fee
+        if side == "BUY":
+            future_peak = max(prices[row.interval + 1:] or [row.price_eur_mwh])
+            # One grid MWh bought produces eta² grid MWh for a later sale.
+            # Wear is charged to battery-side energy on both legs: 2η × cost.
+            break_even = future_peak * eta2 - fee * (1 + eta2) - 2 * battery.degradation_cost_eur_per_mwh * eta
+            margin = break_even - row.price_eur_mwh
+        else:
+            prior_low = min(prices[:row.interval] or [row.price_eur_mwh])
+            # Replacement cost of one grid MWh sold: 1/eta² MWh must be
+            # repurchased, and the two battery-side legs total 2/eta MWh.
+            break_even = (prior_low + fee) / eta2 + fee + 2 * battery.degradation_cost_eur_per_mwh / eta
+            margin = row.price_eur_mwh - break_even
         price = _round_increment(row.price_eur_mwh, market.price_increment_eur_mwh)
         start = row.timestamp_utc
         end = start + timedelta(minutes=market.product_minutes)
@@ -41,13 +57,16 @@ def build_orders(simulation_id: str, rows: list[DispatchRow], market: MarketConf
             energy_mwh=round(economics.grid_energy_mwh, 4),
             limit_price_eur_mwh=price,
             expected_price_eur_mwh=row.price_eur_mwh,
+            break_even_price_eur_mwh=round(break_even, 2),
+            margin_to_break_even_eur_mwh=round(margin, 2),
+            pricing_posture="balanced",
             expected_contribution_eur=contribution,
             sales_revenue_eur=sales,
             purchase_cost_eur=purchases,
             degradation_cost_eur=degradation,
             transaction_fee_eur=fees,
             confidence="medium",
-            explanation=("Charge while expected price is comparatively low" if side == "BUY" else "Discharge while expected price is comparatively high"),
+            explanation=("Charge below the efficiency- and cost-adjusted future sale value" if side == "BUY" else "Discharge above the efficiency- and cost-adjusted replacement cost"),
         ))
     return orders
 

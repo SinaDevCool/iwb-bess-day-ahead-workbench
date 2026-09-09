@@ -87,6 +87,8 @@ export default function Workbench() {
     [priceMultiplier, setPriceMultiplier] = useState(1),
     [scenarioProbabilities, setScenarioProbabilities] = useState({ downside: 20, expected: 60, upside: 20 }),
     [lookaheadHours, setLookaheadHours] = useState(4),
+    [forecastSource, setForecastSource] = useState<"illustrative" | "manual">("illustrative"),
+    [manualPrices, setManualPrices] = useState(""),
     [policyAdvanced, setPolicyAdvanced] = useState(false),
     [peak, setPeak] = useState(0),
     [availability, setAvailability] = useState("Fully available"),
@@ -107,6 +109,13 @@ export default function Workbench() {
     [exclude, setExclude] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
   const run = async () => {
+    const parsedPrices = manualPrices.split(/[\s,;]+/).filter(Boolean).map(Number);
+    const expectedPriceCount = market.product_minutes === 15 ? 96 : 24;
+    if (forecastSource === "manual" && (parsedPrices.length !== expectedPriceCount || parsedPrices.some((value) => !Number.isFinite(value)))) {
+      setMessage({ kind: "error", text: `Manual forecast requires exactly ${expectedPriceCount} valid prices for this product.` });
+      setTimeout(() => errorRef.current?.focus(), 0);
+      return;
+    }
     const error = validate(battery, market, date, unavailable, scenarioProbabilities);
     if (error) {
       setMessage({ kind: "error", text: error });
@@ -138,6 +147,8 @@ export default function Workbench() {
             upside: scenarioProbabilities.upside / 100,
           },
           lookahead_hours: lookaheadHours,
+          price_values: forecastSource === "manual" ? parsedPrices : undefined,
+          forecast: { source_type: forecastSource, source_name: forecastSource === "manual" ? "Trader manual forecast" : "IWB illustrative profile", version: forecastSource === "manual" ? `manual-${date}-${market.product_minutes}` : "illustrative-v1", bidding_zone: market.bidding_zone },
         }),
       });
       setResult(next);
@@ -195,6 +206,8 @@ export default function Workbench() {
         setPriceMultiplier(latest.price_multiplier ?? 1);
         setScenarioProbabilities({ downside: (latest.scenario_probabilities?.downside ?? .2) * 100, expected: (latest.scenario_probabilities?.expected ?? .6) * 100, upside: (latest.scenario_probabilities?.upside ?? .2) * 100 });
         setLookaheadHours(latest.lookahead_hours ?? 4);
+        setForecastSource(latest.forecast?.source_type === "manual" ? "manual" : "illustrative");
+        setManualPrices(latest.forecast?.source_type === "manual" ? (latest.forecast_points ?? []).map((point) => point.price_eur_mwh).join(", ") : "");
         setPeak(latest.peak_reduction_eur_mwh ?? 0);
         setUnavailable(intervalsToWindows(latest.battery.unavailable_intervals, latest.market.product_minutes));
         setAvailability(latest.battery.unavailable_intervals.length ? "Custom" : "Fully available");
@@ -553,6 +566,19 @@ export default function Workbench() {
                 </select>
                 <small>{scenarioDescription(scenario)}</small>
               </label>
+              <div className="forecast-source-block">
+                <label htmlFor="forecast-source">Forecast source
+                  <select id="forecast-source" name="forecast-source" autoComplete="off" value={forecastSource} onChange={(e) => { setForecastSource(e.target.value as "illustrative" | "manual"); change(); }}>
+                    <option value="illustrative">Illustrative demo</option>
+                    <option value="manual">Manual price series</option>
+                  </select>
+                  <small>{forecastSource === "illustrative" ? "Built-in demonstration profile · version illustrative-v1" : `Enter ${market.product_minutes === 15 ? 96 : 24} chronological prices in €/MWh.`}</small>
+                </label>
+                {forecastSource === "manual" && <label htmlFor="manual-prices">Forecast prices
+                  <textarea id="manual-prices" name="manual-prices" autoComplete="off" rows={4} placeholder="55, 50, 45, 40, …" value={manualPrices} onChange={(e) => { setManualPrices(e.target.value); change(); }} />
+                  <small>{manualPrices.split(/[\s,;]+/).filter(Boolean).length} / {market.product_minutes === 15 ? 96 : 24} prices · delivery zone {market.bidding_zone}</small>
+                </label>}
+              </div>
               <div className="fee-policy">
                 <label className="check-label" htmlFor="include-exchange-fee">
                   <input id="include-exchange-fee" type="checkbox" checked={market.exchange_fee_policy === "configured"} onChange={(e) => { setMarket({ ...market, exchange_fee_policy: e.target.checked ? "configured" : "excluded" }); change(); }} />
@@ -608,11 +634,12 @@ export default function Workbench() {
                   <option value="minimum_reserve">Minimum reserve only</option>
                   <option value="terminal_value">Configured terminal value</option>
                   <option value="next_day_proxy">Next-day forecast proxy</option>
+                  <option value="multi_day">Multi-day opportunity value</option>
                 </select>
                 <small>Controls how energy remaining after the auction day is valued.</small>
               </label>
               {horizonPolicy === "terminal_value" && <NF id="terminal-value" label="Terminal energy value" hint="Illustrative value for stored energy above the end-of-day reserve" value={terminalValue} unit="€/MWh" min={0} change={(v) => { setTerminalValue(v); change(); }} />}
-              {horizonPolicy === "next_day_proxy" && <NF id="lookahead-hours" label="Next-day look-ahead" hint="Uses the earliest next-day forecast intervals as a replacement-value proxy" value={lookaheadHours} unit="hours" min={1} max={12} change={(v) => { setLookaheadHours(v); change(); }} />}
+              {(horizonPolicy === "next_day_proxy" || horizonPolicy === "multi_day") && <NF id="lookahead-hours" label="Next-day look-ahead" hint={horizonPolicy === "multi_day" ? "Values ending energy against the best opportunity in the continuation window; only the delivery day is ordered" : "Uses the earliest next-day forecast intervals as a replacement-value proxy"} value={lookaheadHours} unit="hours" min={1} max={24} change={(v) => { setLookaheadHours(v); change(); }} />}
               <button className="advanced-toggle" type="button" aria-expanded={policyAdvanced} aria-controls="scenario-probability-editor" onClick={() => setPolicyAdvanced((value) => !value)}><SlidersHorizontal size={15} aria-hidden="true" /> Scenario probabilities</button>
               {policyAdvanced && (
                 <ScenarioProbabilityEditor
@@ -1029,8 +1056,9 @@ function Schedule({
       ) : result ? (
         <>
           {result.audit.modified_by_trader && <div className="status-message info" role="status">Showing trader proposal revision {result.proposal_revision ?? 2}; dispatch and SoC reflect the revised orders.</div>}
-          <DispatchChart rows={result.proposal?.implied_dispatch ?? result.dispatch} battery={result.battery} />
+          <DispatchChart rows={result.proposal?.implied_dispatch ?? result.dispatch} battery={result.battery} forecast={result.forecast} />
           <EconomicsPanel result={result} />
+          <ValueDrivers result={result} />
           <IntervalResultsTable result={result} />
         </>
       ) : (
@@ -1041,6 +1069,11 @@ function Schedule({
       )}
     </>
   );
+}
+function ValueDrivers({ result }: { result: Simulation }) {
+  const items = result.sensitivities ?? [];
+  if (!items.length) return null;
+  return <section className="value-drivers" aria-labelledby="value-drivers-title"><div className="value-drivers-head"><div><span className="eyebrow">DECISION SUPPORT</span><h3 id="value-drivers-title">What Could Change Value?</h3><p>Local sensitivities use the same saved forecast and assumptions.</p></div></div><div className="value-driver-list">{items.slice(0, 5).map((item) => <div className="value-driver" key={item.key}><div><strong>{item.label}</strong><small>{num(item.baseline_value)} → {num(item.tested_value)} {item.unit}</small></div><div className="value-driver-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.max(4, Math.abs(item.contribution_delta_eur) / Math.max(...items.map(x => Math.abs(x.contribution_delta_eur)), 1) * 100))}%` }} /></div><b className={item.contribution_delta_eur >= 0 ? "positive" : "negative"}>{signedMoney(item.contribution_delta_eur)}</b></div>)}</div><small>Directional estimate, not a guarantee. Re-run with the tested value before making a decision.</small></section>;
 }
 type OP = {
   result?: Simulation;
@@ -1114,10 +1147,15 @@ function Orders(p: OP) {
               <small>Optimizer Volume</small>
               <strong>{num(p.selected.volume_mw)} MW</strong>
             </span>
-            <span>
-              <small>Optimizer Limit</small>
-              <strong>{perMwh(p.selected.limit_price_eur_mwh)}</strong>
-            </span>
+              <span>
+                <small>Optimizer Limit</small>
+                <strong>{perMwh(p.selected.limit_price_eur_mwh)}</strong>
+              </span>
+              <span>
+                <small>Break-Even Price</small>
+                <strong>{perMwh(p.selected.break_even_price_eur_mwh)}</strong>
+                <em>{p.selected.margin_to_break_even_eur_mwh >= 0 ? "+" : ""}{num(p.selected.margin_to_break_even_eur_mwh)} €/MWh margin</em>
+              </span>
             <span>
               <small>Expected Contribution Change</small>
               <strong className={impact >= 0 ? "positive" : "negative"}>
@@ -1171,6 +1209,11 @@ function Orders(p: OP) {
               />
               Exclude this order
             </label>
+          </div>
+          <div className="pricing-evidence">
+            <strong>Pricing evidence</strong>
+            <span>Forecast {perMwh(p.selected.expected_price_eur_mwh)} · recommended {perMwh(p.selected.limit_price_eur_mwh)} · break-even {perMwh(p.selected.break_even_price_eur_mwh)}</span>
+            <small>Contribution assumes execution at the forecast price. Clearing probability is not modeled.</small>
           </div>
           <p className={`edit-guidance${issue ? " invalid" : ""}`} role="status">
             {issue ?? "The backend will reconstruct SoC, throughput and contribution before accepting the revised proposal."}

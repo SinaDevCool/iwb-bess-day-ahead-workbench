@@ -23,3 +23,16 @@ def test_order_ids_are_unique():
     ids = [order.order_id for order in result.orders]
     assert len(ids) == len(set(ids))
 
+
+def test_orders_include_cost_adjusted_break_even_evidence():
+    result = run_simulation(SimulationRequest())
+    for order in result.orders:
+        assert order.pricing_posture == "balanced"
+        if order.side == "BUY":
+            assert order.margin_to_break_even_eur_mwh == round(
+                order.break_even_price_eur_mwh - order.expected_price_eur_mwh, 2
+            )
+        else:
+            assert order.margin_to_break_even_eur_mwh == round(
+                order.expected_price_eur_mwh - order.break_even_price_eur_mwh, 2
+            )

@@ -559,6 +559,7 @@ select {
 }
 .inputs input,
 .inputs select,
+.inputs textarea,
 .edit-fields input {
   width: 100%;
   border: 1px solid #c4d5d2;
@@ -569,6 +570,7 @@ select {
   margin-top: 5px;
   min-height: 40px;
 }
+.inputs textarea { resize: vertical; line-height: 1.45; font: inherit; }
 .inputs input:focus,
 .inputs select:focus,
 .edit-fields input:focus {
@@ -1080,7 +1082,7 @@ td {
 }
 .before-after {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   margin: 14px 0;
 }
@@ -1115,6 +1117,27 @@ td {
   gap: 9px;
   align-items: start;
 }
+.pricing-evidence {
+  display: grid;
+  gap: 3px;
+  margin: 2px 0 10px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--teal);
+  background: #f3f8f7;
+  color: var(--muted);
+  font-size: 11px;
+}
+.pricing-evidence strong { color: var(--ink); font-size: 12px; }
+.value-drivers { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.value-drivers-head h3 { margin: 2px 0; font-size: 17px; }
+.value-drivers-head p, .value-drivers > small { color: var(--muted); font-size: 11px; }
+.value-driver-list { display: grid; gap: 1px; margin: 10px 0 7px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--line); }
+.value-driver { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(140px, 2fr) 92px; align-items: center; gap: 14px; padding: 10px 12px; background: #fff; }
+.value-driver > div:first-child { display: flex; flex-direction: column; }
+.value-driver small { color: var(--muted); font-size: 10px; }
+.value-driver > b { text-align: right; font-size: 12px; }
+.value-driver-bar { height: 6px; border-radius: 99px; background: #e5eeec; overflow: hidden; }
+.value-driver-bar i { display: block; height: 100%; border-radius: inherit; background: var(--teal); }
 .reason {
   grid-column: auto;
 }
@@ -1663,6 +1686,7 @@ footer {
   .edit-fields {
     grid-template-columns: 1fr 1fr;
   }
+  .before-after { grid-template-columns: repeat(2, 1fr); }
   .reason {
     grid-column: 1/-1;
   }
@@ -1726,6 +1750,8 @@ footer {
   .before-after {
     grid-template-columns: 1fr;
   }
+  .value-driver { grid-template-columns: 1fr 80px; }
+  .value-driver-bar { grid-column: 1 / -1; grid-row: 2; }
   .edit-fields {
     grid-template-columns: 1fr;
   }
