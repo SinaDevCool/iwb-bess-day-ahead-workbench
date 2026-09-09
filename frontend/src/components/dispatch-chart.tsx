@@ -71,6 +71,7 @@ export function DispatchChart({
           </span>
         </div>
       </div>
+      <div className="dispatch-plots">
       <div className="plot-card price-plot">
         <div className="plot-heading">
           <span>
@@ -232,6 +233,7 @@ export function DispatchChart({
             </ComposedChart>
           </ResponsiveContainer>
         </div>
+      </div>
       </div>
       <div className="chart-foot">
         <span>

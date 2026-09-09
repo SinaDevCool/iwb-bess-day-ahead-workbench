@@ -1,7 +1,7 @@
 "use client";
 
 import { SlidersHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SensitivityCase, SensitivityItem } from "@/types/api";
 
 const MAX_SELECTED = 5;
@@ -24,7 +24,20 @@ function caseText(label: string, item: SensitivityItem, test?: SensitivityCase |
 }
 
 export function SensitivityPanel({ items }: { items: SensitivityItem[] }) {
-  const [selected, setSelected] = useState<string[]>(() => recommended(items));
+  const [selected, setSelected] = useState<string[]>(() => {
+    if (typeof window === "undefined") return recommended(items);
+    const saved = sessionStorage.getItem("iwb-sensitivity-levers");
+    if (!saved) return recommended(items);
+    try {
+      const parsed = JSON.parse(saved) as string[];
+      const valid = parsed.filter((key) => items.some((item) => item.key === key)).slice(0, MAX_SELECTED);
+      return valid.length ? valid : recommended(items);
+    } catch { /* Ignore obsolete browser state. */ }
+    return recommended(items);
+  });
+  useEffect(() => {
+    sessionStorage.setItem("iwb-sensitivity-levers", JSON.stringify(selected));
+  }, [selected]);
 
   const visible = useMemo(
     () => items.filter((item) => selected.includes(item.key)).sort((a, b) =>
@@ -106,4 +119,19 @@ export function SensitivityPanel({ items }: { items: SensitivityItem[] }) {
       <small>Full re-optimization under the same forecast. Directional decision support—not guaranteed profit.</small>
     </section>
   );
+}
+
+export function SensitivitySummary({ items, onViewAll }: { items: SensitivityItem[]; onViewAll: () => void }) {
+  if (!items.length) return null;
+  const cases = items.flatMap((item) => [item.lower_case, item.upper_case]
+    .filter(Boolean)
+    .map((test) => ({ item, test: test as SensitivityCase })));
+  const positive = [...cases].filter(({ test }) => test.delta_eur > 0).sort((a, b) => b.test.delta_eur - a.test.delta_eur)[0];
+  const negative = [...cases].filter(({ test }) => test.delta_eur < 0).sort((a, b) => a.test.delta_eur - b.test.delta_eur)[0];
+  const selected = [positive, negative].filter(Boolean) as Array<{ item: SensitivityItem; test: SensitivityCase }>;
+  return <section className="sensitivity-summary" aria-labelledby="sensitivity-summary-title">
+    <div><span className="chart-kicker">DECISION SUPPORT</span><h3 id="sensitivity-summary-title">Key Sensitivity Findings</h3><p>Largest tested opportunities and risks from full re-optimization.</p></div>
+    <div className="sensitivity-summary-findings">{selected.map(({ item, test }) => <article key={`${item.key}-${test.value}`}><span>{test.delta_eur >= 0 ? "Largest upside" : "Largest downside"}</span><strong>{item.label}</strong><small>Test {number(test.value)} {test.unit}</small><b className={test.delta_eur >= 0 ? "positive" : "negative"}>{money(test.delta_eur)}</b></article>)}</div>
+    <button type="button" className="secondary small" onClick={onViewAll}>View All Sensitivities</button>
+  </section>;
 }

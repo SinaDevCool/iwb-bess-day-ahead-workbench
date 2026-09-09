@@ -33,7 +33,16 @@ const time = (value: string) => new Intl.DateTimeFormat("en-CH", {
 }).format(new Date(value));
 
 export function IntervalResultsTable({ result }: { result: Simulation }) {
-  const [selected, setSelected] = useState<OptionalColumn[]>(DEFAULT_COLUMNS);
+  const [selected, setSelected] = useState<OptionalColumn[]>(() => {
+    if (typeof window === "undefined") return DEFAULT_COLUMNS;
+    const saved = sessionStorage.getItem("iwb-interval-columns");
+    if (!saved) return DEFAULT_COLUMNS;
+    try {
+      const parsed = JSON.parse(saved) as OptionalColumn[];
+      const valid = parsed.filter((id) => OPTIONAL_COLUMNS.some((column) => column.id === id));
+      return valid.length ? valid.slice(0, 2) : DEFAULT_COLUMNS;
+    } catch { return DEFAULT_COLUMNS; }
+  });
   const [maxOptional, setMaxOptional] = useState(2);
 
   useEffect(() => {
@@ -47,6 +56,9 @@ export function IntervalResultsTable({ result }: { result: Simulation }) {
     media.addEventListener("change", applyWidthLimit);
     return () => media.removeEventListener("change", applyWidthLimit);
   }, []);
+  useEffect(() => {
+    sessionStorage.setItem("iwb-interval-columns", JSON.stringify(selected));
+  }, [selected]);
 
   const rows = useMemo(
     () => result.proposal?.implied_dispatch ?? result.dispatch,

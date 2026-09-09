@@ -5,16 +5,23 @@ export type ConfigurationItem = { key: string; group: "Market" | "Strategy" | "B
 const number = (value: number, digits = 1) => new Intl.NumberFormat("en-CH", { maximumFractionDigits: digits }).format(value);
 const words = (value?: string) => (value ?? "Not recorded").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
+export const formatForecastLabel = (value: string) => ({
+  "Expected forecast": "Central DA forecast",
+  "Downside": "Lower-price DA forecast",
+  "Upside": "Higher-price DA forecast",
+  "Peak compression": "Compressed-peak DA forecast",
+}[value] ?? value);
+
 export function runLabel(run: Simulation) {
   const time = new Intl.DateTimeFormat("en-CH", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" }).format(new Date(run.created_at_utc));
-  return `${run.scenario_name} · ${run.market.product_minutes} min · ${time}`;
+  return `${formatForecastLabel(run.scenario_name)} · ${run.market.product_minutes} min · ${time}`;
 }
 
 export function configurationItems(run: Simulation): ConfigurationItem[] {
   const battery: Battery = run.battery;
   const market: Market = run.market;
   return [
-    { key: "scenario", group: "Market", label: "Forecast preset", value: run.scenario_name },
+    { key: "scenario", group: "Market", label: "Optimization forecast", value: formatForecastLabel(run.scenario_name) },
     { key: "delivery", group: "Market", label: "Delivery date", value: run.delivery_date },
     { key: "product", group: "Market", label: "Product duration", value: `${market.product_minutes} min` },
     { key: "exchange_fee", group: "Market", label: "Exchange fee", value: `${number(market.exchange_fee_eur_per_mwh, 3)} €/MWh` },

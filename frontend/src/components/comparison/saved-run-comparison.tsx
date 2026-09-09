@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Check, ChevronDown, Plus, Search, X } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, Cell, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "@/lib/api";
-import { configurationDiff, configurationItems, runLabel } from "@/lib/comparison";
+import { configurationDiff, configurationItems, formatForecastLabel, runLabel } from "@/lib/comparison";
 import type { ComparisonMetric, Simulation, SimulationRunSummary } from "@/types/api";
 
 const MAX_RUNS = 4;
@@ -116,7 +116,7 @@ export function SavedRunComparison() {
               const disabled = !checked && selectedIds.length >= MAX_RUNS;
               return <label className={`run-option ${checked ? "selected" : ""}`} key={run.simulation_id}>
                 <input type="checkbox" checked={checked} disabled={disabled} onChange={() => addOrRemove(run.simulation_id)} />
-                <span><strong>{run.scenario_name}</strong><small>{formatRunTime(run.created_at_utc)} · {run.product_minutes} min · <span translate="no">{shortId(run.simulation_id)}</span></small></span>
+                <span><strong>{formatForecastLabel(run.scenario_name)}</strong><small>{formatRunTime(run.created_at_utc)} · {run.product_minutes} min · <span translate="no">{shortId(run.simulation_id)}</span></small></span>
                 <b>{money(run.expected_contribution_eur)}</b>
               </label>;
             })}</div>
@@ -126,7 +126,7 @@ export function SavedRunComparison() {
       </div>
       <div className="run-chips">{runs.map((run) => <div className={`run-chip ${run.simulation_id === focused?.simulation_id ? "active" : ""}`} key={run.simulation_id}>
         <button type="button" className="run-chip-focus" onClick={() => setFocusedId(run.simulation_id)} aria-pressed={run.simulation_id === focused?.simulation_id}>
-          <span>{run.simulation_id === referenceId && <b>Reference</b>}{run.scenario_name}</span><small>{run.market.product_minutes} min · {shortId(run.simulation_id)}</small>
+          <span>{run.simulation_id === referenceId && <b>Reference</b>}{formatForecastLabel(run.scenario_name)}</span><small>{run.market.product_minutes} min · {shortId(run.simulation_id)}</small>
         </button>
         <button type="button" className="run-chip-remove" aria-label={`Remove ${run.scenario_name} run`} onClick={() => addOrRemove(run.simulation_id)}><X size={13} aria-hidden="true" /></button>
       </div>)}</div>
@@ -137,11 +137,16 @@ export function SavedRunComparison() {
     {runs.length >= 2 && <>
       <section className="comparison-visual" aria-labelledby="comparison-results-title">
         <div className="comparison-toolbar">
-          <div><span className="eyebrow">RUN OUTCOMES</span><h3 id="comparison-results-title">Compare Saved Results</h3></div>
+          <div><span className="eyebrow">RUN OUTCOMES</span><h3 id="comparison-results-title">Compare Saved Results</h3><p className="comparison-subtitle">Compare each saved order portfolio using the same 3 Day-Ahead price outcomes.</p></div>
           <div className="metric-switch" role="group" aria-label="Comparison metric">
             {(["contribution", "throughput", "cycles", "orders"] as ComparisonMetric[]).map((item) => <button type="button" aria-pressed={metric === item} className={metric === item ? "active" : ""} key={item} onClick={() => setMetric(item)}>{item === "throughput" ? "Battery Usage" : words(item)}</button>)}
           </div>
         </div>
+        {metric === "contribution" && <div className="outcome-explainer" aria-label="How to read the market outcome comparison">
+          <div><strong>1 · Saved Run</strong><span>The forecast and configuration used to optimize one order portfolio.</span></div>
+          <div><strong>2 · Price Outcomes</strong><span>The same orders are repriced using lower, central and higher DA prices.</span></div>
+          <div><strong>3 · Net Contribution</strong><span>Sales minus charging purchases, degradation and transaction fees.</span></div>
+        </div>}
         <RunComparisonChart runs={runs} metric={metric} referenceId={referenceId} focusedId={focused?.simulation_id} onFocus={setFocusedId} />
         <ComparisonTable runs={runs} metric={metric} referenceId={referenceId} onFocus={setFocusedId} />
       </section>
@@ -154,29 +159,29 @@ export function SavedRunComparison() {
 function RunComparisonChart({ runs, metric, referenceId, focusedId, onFocus }: { runs: Simulation[]; metric: ComparisonMetric; referenceId: string; focusedId?: string; onFocus: (id: string) => void }) {
   const data = runs.map((run) => ({
     runId: run.simulation_id,
-    name: `${run.scenario_name}${run.simulation_id === referenceId ? " · Ref" : ""}`,
-    downside: metric === "contribution" ? run.risk?.downside_contribution_eur ?? run.summary.expected_contribution_eur : metricValue(run, metric),
-    expected: metric === "contribution" ? run.risk?.expected_contribution_eur ?? run.summary.expected_contribution_eur : metricValue(run, metric),
-    upside: metric === "contribution" ? run.risk?.upside_contribution_eur ?? run.summary.expected_contribution_eur : metricValue(run, metric),
+    name: `${formatForecastLabel(run.scenario_name)}${run.simulation_id === referenceId ? " · Ref" : ""}`,
+    lowerPrice: metric === "contribution" ? outcomeValue(run, "Downside") : metricValue(run, metric),
+    centralPrice: metric === "contribution" ? outcomeValue(run, "Expected") : metricValue(run, metric),
+    higherPrice: metric === "contribution" ? outcomeValue(run, "Upside") : metricValue(run, metric),
   }));
   const unit = metric === "contribution" ? "EUR" : metric === "throughput" ? "MWh" : metric === "cycles" ? "EFC" : "orders";
   const formatter = (value: number) => metric === "contribution" ? money(value) : `${number(value, metric === "cycles" ? 2 : 1)} ${unit}`;
   const height = Math.max(220, runs.length * (metric === "contribution" ? 76 : 56));
   return <figure className="plot-card run-comparison-chart">
-    <figcaption><div className="chart-caption-main"><strong>{metric === "contribution" ? "Contribution Across Market Outcomes" : `${words(metric)} by Simulation Run`}</strong><span>Click a row to inspect the configuration used by that run.</span></div><div className="chart-legend"><b>{unit}</b></div></figcaption>
-    <div className="plot-area" style={{ height }} role="img" aria-label={`${words(metric)} comparison for ${runs.length} selected saved runs`}>
+    <figcaption><div className="chart-caption-main"><strong>{metric === "contribution" ? "Net Contribution Under 3 DA Price Outcomes" : `${words(metric)} by Simulation Run`}</strong><span>{metric === "contribution" ? "Each group is 1 saved order portfolio; values are net of purchases, degradation and transaction fees." : "Click a row to inspect the configuration used by that run."}</span></div><div className="chart-legend"><b>{unit}</b></div></figcaption>
+    {metric === "contribution" && <div className="market-outcome-legend" aria-label="Price outcome legend"><span><i className="lower" />Lower-price outcome</span><span><i className="central" />Central-price outcome</span><span><i className="higher" />Higher-price outcome</span></div>}
+    <div className="plot-area" style={{ height }} role="img" aria-label={`${metric === "contribution" ? "Net contribution under lower, central and higher Day-Ahead price outcomes" : words(metric)} for ${runs.length} selected saved runs`}>
       <ResponsiveContainer width="100%" height="100%"><BarChart data={data} layout="vertical" margin={{ top: 8, right: 32, bottom: 4, left: 18 }} barCategoryGap="24%">
         <CartesianGrid stroke="#e3ebe9" strokeDasharray="2 4" horizontal={false} />
         <XAxis type="number" tickFormatter={(value) => metric === "contribution" ? axisMoney(value) : number(value, metric === "cycles" ? 2 : 0)} tick={{ fontSize: 10, fill: "#607477" }} axisLine={{ stroke: "#b7c7c4" }} tickLine={false} />
         <YAxis type="category" dataKey="name" width={148} tick={{ fontSize: 10, fill: "#284b4d", fontWeight: 650 }} axisLine={false} tickLine={false} />
         <ReferenceLine x={0} stroke="#748986" />
-        <Tooltip formatter={(value) => formatter(Number(value))} labelFormatter={(label) => String(label)} cursor={{ fill: "rgba(8, 125, 120, .045)" }} />
-        {metric === "contribution" && <Legend verticalAlign="top" height={28} formatter={(value) => words(String(value))} />}
+        <Tooltip formatter={(value, name) => [formatter(Number(value)), outcomeLegend(String(name))]} labelFormatter={(label) => `${String(label)} · net contribution`} cursor={{ fill: "rgba(8, 125, 120, .045)" }} />
         {metric === "contribution" ? <>
-          <Bar dataKey="downside" fill={COLORS.downside} radius={[0, 3, 3, 0]} maxBarSize={16} onClick={(_, index) => onFocus(data[index].runId)}>{data.map((row) => <Cell key={`down-${row.runId}`} opacity={focusedId && row.runId !== focusedId ? .55 : 1} cursor="pointer" />)}</Bar>
-          <Bar dataKey="expected" fill={COLORS.expected} radius={[0, 3, 3, 0]} maxBarSize={16} onClick={(_, index) => onFocus(data[index].runId)}>{data.map((row) => <Cell key={`expected-${row.runId}`} opacity={focusedId && row.runId !== focusedId ? .55 : 1} cursor="pointer" />)}</Bar>
-          <Bar dataKey="upside" fill={COLORS.upside} radius={[0, 3, 3, 0]} maxBarSize={16} onClick={(_, index) => onFocus(data[index].runId)}>{data.map((row) => <Cell key={`up-${row.runId}`} opacity={focusedId && row.runId !== focusedId ? .55 : 1} cursor="pointer" />)}</Bar>
-        </> : <Bar dataKey="expected" fill={COLORS.expected} radius={[0, 4, 4, 0]} maxBarSize={24} onClick={(_, index) => onFocus(data[index].runId)}>{data.map((row) => <Cell key={row.runId} opacity={focusedId && row.runId !== focusedId ? .55 : 1} cursor="pointer" />)}</Bar>}
+          <Bar dataKey="lowerPrice" fill={COLORS.downside} radius={[0, 3, 3, 0]} maxBarSize={16} onClick={(_, index) => onFocus(data[index].runId)}>{data.map((row) => <Cell key={`down-${row.runId}`} opacity={focusedId && row.runId !== focusedId ? .55 : 1} cursor="pointer" />)}</Bar>
+          <Bar dataKey="centralPrice" fill={COLORS.expected} radius={[0, 3, 3, 0]} maxBarSize={16} onClick={(_, index) => onFocus(data[index].runId)}>{data.map((row) => <Cell key={`expected-${row.runId}`} opacity={focusedId && row.runId !== focusedId ? .55 : 1} cursor="pointer" />)}</Bar>
+          <Bar dataKey="higherPrice" fill={COLORS.upside} radius={[0, 3, 3, 0]} maxBarSize={16} onClick={(_, index) => onFocus(data[index].runId)}>{data.map((row) => <Cell key={`up-${row.runId}`} opacity={focusedId && row.runId !== focusedId ? .55 : 1} cursor="pointer" />)}</Bar>
+        </> : <Bar dataKey="centralPrice" fill={COLORS.expected} radius={[0, 4, 4, 0]} maxBarSize={24} onClick={(_, index) => onFocus(data[index].runId)}>{data.map((row) => <Cell key={row.runId} opacity={focusedId && row.runId !== focusedId ? .55 : 1} cursor="pointer" />)}</Bar>}
       </BarChart></ResponsiveContainer>
     </div>
   </figure>;
@@ -184,12 +189,12 @@ function RunComparisonChart({ runs, metric, referenceId, focusedId, onFocus }: {
 
 function ComparisonTable({ runs, metric, referenceId, onFocus }: { runs: Simulation[]; metric: ComparisonMetric; referenceId: string; onFocus: (id: string) => void }) {
   const reference = runs.find((run) => run.simulation_id === referenceId) ?? runs[0];
-  return <div className="table-scroll comparison-results-table"><table><caption className="sr-only">Accessible comparison of selected simulation runs</caption><thead><tr><th>Simulation Run</th>{metric === "contribution" ? <><th>Downside</th><th>Weighted</th><th>Upside</th></> : <th>{words(metric)}</th>}<th>Difference From Reference</th><th>Validation</th></tr></thead><tbody>{runs.map((run) => {
+  return <div className="table-scroll comparison-results-table"><table><caption className="sr-only">Accessible comparison of selected simulation runs</caption><thead><tr><th>Saved Run &amp; Optimization Forecast</th>{metric === "contribution" ? <><th>Lower-Price Outcome<small>Net contribution</small></th><th>Central-Price Outcome<small>Net contribution</small></th><th>Higher-Price Outcome<small>Net contribution</small></th><th>Probability-Weighted<small>Using saved probabilities</small></th></> : <th>{words(metric)}</th>}<th>Change vs Reference</th><th>Validation</th></tr></thead><tbody>{runs.map((run) => {
     const value = metricValue(run, metric);
     const referenceValue = metricValue(reference, metric);
     return <tr key={run.simulation_id} tabIndex={0} onClick={() => onFocus(run.simulation_id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onFocus(run.simulation_id); } }}>
-      <td><strong>{run.scenario_name}</strong><small>{formatRunTime(run.created_at_utc)} · {shortId(run.simulation_id)}{run.simulation_id === referenceId ? " · Reference" : ""}</small></td>
-      {metric === "contribution" ? <><td>{money(run.risk?.downside_contribution_eur ?? run.summary.expected_contribution_eur)}</td><td>{money(run.risk?.expected_contribution_eur ?? run.summary.expected_contribution_eur)}</td><td>{money(run.risk?.upside_contribution_eur ?? run.summary.expected_contribution_eur)}</td></> : <td>{formatMetric(value, metric)}</td>}
+      <td><strong>{formatForecastLabel(run.scenario_name)}</strong><small>{formatRunTime(run.created_at_utc)} · {shortId(run.simulation_id)}{run.simulation_id === referenceId ? " · Reference" : ""}</small>{metric === "contribution" && <small>{probabilityLabel(run)}</small>}</td>
+      {metric === "contribution" ? <><td>{money(outcomeValue(run, "Downside"))}</td><td>{money(outcomeValue(run, "Expected"))}</td><td>{money(outcomeValue(run, "Upside"))}</td><td><strong>{money(run.risk?.expected_contribution_eur ?? run.summary.expected_contribution_eur)}</strong></td></> : <td>{formatMetric(value, metric)}</td>}
       <td>{run.simulation_id === referenceId ? "Reference" : signedMetric(value - referenceValue, metric)}</td><td><span className={`validation-pill ${run.validation.status}`}>{run.validation.status}</span></td>
     </tr>;
   })}</tbody></table></div>;
@@ -210,6 +215,12 @@ function RunInspector({ run, reference, setReference, showUnchanged, setShowUnch
 }
 
 const metricValue = (run: Simulation, metric: ComparisonMetric) => metric === "contribution" ? run.risk?.expected_contribution_eur ?? run.summary.expected_contribution_eur : metric === "throughput" ? run.summary.throughput_mwh : metric === "cycles" ? run.summary.equivalent_cycles : run.summary.order_count;
+const outcomeValue = (run: Simulation, name: "Downside" | "Expected" | "Upside") => run.risk?.outcomes.find((outcome) => outcome.name === name)?.contribution_eur ?? (name === "Downside" ? run.risk?.downside_contribution_eur : name === "Upside" ? run.risk?.upside_contribution_eur : run.summary.expected_contribution_eur) ?? run.summary.expected_contribution_eur;
+const outcomeLegend = (value: string) => ({ lowerPrice: "Lower-price outcome", centralPrice: "Central-price outcome", higherPrice: "Higher-price outcome" }[value] ?? words(value));
+const probabilityLabel = (run: Simulation) => {
+  const probabilities = run.scenario_probabilities ?? { downside: .2, expected: .6, upside: .2 };
+  return `Weights: ${number(probabilities.downside * 100, 0)}% lower · ${number(probabilities.expected * 100, 0)}% central · ${number(probabilities.upside * 100, 0)}% higher`;
+};
 const formatMetric = (value: number, metric: ComparisonMetric) => metric === "contribution" ? money(value) : `${number(value, metric === "cycles" ? 2 : 1)}${metric === "throughput" ? " MWh" : metric === "cycles" ? " EFC" : ""}`;
 const signedMetric = (value: number, metric: ComparisonMetric) => Math.abs(value) < 1e-9 ? "–" : `${value > 0 ? "+" : "−"}${formatMetric(Math.abs(value), metric)}`;
 const formatRunTime = (value: string) => new Intl.DateTimeFormat("en-CH", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" }).format(new Date(value));

@@ -28,7 +28,7 @@ import {
   OrderTimeline,
 } from "@/components/analytics-charts";
 import { SavedRunComparison } from "@/components/comparison/saved-run-comparison";
-import { SensitivityPanel } from "@/components/sensitivity-panel";
+import { SensitivityPanel, SensitivitySummary } from "@/components/sensitivity-panel";
 import { api, download } from "@/lib/api";
 import type { Battery, Market, Order, Simulation, SimulationSummary } from "@/types/api";
 
@@ -68,7 +68,13 @@ const tabs = [
   ["proof", "Physical Validation"],
   ["compare", "Compare Runs"],
 ] as const;
+const scheduleViews = [
+  ["overview", "Overview"],
+  ["sensitivities", "Sensitivities"],
+  ["intervals", "Interval Detail"],
+] as const;
 type TabKey = (typeof tabs)[number][0];
+type PanelPreference = "auto" | "expanded" | "collapsed";
 const compactTabLabels: Record<TabKey, string> = {
   schedule: "Dispatch",
   orders: "Orders",
@@ -101,7 +107,9 @@ export default function Workbench() {
     ),
     [dirty, setDirty] = useState(false),
     [advanced, setAdvanced] = useState(false),
-    [inputsCollapsed, setInputsCollapsed] = useState(false),
+    [panelPreference, setPanelPreference] = useState<PanelPreference>("auto"),
+    [compactWorkspace, setCompactWorkspace] = useState(false),
+    [drawerWorkspace, setDrawerWorkspace] = useState(false),
     [tab, setTab] = useState<TabKey>("schedule"),
     [selected, setSelected] = useState<Order>(),
     [volume, setVolume] = useState(""),
@@ -109,6 +117,8 @@ export default function Workbench() {
     [comment, setComment] = useState(""),
     [exclude, setExclude] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
+  const configRef = useRef<HTMLElement>(null);
+  const inputsCollapsed = panelPreference === "collapsed" || (panelPreference === "auto" && compactWorkspace && Boolean(result));
   const run = async () => {
     const parsedPrices = manualPrices.split(/[\s,;]+/).filter(Boolean).map(Number);
     const expectedPriceCount = market.product_minutes === 15 ? 96 : 24;
@@ -238,11 +248,51 @@ export default function Workbench() {
       const requested = parameters.get("tab");
       if (tabs.some(([key]) => key === requested)) setTab(requested as TabKey);
       const panel = parameters.get("panel");
-      setInputsCollapsed(panel === "collapsed" || (panel === null && matchMedia("(max-width: 700px)").matches));
+      setPanelPreference(panel === "collapsed" || panel === "expanded" ? panel : "auto");
     };
     restoreTab();
     addEventListener("popstate", restoreTab);
     return () => removeEventListener("popstate", restoreTab);
+  }, []);
+  useEffect(() => {
+    if (!drawerWorkspace || inputsCollapsed) return;
+    const panel = configRef.current;
+    const focusable = () => Array.from(panel?.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), [href], [tabindex]:not([tabindex='-1'])") ?? []);
+    requestAnimationFrame(() => panel?.querySelector<HTMLElement>(".panel-collapse-button")?.focus());
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPanelPreference("collapsed");
+        const url = new URL(location.href);
+        url.searchParams.set("panel", "collapsed");
+        history.replaceState({}, "", url);
+        requestAnimationFrame(() => configRef.current?.querySelector<HTMLElement>(".panel-collapse-button")?.focus());
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    addEventListener("keydown", closeOnEscape);
+    return () => removeEventListener("keydown", closeOnEscape);
+  }, [drawerWorkspace, inputsCollapsed]);
+  useEffect(() => {
+    const compact = matchMedia("(max-width: 1679px)");
+    const drawer = matchMedia("(max-width: 1199px)");
+    const update = () => {
+      setCompactWorkspace(compact.matches);
+      setDrawerWorkspace(drawer.matches);
+    };
+    update();
+    compact.addEventListener("change", update);
+    drawer.addEventListener("change", update);
+    return () => {
+      compact.removeEventListener("change", update);
+      drawer.removeEventListener("change", update);
+    };
   }, []);
   const change = () => {
     if (result) setDirty(true);
@@ -257,11 +307,12 @@ export default function Workbench() {
   };
   const toggleInputs = () => {
     const next = !inputsCollapsed;
-    setInputsCollapsed(next);
+    setPanelPreference(next ? "collapsed" : "expanded");
     const url = new URL(location.href);
     if (next) url.searchParams.set("panel", "collapsed");
-    else url.searchParams.delete("panel");
+    else url.searchParams.set("panel", "expanded");
     history.replaceState({}, "", url);
+    if (next) requestAnimationFrame(() => configRef.current?.querySelector<HTMLElement>(".panel-collapse-button")?.focus());
   };
   const tabKey = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
@@ -455,7 +506,7 @@ export default function Workbench() {
         </span>
       </div>
       <main id="workbench">
-        <section className="context-bar">
+        <section className={`context-bar${result ? " completed-run" : ""}`}>
           <div>
             <span className="eyebrow">BESS DAY-AHEAD AUCTION</span>
             <h1>Battery Dispatch &amp; Order Optimizer</h1>
@@ -465,8 +516,9 @@ export default function Workbench() {
             </p>
           </div>
         </section>
-        <section className={`workspace${inputsCollapsed ? " sidebar-collapsed" : ""}`}>
-          <aside className={`panel inputs${inputsCollapsed ? " collapsed" : ""}`} aria-label="Market and battery configuration">
+        <section className={`workspace${inputsCollapsed ? " sidebar-collapsed" : ""}${drawerWorkspace && !inputsCollapsed ? " drawer-open" : ""}`}>
+          {drawerWorkspace && !inputsCollapsed && <button className="configuration-scrim" type="button" aria-label="Close configuration panel" onClick={toggleInputs} />}
+          <aside ref={configRef} className={`panel inputs${inputsCollapsed ? " collapsed" : ""}`} aria-label="Market and battery configuration" aria-modal={drawerWorkspace && !inputsCollapsed ? "true" : undefined} role={drawerWorkspace && !inputsCollapsed ? "dialog" : undefined}>
             <div className="panel-title">
               {!inputsCollapsed && <div>
                 <span>01</span>
@@ -885,51 +937,22 @@ export default function Workbench() {
                 stale={dirty && Boolean(result)}
               />
             </section>
-            {dirty && result && (
-              <div className="status-message warning stale-results" role="status" aria-live="polite">
-                <AlertTriangle size={17} aria-hidden="true" />
-                <div><strong>{draftChanges.length || "Configuration"} {draftChanges.length === 1 ? "change" : "changes"} since this run.</strong> Summary cards and charts show the previous completed result. {draftChanges.slice(0, 3).join(" · ")}{draftChanges.length > 3 ? ` · +${draftChanges.length - 3} more` : ""}</div>
-              </div>
-            )}
-            {message && (
+            {(dirty || message || result?.order_generation) && (
               <div
                 ref={errorRef}
-                tabIndex={message.kind === "error" ? -1 : undefined}
-                className={"status-message " + message.kind}
-                role={message.kind === "error" ? "alert" : "status"}
+                tabIndex={message?.kind === "error" ? -1 : undefined}
+                className={`status-message run-status ${dirty ? "warning" : message?.kind === "error" ? "error" : result ? "success" : message?.kind ?? "info"}`}
+                role={message?.kind === "error" ? "alert" : "status"}
                 aria-live="polite"
               >
-                {message.kind === "error" ? (
+                {dirty || message?.kind === "error" ? (
                   <AlertTriangle size={17} />
                 ) : (
                   <CheckCircle2 size={17} />
                 )}{" "}
-                {message.text}
-              </div>
-            )}
-            {result?.order_generation && !dirty && (
-              <div className="status-message info executable-status" role="status" aria-live="polite">
-                <ShieldCheck size={17} aria-hidden="true" />
                 <div>
-                  <strong>Order proposal is executable</strong>
-                  <span>Optimizer volumes were converted to valid market increments, then the complete order schedule was physically reconstructed and repaired before display. Estimated rounding impact: {signedMoney(result.order_generation.contribution_delta_eur)}.</span>
-                  <details className="inline-evidence">
-                    <summary>View order-generation details</summary>
-                    <dl>
-                      <div><dt>Volume increment</dt><dd>{result.order_generation.volume_increment_mw} MW</dd></div>
-                      <div><dt>Adjusted quantities</dt><dd>{result.order_generation.adjusted_order_count}</dd></div>
-                      <div><dt>Repair steps</dt><dd>{result.order_generation.repaired_order_count}</dd></div>
-                      <div><dt>Volume reduction</dt><dd>{num(result.order_generation.volume_reduction_mwh)} MWh</dd></div>
-                    </dl>
-                  </details>
+                  {dirty && result ? <><strong>{draftChanges.length || "Configuration"} {draftChanges.length === 1 ? "change" : "changes"} since this run.</strong><span> Results show the previous completed run. {draftChanges.slice(0, 3).join(" · ")}{draftChanges.length > 3 ? ` · +${draftChanges.length - 3} more` : ""}</span></> : result && message?.kind !== "error" ? <><strong>Ready for review</strong><span> · {result.dispatch.length} × {result.market.product_minutes}-minute intervals · {result.orders.length} orders · physical validation {result.validation.status}{result.order_generation ? ` · rounding impact ${signedMoney(result.order_generation.contribution_delta_eur)}` : ""}{dst ? " · DST delivery day" : ""}</span>{result.order_generation && <details className="inline-evidence"><summary>Order-generation details</summary><dl><div><dt>Volume increment</dt><dd>{result.order_generation.volume_increment_mw} MW</dd></div><div><dt>Adjusted quantities</dt><dd>{result.order_generation.adjusted_order_count}</dd></div><div><dt>Repair steps</dt><dd>{result.order_generation.repaired_order_count}</dd></div><div><dt>Volume reduction</dt><dd>{num(result.order_generation.volume_reduction_mwh)} MWh</dd></div></dl></details>}</> : <span>{message?.text}</span>}
                 </div>
-              </div>
-            )}
-            {dst && (
-              <div className="status-message warning">
-                <AlertTriangle size={17} />
-                DST delivery day: {result?.dispatch.length} unambiguous UTC
-                intervals are shown.
               </div>
             )}
             <nav
@@ -1040,6 +1063,23 @@ function Schedule({
   result?: Simulation;
   busy: boolean;
 }) {
+  type ScheduleView = (typeof scheduleViews)[number][0];
+  const [view, setView] = useState<ScheduleView>("overview");
+  useEffect(() => {
+    const restore = () => {
+      const requested = new URLSearchParams(location.search).get("view");
+      setView(scheduleViews.some(([key]) => key === requested) ? requested as ScheduleView : "overview");
+    };
+    restore();
+    addEventListener("popstate", restore);
+    return () => removeEventListener("popstate", restore);
+  }, []);
+  const chooseView = (next: ScheduleView) => {
+    setView(next);
+    const url = new URL(location.href);
+    url.searchParams.set("view", next);
+    history.pushState({}, "", url);
+  };
   return (
     <>
       <Head
@@ -1057,10 +1097,16 @@ function Schedule({
       ) : result ? (
         <>
           {result.audit.modified_by_trader && <div className="status-message info" role="status">Showing trader proposal revision {result.proposal_revision ?? 2}; dispatch and SoC reflect the revised orders.</div>}
-          <DispatchChart rows={result.proposal?.implied_dispatch ?? result.dispatch} battery={result.battery} forecast={result.forecast} />
-          <EconomicsPanel result={result} />
-          <ValueDrivers result={result} />
-          <IntervalResultsTable result={result} />
+          <nav className="schedule-views" aria-label="Dispatch and economics views">
+            {scheduleViews.map(([key, label]) => <button type="button" key={key} className={view === key ? "active" : ""} aria-current={view === key ? "page" : undefined} onClick={() => chooseView(key)}>{label}</button>)}
+          </nav>
+          {view === "overview" && <>
+            <DispatchChart rows={result.proposal?.implied_dispatch ?? result.dispatch} battery={result.battery} forecast={result.forecast} />
+            <EconomicsPanel result={result} />
+            <SensitivitySummary items={result.sensitivities ?? []} onViewAll={() => chooseView("sensitivities")} />
+          </>}
+          {view === "sensitivities" && <ValueDrivers result={result} />}
+          {view === "intervals" && <div className="interval-view"><IntervalResultsTable result={result} /></div>}
         </>
       ) : (
         <Empty
