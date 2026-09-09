@@ -45,11 +45,17 @@ class MarketConfig(BaseModel):
     min_price_eur_mwh: float = -500
     max_price_eur_mwh: float = 4000
     exchange_fee_eur_per_mwh: float = Field(0, ge=0)
+    exchange_fee_policy: Literal["excluded", "configured"] = "excluded"
     clearing_fee_eur_per_mwh: float = Field(0.015, ge=0)
     assumptions_unverified: bool = True
 
     @model_validator(mode="after")
     def validate_market(self):
+        # Legacy clients only sent a numeric exchange fee. Preserve that
+        # behavior while allowing new clients to distinguish excluded/unknown
+        # from a confirmed contractual zero.
+        if self.exchange_fee_eur_per_mwh > 0 and "exchange_fee_policy" not in self.model_fields_set:
+            self.exchange_fee_policy = "configured"
         if self.min_price_eur_mwh >= self.max_price_eur_mwh:
             raise ValueError("Minimum market price must be below maximum market price")
         try:
@@ -71,7 +77,19 @@ class ScenarioType(str, Enum):
     EXPECTED = "expected"
     DOWNSIDE = "downside"
     PEAK_COMPRESSION = "peak_compression"
-    AVAILABILITY_STRESS = "availability_stress"
+    UPSIDE = "upside"
+
+
+class ScenarioProbability(BaseModel):
+    downside: float = Field(0.20, ge=0, le=1)
+    expected: float = Field(0.60, ge=0, le=1)
+    upside: float = Field(0.20, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def validate_total(self):
+        if abs(self.downside + self.expected + self.upside - 1) > 1e-6:
+            raise ValueError("Scenario probabilities must sum to 1")
+        return self
 
 
 class PricePoint(BaseModel):
@@ -94,6 +112,7 @@ class SimulationRequest(BaseModel):
     horizon_policy: Literal["minimum_reserve", "terminal_value", "next_day_proxy"] = "minimum_reserve"
     terminal_value_eur_per_mwh: float = Field(0, ge=0)
     lookahead_hours: int = Field(4, ge=1, le=12)
+    scenario_probabilities: ScenarioProbability = Field(default_factory=ScenarioProbability)
 
     @model_validator(mode="after")
     def validate_request(self):
@@ -308,6 +327,7 @@ class AuditMetadata(MappingModel):
     optimizer_version: str
     validation_version: str
     modified_by_trader: bool
+    assumption_sources: dict[str, str] = Field(default_factory=dict)
 
 
 class SimulationResult(BaseModel):
@@ -321,6 +341,8 @@ class SimulationResult(BaseModel):
     terminal_value_eur_per_mwh: float = 0
     price_multiplier: float = 1
     peak_reduction_eur_mwh: float = 0
+    scenario_probabilities: ScenarioProbability = Field(default_factory=ScenarioProbability)
+    lookahead_hours: int = 4
     proposal_revision: int = 1
     data_mode: str = "illustrative"
     submission_mode: str = "preview_only"

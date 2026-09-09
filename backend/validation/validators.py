@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections import Counter
 from datetime import timedelta
 from decimal import Decimal
-from backend.domain.economics import calculate_interval
+import math
+from backend.domain.economics import calculate_interval, effective_transaction_fee
 from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order, ValidationFinding, ValidationResult
 
 SOC_TOLERANCE_MWH = 0.15
@@ -12,6 +13,9 @@ POWER_TOLERANCE_MW = 1e-3
 
 def validate_dispatch(rows: list[DispatchRow], battery: BatteryConfig) -> ValidationResult:
     findings = []
+    previous_soc = battery.initial_soc_mwh
+    throughput = 0.0
+    eta = math.sqrt(battery.round_trip_efficiency)
     for row in rows:
         if row.soc_mwh < battery.min_soc_mwh - 1e-3:
             findings.append(ValidationFinding(severity="error", code="soc_below_min", message="SOC is below the configured minimum", interval=row.interval))
@@ -25,10 +29,25 @@ def validate_dispatch(rows: list[DispatchRow], battery: BatteryConfig) -> Valida
             findings.append(ValidationFinding(severity="error", code="discharge_power_limit", message="Battery discharge limit exceeded", interval=row.interval))
         if row.interval in battery.unavailable_intervals and row.action != "idle":
             findings.append(ValidationFinding(severity="error", code="unavailable", message="Dispatch scheduled during unavailability", interval=row.interval))
+        if (row.action == "charge" and row.power_mw >= -POWER_TOLERANCE_MW) or (row.action == "discharge" and row.power_mw <= POWER_TOLERANCE_MW) or (row.action == "idle" and abs(row.power_mw) > POWER_TOLERANCE_MW):
+            findings.append(ValidationFinding(severity="error", code="operating_mode", message="Dispatch action and signed power are inconsistent", interval=row.interval))
+        duration_hours = row.grid_energy_mwh / abs(row.power_mw) if abs(row.power_mw) > POWER_TOLERANCE_MW else 0.0
+        expected_delta = 0.0
+        if row.power_mw < -POWER_TOLERANCE_MW:
+            expected_delta = abs(row.power_mw) * duration_hours * eta
+        elif row.power_mw > POWER_TOLERANCE_MW:
+            expected_delta = -row.power_mw * duration_hours / eta
+        if abs((row.soc_mwh - previous_soc) - expected_delta) > SOC_TOLERANCE_MWH:
+            findings.append(ValidationFinding(severity="error", code="energy_balance", message="State-of-charge movement does not reconcile with power, duration and efficiency", interval=row.interval))
+        previous_soc = row.soc_mwh
+        throughput += row.battery_energy_mwh
     if rows and rows[-1].soc_mwh < battery.target_soc_mwh - 1e-3:
         findings.append(ValidationFinding(severity="error", code="terminal_soc", message="Terminal SOC target not met"))
     if not rows:
         findings.append(ValidationFinding(severity="error", code="empty_schedule", message="No dispatch intervals generated"))
+    maximum_throughput = 2 * battery.capacity_mwh * battery.max_equivalent_cycles
+    if throughput > maximum_throughput + SOC_TOLERANCE_MWH:
+        findings.append(ValidationFinding(severity="error", code="cycle_limit", message="Dispatch exceeds the configured equivalent-cycle budget"))
     return _result(findings)
 
 
@@ -79,7 +98,7 @@ def validate_order_proposal(orders: list[Order], market: MarketConfig, battery: 
     purchase_cost = 0.0
     degradation_cost = 0.0
     transaction_cost = 0.0
-    transaction_fee = market.exchange_fee_eur_per_mwh + market.clearing_fee_eur_per_mwh
+    transaction_fee = effective_transaction_fee(market)
     implied_soc = []
     implied_dispatch = []
     cumulative = 0.0

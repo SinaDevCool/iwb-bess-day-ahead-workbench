@@ -3,7 +3,13 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from backend.domain.models import BatteryConfig
+from backend.domain.models import BatteryConfig, MarketConfig
+
+
+def effective_transaction_fee(market: MarketConfig) -> float:
+    """Return only configured marginal costs used by the dispatch decision."""
+    exchange = market.exchange_fee_eur_per_mwh if market.exchange_fee_policy == "configured" else 0.0
+    return exchange + market.clearing_fee_eur_per_mwh
 
 
 @dataclass(frozen=True)

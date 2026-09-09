@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from backend.domain.economics import calculate_interval
+from backend.domain.economics import calculate_interval, effective_transaction_fee
 from backend.domain.models import DispatchRow, Order, PricePoint, SimulationRequest
 from backend.optimization.milp_optimizer import optimize_dispatch
 from backend.services.forecast_service import apply_scenario, build_demo_forecast
@@ -84,10 +84,11 @@ def select_risk_aware_dispatch(request: SimulationRequest, base_prices: list[Pri
     avoids comparing three different perfect-foresight portfolios as if they were
     one robust trading decision.
     """
+    probabilities = request.scenario_probabilities
     definitions = [
-        ("Downside", 0.2, apply_scenario(base_prices, 1, max(request.peak_reduction_eur_mwh, 15), True)),
-        ("Expected", 0.6, apply_scenario(base_prices, request.price_multiplier, request.peak_reduction_eur_mwh, False)),
-        ("Upside", 0.2, apply_scenario(base_prices, 1.08, 0, False)),
+        ("Downside", probabilities.downside, apply_scenario(base_prices, 1, max(request.peak_reduction_eur_mwh, 15), True)),
+        ("Expected", probabilities.expected, apply_scenario(base_prices, request.price_multiplier, request.peak_reduction_eur_mwh, False)),
+        ("Upside", probabilities.upside, apply_scenario(base_prices, 1.08, 0, False)),
     ]
     actions_by_time: dict = {}
     candidates = []
@@ -131,7 +132,7 @@ def select_risk_aware_dispatch(request: SimulationRequest, base_prices: list[Pri
 def reprice_dispatch(dispatch: list[DispatchRow], prices: list[PricePoint], request: SimulationRequest) -> list[DispatchRow]:
     """Keep a candidate's physical schedule and calculate economics at new prices."""
     by_time = {point.timestamp_utc: point.price_eur_mwh for point in prices}
-    fee = request.market.exchange_fee_eur_per_mwh + request.market.clearing_fee_eur_per_mwh
+    fee = effective_transaction_fee(request.market)
     dt = request.market.product_minutes / 60
     cumulative = 0.0
     result = []

@@ -14,12 +14,12 @@
 - €3/MWh battery-side throughput degradation cost.
 - 1.5 equivalent full cycles per day.
 - Illustrative price forecast for 9 September 2026.
-- Availability-stress scenario uses an illustrative 18:00–20:00 outage.
+- Availability presets are independent of price scenarios and use local-time windows.
 
 ## Calculation conventions
 
 - Charge is negative and discharge positive in dispatch charts.
-- Expected contribution equals sales revenue minus charging purchases minus battery degradation.
+- Expected contribution equals sales revenue minus charging purchases, battery degradation and configured marginal transaction fees.
 - Round-trip efficiency is split symmetrically with its square root on charge and discharge.
 - Equivalent full cycles use battery-side throughput divided by twice nominal capacity.
 - The terminal SoC input is a minimum reserve; the optimizer may finish above it.
@@ -41,6 +41,6 @@ All generated orders are previews. Approval changes only local demo state. No li
 # Transaction fees
 
 - The model applies variable fees to every executed grid-side MWh for both BUY and SELL orders.
-- The ECC Day-Ahead clearing-fee default is **€0.015/MWh**, based on the ECC Price List release 084 dated 22 May 2026.
-- The EPEX/exchange trading-fee default is **€0/MWh** because IWB's applicable membership tariff is not public in the materials available for this prototype. It is an explicit UI assumption that must be confirmed with IWB.
+- The ECC Day-Ahead clearing-fee default is **€0.015/MWh**, based on the ECC Price List release 085 effective 1 September 2026; applicability remains subject to IWB confirmation.
+- The EPEX/exchange trading fee is **not configured and excluded by default** because IWB's contractual tariff was not supplied. A numeric zero is treated as a real fee only after the user explicitly enables the contractual fee.
 - Fixed membership, technical-access and data fees do not change the marginal dispatch decision and are therefore excluded. Imbalance costs, taxes, market impact and non-acceptance risk also remain out of scope.

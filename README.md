@@ -9,12 +9,14 @@ The dispatch is solved as a mixed-integer linear program with SciPy/HiGHS. It ex
 - `Minimum end-of-day SoC` is a reserve floor, not an exact terminal target.
 - Equivalent full cycles use total battery-side throughput divided by twice nominal capacity.
 - Purchases, degradation and configured per-MWh exchange/clearing fees are deducted from sales to calculate expected net contribution.
-- Expected, downside and peak-compression cases alter illustrative prices. Availability stress applies an illustrative 18:00–20:00 outage.
+- Expected, downside, upside and peak-compression cases alter illustrative prices only. Asset availability is configured independently using local-time windows that are mapped to the selected product resolution.
 - Proposal changes and their audit evidence are committed in one SQLite transaction.
 - Continuous MILP quantities are floored to the configured auction increment, reconstructed, and repaired until the executable order package passes the physical validator.
 - The scenario view evaluates each candidate's same executable orders under downside, expected and upside prices with explicit illustrative probabilities; the selected decision posture can therefore change the recommended dispatch and order portfolio.
 - The saved-run comparison keeps each completed simulation immutable, supports two to four selected runs and one explicit reference, and reveals the exact market, strategy, battery and availability inputs behind every result.
 - End-of-day energy can use the hard minimum reserve alone, a configured terminal value, or an explicitly illustrative next-day forecast proxy. Cash contribution and continuation value remain separate.
+- Exchange fees distinguish an unconfigured/excluded contract value from a confirmed numeric zero. The ECC clearing fee remains a documented public-tariff assumption.
+- New decision records use audit schema v3 and preserve assumption provenance, scenario probabilities, forecast version, optimizer version and validation version.
 
 ## Safety boundary
 

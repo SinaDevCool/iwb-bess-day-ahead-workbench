@@ -2,6 +2,7 @@ from backend.domain.models import SimulationRequest
 from backend.services.simulation_service import run_simulation
 from backend.domain.models import BatteryConfig, MarketConfig, PricePoint
 from backend.optimization.milp_optimizer import optimize_dispatch
+from backend.validation.validators import validate_dispatch
 from datetime import datetime, timedelta, timezone
 
 
@@ -31,6 +32,21 @@ def test_fees_are_optimized_and_reconciled_across_product_durations():
         assert "transaction fees" in result.optimization["objective"]
 
 
+def test_unconfirmed_exchange_fee_is_not_applied_as_a_real_cost():
+    excluded = run_simulation(SimulationRequest(market=MarketConfig(exchange_fee_eur_per_mwh=5, exchange_fee_policy="excluded")))
+    configured = run_simulation(SimulationRequest(market=MarketConfig(exchange_fee_eur_per_mwh=5, exchange_fee_policy="configured")))
+    assert excluded.summary["transaction_fee_eur"] < configured.summary["transaction_fee_eur"]
+    assert excluded.summary["expected_contribution_eur"] >= configured.summary["expected_contribution_eur"]
+
+
+def test_custom_scenario_probabilities_are_used_in_expected_value():
+    request = SimulationRequest(scenario_probabilities={"downside": .5, "expected": .3, "upside": .2})
+    result = run_simulation(request)
+    assert [outcome.probability for outcome in result.risk.outcomes] == [.5, .3, .2]
+    expected = sum(item.probability * item.contribution_eur for item in result.risk.outcomes)
+    assert abs(result.risk.expected_contribution_eur - expected) < .02
+
+
 def test_flat_prices_do_not_create_unprofitable_cycles():
     request = SimulationRequest()
     points = request.model_copy().prices
@@ -57,6 +73,11 @@ def test_downside_scenario_compresses_expected_contribution():
         peak_reduction_eur_mwh=15,
     ))
     assert downside.summary["expected_contribution_eur"] < base.summary["expected_contribution_eur"]
+
+
+def test_price_case_does_not_silently_change_risk_posture():
+    result = run_simulation(SimulationRequest(scenario_name="Downside", peak_reduction_eur_mwh=15, risk_posture="balanced"))
+    assert result.risk.posture == "balanced"
 
 
 def test_rounded_orders_remain_executable_at_tight_power_limits():
@@ -98,3 +119,27 @@ def test_milp_retains_value_when_throughput_constraint_binds():
     _, metadata = optimize_dispatch(points, battery, MarketConfig(product_minutes=60))
     assert metadata["solver_status"] == "optimal"
     assert metadata["objective_value_eur"] > 1200
+
+
+def test_dispatch_validation_independently_detects_energy_balance_breaks():
+    result = run_simulation(SimulationRequest())
+    broken = list(result.dispatch)
+    broken[3] = broken[3].model_copy(update={"soc_mwh": broken[3].soc_mwh + 2})
+    validation = validate_dispatch(broken, result.battery)
+    assert validation.status == "failed"
+    assert any(finding.code == "energy_balance" and finding.interval == 3 for finding in validation.findings)
+
+
+def test_dispatch_validation_detects_action_power_mismatch():
+    result = run_simulation(SimulationRequest())
+    broken = list(result.dispatch)
+    broken[0] = broken[0].model_copy(update={"action": "idle", "power_mw": 1})
+    validation = validate_dispatch(broken, result.battery)
+    assert any(finding.code == "operating_mode" for finding in validation.findings)
+
+
+def test_dispatch_validation_independently_detects_cycle_budget_breach():
+    result = run_simulation(SimulationRequest())
+    constrained = result.battery.model_copy(update={"max_equivalent_cycles": 0.01})
+    validation = validate_dispatch(result.dispatch, constrained)
+    assert any(finding.code == "cycle_limit" for finding in validation.findings)

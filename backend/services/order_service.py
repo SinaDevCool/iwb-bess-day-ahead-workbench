@@ -4,13 +4,13 @@ from datetime import timedelta
 import math
 from zoneinfo import ZoneInfo
 
-from backend.domain.economics import calculate_interval
+from backend.domain.economics import calculate_interval, effective_transaction_fee
 from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order
 
 
 def build_orders(simulation_id: str, rows: list[DispatchRow], market: MarketConfig, battery: BatteryConfig):
     orders = []
-    transaction_fee = market.exchange_fee_eur_per_mwh + market.clearing_fee_eur_per_mwh
+    transaction_fee = effective_transaction_fee(market)
     zone = ZoneInfo(market.timezone)
     for row in rows:
         if row.action == "idle" or abs(row.power_mw) < 1e-8:

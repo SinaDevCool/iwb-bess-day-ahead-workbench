@@ -150,8 +150,9 @@ def test_approval_is_idempotent():
 
 def test_initial_result_versions_and_proposal_metrics_are_present():
     payload = client.post("/api/simulations", json={}).json()
-    assert payload["audit"]["schema_version"] == 2
-    assert payload["audit"]["validation_version"] == "order_proposal_validation_v2"
+    assert payload["audit"]["schema_version"] == 3
+    assert payload["audit"]["assumption_sources"]["market.exchange_fee"] == "Excluded; IWB confirmation required"
+    assert payload["audit"]["validation_version"] == "physical_and_order_validation_v3"
     assert payload["optimization"]["engine"] == "scipy_highs_milp_v1"
     assert payload["summary"]["baseline_proposal_contribution_eur"] == payload["summary"]["proposal_contribution_eur"]
 

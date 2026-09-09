@@ -18,7 +18,7 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         base_prices,
         multiplier=request.price_multiplier,
         peak_reduction=request.peak_reduction_eur_mwh,
-        conservative=request.strategy == "conservative",
+        conservative=request.scenario_name.casefold() == "downside" or request.strategy == "conservative",
     )
     terminal_value = resolve_terminal_value(request)
     dispatch, optimization, risk, stable_intervals = select_risk_aware_dispatch(request, base_prices, prices, terminal_value)
@@ -56,6 +56,8 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         terminal_value_eur_per_mwh=request.terminal_value_eur_per_mwh,
         price_multiplier=request.price_multiplier,
         peak_reduction_eur_mwh=request.peak_reduction_eur_mwh,
+        scenario_probabilities=request.scenario_probabilities,
+        lookahead_hours=request.lookahead_hours,
         battery=request.battery,
         market=request.market,
         dispatch=dispatch,
@@ -86,7 +88,14 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         },
         optimization=optimization,
         proposal=proposal,
-        audit={"schema_version": 2, "input_hash": input_hash, "forecast_version": "illustrative-v1", "optimizer_version": optimization["engine"], "validation_version": "order_proposal_validation_v2", "modified_by_trader": False},
+        audit={"schema_version": 3, "input_hash": input_hash, "forecast_version": "illustrative-v1", "optimizer_version": optimization["engine"], "validation_version": "physical_and_order_validation_v3", "modified_by_trader": False, "assumption_sources": {
+            "battery.capacity_mwh": "IWB task baseline",
+            "battery.power_limits": "IWB task baseline / user input",
+            "market.product_minutes": "Market configuration assumption",
+            "market.exchange_fee": "IWB contract value" if request.market.exchange_fee_policy == "configured" else "Excluded; IWB confirmation required",
+            "market.clearing_fee": "ECC public tariff assumption",
+            "forecast": "Illustrative deterministic profile",
+        }},
         order_generation=order_generation,
         risk=risk,
         horizon={
@@ -99,5 +108,5 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         },
     )
     payload = result.model_dump(mode="json")
-    save_simulation_with_event(payload, created_at.isoformat(), "SIMULATION_CREATED", {"schema_version": 2, "input_hash": input_hash, "validation": validation_status, "optimizer": optimization["engine"]})
+    save_simulation_with_event(payload, created_at.isoformat(), "SIMULATION_CREATED", {"schema_version": 3, "input_hash": input_hash, "validation": validation_status, "optimizer": optimization["engine"]})
     return result

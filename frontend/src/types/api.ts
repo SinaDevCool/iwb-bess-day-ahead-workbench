@@ -8,7 +8,7 @@ export type Market = {
   market_name: string; bidding_zone: string; currency: string; timezone: string;
   product_minutes: 15 | 60; gate_closure_local: string; volume_increment_mw: number;
   price_increment_eur_mwh: number; min_price_eur_mwh: number; max_price_eur_mwh: number;
-  exchange_fee_eur_per_mwh: number; clearing_fee_eur_per_mwh: number;
+  exchange_fee_eur_per_mwh: number; exchange_fee_policy?: "excluded" | "configured"; clearing_fee_eur_per_mwh: number;
   assumptions_unverified: boolean;
 };
 export type Dispatch = {
@@ -43,6 +43,7 @@ export type SimulationSummary = {
 export type AuditMetadata = {
   schema_version: number; input_hash: string; forecast_version: string;
   optimizer_version: string; validation_version: string; modified_by_trader: boolean;
+  assumption_sources?: Record<string, string>;
 };
 export type RiskSummary = {
   posture: string; expected_contribution_eur: number; downside_contribution_eur: number;
@@ -60,7 +61,7 @@ export type SimulationRunSummary = {
 export type ComparisonMetric = "contribution" | "throughput" | "cycles" | "orders";
 export type Simulation = {
   simulation_id: string; created_at_utc: string; delivery_date: string; scenario_name: string;
-  strategy?: "expected_value" | "conservative"; risk_posture?: "expected_value" | "balanced" | "downside_protected"; horizon_policy?: "minimum_reserve" | "terminal_value" | "next_day_proxy"; terminal_value_eur_per_mwh?: number; price_multiplier?: number; peak_reduction_eur_mwh?: number; proposal_revision?: number;
+  strategy?: "expected_value" | "conservative"; risk_posture?: "expected_value" | "balanced" | "downside_protected"; horizon_policy?: "minimum_reserve" | "terminal_value" | "next_day_proxy"; terminal_value_eur_per_mwh?: number; price_multiplier?: number; peak_reduction_eur_mwh?: number; scenario_probabilities?: { downside: number; expected: number; upside: number }; lookahead_hours?: number; proposal_revision?: number;
   data_mode: string; submission_mode: string; battery: Battery; market: Market; dispatch: Dispatch[];
   orders: Order[]; validation: { status: ValidationStatus; findings: { severity: string; code: string; message: string; interval?: number }[] };
   summary: SimulationSummary; optimization: { engine: string; prototype_solver: boolean; solver_status?: string; solve_time_ms?: number; mip_gap?: number; objective: string; objective_value_eur: number; terminal_soc_mwh: number; constraint_status: string; constraints: string[] };

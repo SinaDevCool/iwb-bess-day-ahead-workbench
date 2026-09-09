@@ -10,6 +10,7 @@ from scipy.optimize import Bounds, LinearConstraint, milp
 from scipy.sparse import lil_matrix
 
 from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, PricePoint
+from backend.domain.economics import effective_transaction_fee
 from backend.domain.economics import calculate_interval
 
 
@@ -20,7 +21,7 @@ def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: 
         raise ValueError("No price intervals supplied")
     dt = market.product_minutes / 60
     eta = math.sqrt(battery.round_trip_efficiency)
-    transaction_fee = market.exchange_fee_eur_per_mwh + market.clearing_fee_eur_per_mwh
+    transaction_fee = effective_transaction_fee(market)
     charge_offset, discharge_offset, soc_offset, mode_offset = 0, n, 2 * n, 3 * n + 1
     variable_count = 4 * n + 1
 

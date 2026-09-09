@@ -59,6 +59,24 @@ def test_duplicate_or_contradictory_order_adjustments_are_rejected():
             {"order_id": "a", "volume_mw": 1, "comment": "first change"},
             {"order_id": "a", "volume_mw": 2, "comment": "second change"},
         ])
+
+
+def test_scenario_probabilities_must_sum_to_one():
+    from backend.domain.models import ScenarioProbability
+
+    ScenarioProbability(downside=.2, expected=.6, upside=.2)
+    with pytest.raises(ValidationError):
+        ScenarioProbability(downside=.4, expected=.6, upside=.2)
+
+
+def test_legacy_positive_exchange_fee_is_treated_as_configured():
+    market = MarketConfig(exchange_fee_eur_per_mwh=.08)
+    assert market.exchange_fee_policy == "configured"
+
+
+def test_exchange_fee_can_be_explicitly_excluded():
+    market = MarketConfig(exchange_fee_eur_per_mwh=.08, exchange_fee_policy="excluded")
+    assert market.exchange_fee_policy == "excluded"
     with pytest.raises(ValidationError):
         OrderProposalEdit(adjustments=[
             {"order_id": "a", "exclude": True, "volume_mw": 1, "comment": "contradictory change"},

@@ -57,6 +57,7 @@ const defaultMarket: Market = {
   min_price_eur_mwh: -500,
   max_price_eur_mwh: 4000,
   exchange_fee_eur_per_mwh: 0,
+  exchange_fee_policy: "excluded",
   clearing_fee_eur_per_mwh: 0.015,
   assumptions_unverified: true,
 };
@@ -83,6 +84,10 @@ export default function Workbench() {
     [riskPosture, setRiskPosture] = useState("balanced"),
     [horizonPolicy, setHorizonPolicy] = useState("minimum_reserve"),
     [terminalValue, setTerminalValue] = useState(55),
+    [priceMultiplier, setPriceMultiplier] = useState(1),
+    [scenarioProbabilities, setScenarioProbabilities] = useState({ downside: 20, expected: 60, upside: 20 }),
+    [lookaheadHours, setLookaheadHours] = useState(4),
+    [policyAdvanced, setPolicyAdvanced] = useState(false),
     [peak, setPeak] = useState(0),
     [availability, setAvailability] = useState("Fully available"),
     [unavailable, setUnavailable] = useState("");
@@ -102,7 +107,7 @@ export default function Workbench() {
     [exclude, setExclude] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
   const run = async () => {
-    const error = validate(battery, date, unavailable);
+    const error = validate(battery, market, date, unavailable, scenarioProbabilities);
     if (error) {
       setMessage({ kind: "error", text: error });
       setTimeout(() => errorRef.current?.focus(), 0);
@@ -118,14 +123,21 @@ export default function Workbench() {
           scenario_name: scenario,
           battery: {
             ...battery,
-            unavailable_intervals: parseIntervals(unavailable),
+            unavailable_intervals: parseIntervals(unavailable, market.product_minutes),
           },
           market,
           strategy,
           risk_posture: riskPosture,
           horizon_policy: horizonPolicy,
           terminal_value_eur_per_mwh: terminalValue,
+          price_multiplier: priceMultiplier,
           peak_reduction_eur_mwh: peak,
+          scenario_probabilities: {
+            downside: scenarioProbabilities.downside / 100,
+            expected: scenarioProbabilities.expected / 100,
+            upside: scenarioProbabilities.upside / 100,
+          },
+          lookahead_hours: lookaheadHours,
         }),
       });
       setResult(next);
@@ -180,8 +192,11 @@ export default function Workbench() {
         setRiskPosture(latest.risk_posture ?? "balanced");
         setHorizonPolicy(latest.horizon_policy ?? "minimum_reserve");
         setTerminalValue(latest.terminal_value_eur_per_mwh ?? 55);
+        setPriceMultiplier(latest.price_multiplier ?? 1);
+        setScenarioProbabilities({ downside: (latest.scenario_probabilities?.downside ?? .2) * 100, expected: (latest.scenario_probabilities?.expected ?? .6) * 100, upside: (latest.scenario_probabilities?.upside ?? .2) * 100 });
+        setLookaheadHours(latest.lookahead_hours ?? 4);
         setPeak(latest.peak_reduction_eur_mwh ?? 0);
-        setUnavailable(latest.battery.unavailable_intervals.join(", "));
+        setUnavailable(intervalsToWindows(latest.battery.unavailable_intervals, latest.market.product_minutes));
         setAvailability(latest.battery.unavailable_intervals.length ? "Custom" : "Fully available");
         setMessage({
           kind: "info",
@@ -256,7 +271,13 @@ export default function Workbench() {
     setDate("2026-09-09");
     setScenario("Expected forecast");
     setStrategy("expected_value");
+    setRiskPosture("balanced");
+    setHorizonPolicy("minimum_reserve");
+    setTerminalValue(55);
     setPeak(0);
+    setPriceMultiplier(1);
+    setScenarioProbabilities({ downside: 20, expected: 60, upside: 20 });
+    setLookaheadHours(4);
     setAvailability("Fully available");
     setUnavailable("");
     setDirty(true);
@@ -268,14 +289,11 @@ export default function Workbench() {
   const outage = (value: string) => {
     setAvailability(value);
     change();
-    const m = market.product_minutes === 15 ? 4 : 1;
-    const intervalRange = (startHour: number, endHour: number) =>
-      Array.from({ length: (endHour - startHour) * m }, (_, index) => startHour * m + index).join(", ");
     setUnavailable(
       value === "Morning outage"
-        ? intervalRange(6, 8)
+        ? "06:00–08:00"
         : value === "Evening peak outage"
-          ? intervalRange(18, 20)
+          ? "18:00–20:00"
           : value === "Custom"
             ? unavailable
             : "",
@@ -375,7 +393,8 @@ export default function Workbench() {
     ),
     dst =
       result &&
-      result.dispatch.length !== (resultMarket.product_minutes === 60 ? 24 : 96);
+      result.dispatch.length !== (resultMarket.product_minutes === 60 ? 24 : 96),
+    draftChanges = result ? configurationChanges(result, battery, market, scenario, riskPosture, horizonPolicy, terminalValue, unavailable) : [];
   return (
     <>
       <a className="skip-link" href="#workbench">
@@ -466,8 +485,9 @@ export default function Workbench() {
               </div>
             </div>
             <div id="configuration-content" className="inputs-content">
-            <fieldset>
-              <legend>Delivery & Market</legend>
+            <fieldset className="config-group">
+              <legend>1 · Market &amp; Costs</legend>
+              <p className="section-intro">Set the delivery product, illustrative price case and marginal execution costs.</p>
               <label htmlFor="date">
                 Delivery date
                 <input
@@ -494,8 +514,6 @@ export default function Workbench() {
                       ...market,
                       product_minutes: Number(e.target.value) as 15 | 60,
                     });
-                    setAvailability("Fully available");
-                    setUnavailable("");
                     change();
                   }}
                 >
@@ -519,33 +537,26 @@ export default function Workbench() {
                   onChange={(e) => {
                     const v = e.target.value;
                     setScenario(v);
-                    if (v === "Downside") {
-                      setStrategy("conservative");
-                      setPeak(15);
-                      setAvailability("Fully available");
-                      setUnavailable("");
-                    } else if (v === "Availability stress") {
-                      const multiplier = market.product_minutes === 15 ? 4 : 1;
-                      setStrategy("expected_value");
-                      setPeak(0);
-                      setAvailability("Evening peak outage");
-                      setUnavailable(Array.from({ length: 2 * multiplier }, (_, index) => 18 * multiplier + index).join(", "));
-                    } else {
-                      setStrategy("expected_value");
-                      setPeak(v === "Peak compression" ? 25 : 0);
-                      setAvailability("Fully available");
-                      setUnavailable("");
-                    }
+                    setStrategy("expected_value");
+                    setPriceMultiplier(v === "Upside" ? 1.08 : 1);
+                    setPeak(v === "Downside" ? 15 : v === "Peak compression" ? 25 : 0);
                     change();
                   }}
                 >
                   <option>Expected forecast</option>
                   <option>Downside</option>
                   <option>Peak compression</option>
-                  <option>Availability stress</option>
+                  <option>Upside</option>
                 </select>
                 <small>{scenarioDescription(scenario)}</small>
               </label>
+              <div className="fee-policy">
+                <label className="check-label" htmlFor="include-exchange-fee">
+                  <input id="include-exchange-fee" type="checkbox" checked={market.exchange_fee_policy === "configured"} onChange={(e) => { setMarket({ ...market, exchange_fee_policy: e.target.checked ? "configured" : "excluded" }); change(); }} />
+                  Include contractual exchange fee
+                </label>
+                <small>{market.exchange_fee_policy === "configured" ? "Configured marginal fee is included on every executed MWh." : "Not configured · excluded from optimization until confirmed with IWB."}</small>
+              </div>
               <div className="field-grid">
                 <NF
                   id="exchange-fee"
@@ -555,7 +566,8 @@ export default function Workbench() {
                   unit="€/MWh"
                   min={0}
                   step=".001"
-                  assumption
+                  badge="confirmation required"
+                  disabled={market.exchange_fee_policy !== "configured"}
                   change={(v) => { setMarket({ ...market, exchange_fee_eur_per_mwh: v }); change(); }}
                 />
                 <NF
@@ -566,14 +578,15 @@ export default function Workbench() {
                   unit="€/MWh"
                   min={0}
                   step=".001"
-                  assumption
+                  badge="public tariff"
                   change={(v) => { setMarket({ ...market, clearing_fee_eur_per_mwh: v }); change(); }}
                 />
               </div>
               <small>Both fees apply to every executed MWh, whether BUY or SELL. Fixed membership costs are excluded from dispatch optimization.</small>
             </fieldset>
-            <fieldset>
-              <legend>Optimization Strategy</legend>
+            <fieldset className="config-group">
+              <legend>2 · Optimization Policy</legend>
+              <p className="section-intro">Choose how uncertainty and stored energy after the delivery day should be valued.</p>
               <label htmlFor="risk-posture">
                 Decision posture
                 <select id="risk-posture" name="risk-posture" autoComplete="off" value={riskPosture} onChange={(e) => { setRiskPosture(e.target.value); change(); }}>
@@ -593,15 +606,29 @@ export default function Workbench() {
                 <small>Controls how energy remaining after the auction day is valued.</small>
               </label>
               {horizonPolicy === "terminal_value" && <NF id="terminal-value" label="Terminal energy value" hint="Illustrative value for stored energy above the end-of-day reserve" value={terminalValue} unit="€/MWh" min={0} change={(v) => { setTerminalValue(v); change(); }} />}
+              {horizonPolicy === "next_day_proxy" && <NF id="lookahead-hours" label="Next-day look-ahead" hint="Uses the earliest next-day forecast intervals as a replacement-value proxy" value={lookaheadHours} unit="hours" min={1} max={12} change={(v) => { setLookaheadHours(v); change(); }} />}
+              <button className="advanced-toggle" type="button" aria-expanded={policyAdvanced} onClick={() => setPolicyAdvanced((value) => !value)}><SlidersHorizontal size={15} aria-hidden="true" /> Scenario probabilities</button>
+              {policyAdvanced && <div className="field-grid probability-grid">
+                <NF id="prob-downside" label="Downside" value={scenarioProbabilities.downside} unit="%" min={0} max={100} change={(v) => { setScenarioProbabilities({ ...scenarioProbabilities, downside: v }); change(); }} />
+                <NF id="prob-expected" label="Expected" value={scenarioProbabilities.expected} unit="%" min={0} max={100} change={(v) => { setScenarioProbabilities({ ...scenarioProbabilities, expected: v }); change(); }} />
+                <NF id="prob-upside" label="Upside" value={scenarioProbabilities.upside} unit="%" min={0} max={100} change={(v) => { setScenarioProbabilities({ ...scenarioProbabilities, upside: v }); change(); }} />
+                <div className={`probability-total ${Math.abs(scenarioProbabilities.downside + scenarioProbabilities.expected + scenarioProbabilities.upside - 100) < .001 ? "valid" : "invalid"}`}><span>Total</span><strong>{num(scenarioProbabilities.downside + scenarioProbabilities.expected + scenarioProbabilities.upside, 0)}%</strong></div>
+              </div>}
             </fieldset>
-            <fieldset>
-              <legend>Battery Limits</legend>
+            <fieldset className="config-group">
+              <legend>3 · Battery &amp; Availability</legend>
+              <p className="section-intro">Define the executable operating envelope. These limits are enforced by the optimizer.</p>
               <div className="assumption-note">
                 <BatteryCharging size={16} aria-hidden="true" />
                 <span>
                   <strong>Task baseline</strong>
                   100 MWh capacity · 50 MW charge/discharge · 2-hour duration
                 </span>
+              </div>
+              <div className="derived-strip" role="status">
+                <span><b>{num(Math.min(battery.max_charge_power_mw, battery.grid_limit_mw), 1)} MW</b> effective charge</span>
+                <span><b>{num(Math.min(battery.max_discharge_power_mw, battery.grid_limit_mw), 1)} MW</b> effective discharge</span>
+                <span><b>{num(battery.capacity_mwh / Math.max(.0001, Math.min(battery.max_charge_power_mw, battery.grid_limit_mw)), 1)} h</b> charge duration</span>
               </div>
               <div className="field-grid">
                 <NF
@@ -714,9 +741,7 @@ export default function Workbench() {
                   change={(v) => batteryChange("max_equivalent_cycles", v)}
                 />
               </div>
-            </fieldset>
-            <fieldset>
-              <legend>Availability</legend>
+              <div className="subsection-label">Asset availability</div>
               <label htmlFor="availability">
                 Availability preset
                 <select
@@ -743,13 +768,12 @@ export default function Workbench() {
               </button>
               {advanced && (
                 <label htmlFor="intervals">
-                  Unavailable interval indices
+                  Unavailable local-time windows
                   <input
                     id="intervals"
                     name="intervals"
                     autoComplete="off"
-                    inputMode="numeric"
-                    placeholder="Example: 6, 18…"
+                    placeholder="Example: 06:00–08:00, 18:00–20:00"
                     value={unavailable}
                     onChange={(e) => {
                       setUnavailable(e.target.value);
@@ -757,7 +781,7 @@ export default function Workbench() {
                       change();
                     }}
                   />
-                  <small>Advanced model input. Indices start at 0.</small>
+                  <small>Europe/Zurich delivery time. Windows are remapped when product duration changes.</small>
                 </label>
               )}
             </fieldset>
@@ -827,7 +851,7 @@ export default function Workbench() {
             {dirty && result && (
               <div className="status-message warning stale-results" role="status" aria-live="polite">
                 <AlertTriangle size={17} aria-hidden="true" />
-                Configuration changed. Summary cards and charts show the previous completed run. Re-run the optimization to update all results.
+                <div><strong>{draftChanges.length || "Configuration"} {draftChanges.length === 1 ? "change" : "changes"} since this run.</strong> Summary cards and charts show the previous completed result. {draftChanges.slice(0, 3).join(" · ")}{draftChanges.length > 3 ? ` · +${draftChanges.length - 3} more` : ""}</div>
               </div>
             )}
             {message && (
@@ -1204,6 +1228,8 @@ function ProofView({
   result?: Simulation;
   battery: Battery;
 }) {
+  const [filter, setFilter] = useState<"All" | ValidationDisplayStatus>("All");
+  const [selectedCheck, setSelectedCheck] = useState<string | null>(null);
   const proposalDispatch = result?.proposal?.implied_dispatch ?? result?.dispatch ?? [],
     chargePower = Math.max(0, ...proposalDispatch.filter((x) => x.power_mw < 0).map((x) => Math.abs(x.power_mw))),
     dischargePower = Math.max(0, ...proposalDispatch.filter((x) => x.power_mw > 0).map((x) => x.power_mw)),
@@ -1215,19 +1241,17 @@ function ProofView({
       result?.optimization.terminal_soc_mwh ??
       0,
     solverStatus = result?.optimization.solver_status ?? "unknown",
-    rows = result
-      ? [
-          constraintRow("Charge power", Math.min(battery.max_charge_power_mw, battery.grid_limit_mw), chargePower, "MW", "maximum"),
-          constraintRow("Discharge power", Math.min(battery.max_discharge_power_mw, battery.grid_limit_mw), dischargePower, "MW", "maximum"),
-          envelopeRow(battery.min_soc_mwh, battery.max_soc_mwh, proposalMinSoc, proposalMaxSoc),
-          constraintRow("Cycle budget", battery.max_equivalent_cycles, proposalCycles, "EFC", "maximum", 2),
-          constraintRow("End-of-day reserve", battery.target_soc_mwh, proposalTerminalSoc, "MWh", "minimum"),
-        ]
-      : [];
-  const failedCount = rows.filter((row) => row.status === "Failed").length;
-  const bindingCount = rows.filter((row) => row.status === "Binding").length;
+    rows = result ? physicalEvidenceRows(result, battery, proposalDispatch, {
+      chargePower, dischargePower, proposalMinSoc, proposalMaxSoc, proposalCycles, proposalTerminalSoc,
+    }) : [];
+  const failedCount = rows.filter((row) => row.status === "Issue").length;
+  const bindingCount = rows.filter((row) => row.status === "Fully used").length;
+  const uncheckedCount = rows.filter((row) => row.status === "Not evaluated").length;
+  const evaluatedCount = rows.length - uncheckedCount;
+  const visibleRows = filter === "All" ? rows : rows.filter((row) => row.status === filter);
+  const activeRow = rows.find((row) => row.label === selectedCheck);
   const validationSummary = result?.validation.status === "passed"
-    ? `All ${rows.length} physical checks passed${bindingCount ? `; ${bindingCount} ${bindingCount === 1 ? "limit is" : "limits are"} fully utilized` : ""}.`
+    ? `All ${evaluatedCount} configured checks passed${bindingCount ? `; ${bindingCount} ${bindingCount === 1 ? "limit was" : "limits were"} reached` : ""}. No limits were exceeded.`
     : failedCount
       ? `${failedCount} physical ${failedCount === 1 ? "limit is" : "limits are"} exceeded.`
       : "Physical limits pass; review the order and market findings below.";
@@ -1251,23 +1275,39 @@ function ProofView({
               <strong>{result.validation.status === "passed" ? "Physically Feasible" : result.validation.status === "warning" ? "Feasible with Warnings" : "Not Physically Feasible"}</strong>
               <span>{validationSummary}</span>
             </div>
-            <small><strong>Binding</strong> means a limit is fully used, not violated.</small>
+            <small><strong>Fully used</strong> means a boundary was reached, not violated.</small>
           </div>
           {result.validation.findings.length > 0 && <ul className="checks">{result.validation.findings.map((finding) => <li key={`${finding.code}-${finding.interval ?? "run"}`}><AlertTriangle size={15} aria-hidden="true" />{finding.message}</li>)}</ul>}
-          <div className="table-scroll validation-table">
-            <table>
-              <caption className="sr-only">Physical validation of the proposed battery schedule</caption>
-              <thead><tr><th scope="col">Physical check</th><th scope="col">Observed / allowed</th><th scope="col">Remaining margin</th><th scope="col">Status</th></tr></thead>
-              <tbody>{rows.map((row) => (
-                <tr key={row.label}>
-                  <th scope="row">{row.label}</th>
-                  <td>{row.observed} / {row.limit}</td>
-                  <td>{row.headroom}</td>
-                  <td><span className={`validation-state ${row.status.toLowerCase()}`}>{row.status}</span></td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
+          <section className="constraint-map" aria-labelledby="constraint-map-title">
+            <div className="constraint-map-head">
+              <div><span className="eyebrow">Execution evidence</span><h3 id="constraint-map-title">Constraint Headroom</h3><p>Observed use against each configured boundary. Select a check for its calculation evidence.</p></div>
+              <div className="constraint-counts" aria-label="Validation totals"><strong>{evaluatedCount}/{evaluatedCount}</strong><span>checked</span><strong>{bindingCount}</strong><span>fully used</span><strong>{uncheckedCount}</strong><span>not evaluated</span></div>
+            </div>
+            <div className="constraint-filters" aria-label="Filter validation checks">
+              {(["All", "Issue", "Fully used", "Headroom", "Verified", "Not evaluated"] as const).map((value) => <button key={value} type="button" className={filter === value ? "active" : ""} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value}<span>{value === "All" ? rows.length : rows.filter((row) => row.status === value).length}</span></button>)}
+            </div>
+            {visibleRows.length === 0 ? <div className="constraint-empty">No checks match this filter.</div> : ["Battery & Grid", "Schedule Integrity", "Order Executability"].map((category) => {
+              const categoryRows = visibleRows.filter((row) => row.category === category);
+              return categoryRows.length ? <div className="constraint-group" key={category}>
+                <h4>{category}</h4>
+                <div className="constraint-list">{categoryRows.map((row) => <button type="button" className={`constraint-row ${row.status.toLowerCase().replaceAll(" ", "-")} ${selectedCheck === row.label ? "selected" : ""}`} key={row.label} onClick={() => setSelectedCheck(selectedCheck === row.label ? null : row.label)} aria-expanded={selectedCheck === row.label}>
+                  <span className="constraint-name"><strong>{row.label}</strong><small>{row.observed} / {row.limit}</small></span>
+                  <span className="constraint-track" aria-hidden="true"><span style={{ width: `${row.utilization}%` }} /><i /></span>
+                  <span className="constraint-margin"><strong>{row.headroom}</strong><small>{row.status === "Verified" ? "validation result" : "remaining margin"}</small></span>
+                  <span className={`validation-state ${row.status.toLowerCase().replaceAll(" ", "-")}`}>{row.status === "Issue" ? <AlertTriangle size={13} aria-hidden="true" /> : <CheckCircle2 size={13} aria-hidden="true" />}{row.status}</span>
+                </button>)}</div>
+              </div> : null;
+            })}
+            {activeRow && <aside className="constraint-evidence" aria-live="polite"><div><span>Selected check</span><strong>{activeRow.label}</strong></div><dl><div><dt>Evidence</dt><dd>{activeRow.evidence}</dd></div><div><dt>Calculation</dt><dd>{activeRow.formula}</dd></div><div><dt>Validation stage</dt><dd>{activeRow.stage}</dd></div></dl></aside>}
+          </section>
+          <details className="exact-validation">
+            <summary>View Exact Validation Values</summary>
+            <div className="table-scroll validation-table"><table>
+              <caption className="sr-only">Exact validation values for the proposed battery schedule</caption>
+              <thead><tr><th scope="col">Check</th><th scope="col">Observed / allowed</th><th scope="col">Margin</th><th scope="col">Status</th></tr></thead>
+              <tbody>{rows.map((row) => <tr key={row.label}><th scope="row">{row.label}</th><td>{row.observed} / {row.limit}</td><td>{row.headroom}</td><td>{row.status}</td></tr>)}</tbody>
+            </table></div>
+          </details>
           <details className="solver-details">
             <summary><span>Solver & Model Details</span><small>Technical evidence</small></summary>
             <div className="solver-explainer">
@@ -1308,6 +1348,8 @@ function NF({
   min,
   max,
   assumption = false,
+  badge,
+  disabled = false,
   change,
 }: {
   id: string;
@@ -1319,13 +1361,15 @@ function NF({
   min?: number;
   max?: number;
   assumption?: boolean;
+  badge?: string;
+  disabled?: boolean;
   change: (v: number) => void;
 }) {
   return (
     <label htmlFor={id}>
       <span className="field-label">
         {label}
-        {assumption && <span className="assumption">assumption</span>}
+        {(assumption || badge) && <span className="assumption">{badge ?? "task input"}</span>}
       </span>
       <div className="number">
         <input
@@ -1337,6 +1381,7 @@ function NF({
           step={step}
           min={min}
           max={max}
+          disabled={disabled}
           value={value}
           onChange={(e) => change(Number(e.target.value))}
         />
@@ -1423,47 +1468,68 @@ function constraintExplanation(value: string) {
   return explanations[value] ?? { title: title(value), text: "Included in the optimization model." };
 }
 
-function constraintRow(
-  label: string,
-  limit: number,
-  observed: number,
-  unit: string,
-  direction: ConstraintDirection,
-  digits = 1,
-) {
-  const margin = direction === "maximum" ? limit - observed : observed - limit;
-  const tolerance = digits === 2 ? 0.005 : 0.05;
-  const status = margin < -tolerance ? "Failed" : Math.abs(margin) <= tolerance ? "Binding" : "Passed";
-  const magnitude = num(Math.abs(margin), digits) + " " + unit;
-  return {
-    label,
-    limit: num(limit, digits) + " " + unit,
-    observed: num(observed, digits) + " " + unit,
-    headroom: margin < -tolerance ? magnitude + " short" : magnitude,
-    status,
+type ValidationDisplayStatus = "Issue" | "Fully used" | "Headroom" | "Verified" | "Not evaluated";
+type ValidationEvidenceRow = {
+  category: "Battery & Grid" | "Schedule Integrity" | "Order Executability";
+  label: string; observed: string; limit: string; headroom: string;
+  utilization: number; status: ValidationDisplayStatus; evidence: string;
+  formula: string; stage: string;
+};
+
+function physicalEvidenceRows(
+  result: Simulation,
+  battery: Battery,
+  dispatch: Simulation["dispatch"],
+  values: { chargePower: number; dischargePower: number; proposalMinSoc: number; proposalMaxSoc: number; proposalCycles: number; proposalTerminalSoc: number },
+): ValidationEvidenceRow[] {
+  const errors = new Set(result.validation.findings.filter((x) => x.severity === "error").map((x) => x.code));
+  const dt = result.market.product_minutes / 60;
+  const eta = Math.sqrt(battery.round_trip_efficiency);
+  let priorSoc = battery.initial_soc_mwh;
+  let maxBalanceError = 0;
+  for (const row of dispatch) {
+    const expectedDelta = row.power_mw < 0 ? Math.abs(row.power_mw) * dt * eta : row.power_mw > 0 ? -row.power_mw * dt / eta : 0;
+    maxBalanceError = Math.max(maxBalanceError, Math.abs(row.soc_mwh - priorSoc - expectedDelta));
+    priorSoc = row.soc_mwh;
+  }
+  const expectedIntervals = 24 * 60 / result.market.product_minutes;
+  const unavailableDispatch = dispatch.filter((x) => battery.unavailable_intervals.includes(x.interval) && x.action !== "idle").length;
+  const modeConflicts = dispatch.filter((x) => (x.action === "idle" && Math.abs(x.power_mw) > 0.001) || (x.action === "charge" && x.power_mw >= -0.001) || (x.action === "discharge" && x.power_mw <= 0.001)).length;
+  const orderCodes = new Set(["duplicate_order", "price_range", "duration", "unknown_interval", "multiple_orders_interval", "order_power_limit", "energy_mismatch", "volume_increment", "price_increment", "order_unavailable", "proposal_soc_below_min", "proposal_soc_above_max", "proposal_terminal_soc", "proposal_cycle_limit"]);
+  const orderIssues = result.validation.findings.filter((x) => orderCodes.has(x.code)).length;
+  const make = (
+    category: ValidationEvidenceRow["category"], label: string, observed: number, allowed: number,
+    unit: string, direction: ConstraintDirection, evidence: string, formula: string, stage: string,
+    errorCodes: string[] = [], digits = 1,
+  ): ValidationEvidenceRow => {
+    const margin = direction === "maximum" ? allowed - observed : observed - allowed;
+    const tolerance = unit === "EFC" ? 0.005 : unit === "MWh" ? 0.15 : 0.05;
+    const issue = errorCodes.some((code) => errors.has(code)) || margin < -tolerance;
+    const status: ValidationDisplayStatus = issue ? "Issue" : Math.abs(margin) <= tolerance ? "Fully used" : "Headroom";
+    const utilization = direction === "maximum" ? observed / Math.max(allowed, 1e-9) : allowed / Math.max(observed, allowed, 1e-9);
+    return { category, label, observed: `${num(observed, digits)} ${unit}`, limit: `${num(allowed, digits)} ${unit}`, headroom: issue ? `${num(Math.abs(margin), digits)} ${unit} outside` : `${num(Math.max(0, margin), digits)} ${unit}`, utilization: Math.min(100, Math.max(0, utilization * 100)), status, evidence, formula, stage };
   };
+  const rows: ValidationEvidenceRow[] = [
+    make("Battery & Grid", "Charge power", values.chargePower, Math.min(battery.max_charge_power_mw, battery.grid_limit_mw), "MW", "maximum", "Highest charging instruction in the executable order schedule.", "max(abs(charge MW)) ≤ min(charge limit, grid limit)", "Optimizer + post-order reconstruction", ["charge_power_limit", "order_power_limit"]),
+    make("Battery & Grid", "Discharge power", values.dischargePower, Math.min(battery.max_discharge_power_mw, battery.grid_limit_mw), "MW", "maximum", "Highest discharging instruction in the executable order schedule.", "max(discharge MW) ≤ min(discharge limit, grid limit)", "Optimizer + post-order reconstruction", ["discharge_power_limit", "order_power_limit"]),
+    make("Battery & Grid", "Grid connection", Math.max(values.chargePower, values.dischargePower), battery.grid_limit_mw, "MW", "maximum", "Highest import or export power at the configured connection point.", "max(abs(grid MW)) ≤ connection limit", "Optimizer + backend validation", ["grid_limit"]),
+    make("Battery & Grid", "Minimum state of charge", values.proposalMinSoc, battery.min_soc_mwh, "MWh", "minimum", "Lowest stored energy reached by the executable orders.", "min(interval SoC) ≥ minimum SoC", "Post-order physical reconstruction", ["soc_below_min", "proposal_soc_below_min"]),
+    make("Battery & Grid", "Maximum state of charge", values.proposalMaxSoc, battery.max_soc_mwh, "MWh", "maximum", "Highest stored energy reached by the executable orders.", "max(interval SoC) ≤ maximum SoC", "Post-order physical reconstruction", ["soc_above_max", "proposal_soc_above_max"]),
+    make("Battery & Grid", "Daily cycle budget", values.proposalCycles, battery.max_equivalent_cycles, "EFC", "maximum", "Charged and discharged battery energy expressed as equivalent full cycles.", "throughput ÷ (2 × capacity) ≤ cycle budget", "Optimizer + backend validation", ["cycle_limit", "proposal_cycle_limit"], 2),
+    make("Battery & Grid", "End-of-day reserve", values.proposalTerminalSoc, battery.target_soc_mwh, "MWh", "minimum", "Stored energy after the final delivery interval.", "terminal SoC ≥ configured reserve", "Optimizer + post-order reconstruction", ["terminal_soc", "proposal_terminal_soc"]),
+    { category: "Battery & Grid", label: "Ramp rate", observed: "Not configured", limit: "Not configured", headroom: "—", utilization: 0, status: "Not evaluated", evidence: "No asset ramp-rate assumption is configured for this prototype.", formula: "abs(power[t] − power[t−1]) ≤ ramp limit × elapsed time", stage: "Not modeled" },
+    make("Schedule Integrity", "Energy balance", maxBalanceError, 0.15, "MWh", "maximum", "Largest interval reconciliation difference after applying duration and efficiency.", "SoC[t] = SoC[t−1] + charge × η × Δt − discharge ÷ η × Δt", "Independent backend validation", ["energy_balance"], 2),
+    { category: "Schedule Integrity", label: "Asset availability", observed: `${unavailableDispatch} active intervals`, limit: `${battery.unavailable_intervals.length} unavailable intervals tested`, headroom: unavailableDispatch ? `${unavailableDispatch} conflicts` : "All clear", utilization: unavailableDispatch ? 100 : 0, status: errors.has("unavailable") || errors.has("order_unavailable") ? "Issue" : "Verified", evidence: `${battery.unavailable_intervals.length} configured unavailable intervals were checked against the executable schedule.`, formula: "active dispatch in unavailable intervals = 0", stage: "Optimizer + backend validation" },
+    make("Schedule Integrity", "Operating mode", modeConflicts, 0, "conflicts", "maximum", "Action labels and signed power agree for every interval.", "one of charge, discharge or idle per interval", "Binary optimizer constraint + backend validation", ["operating_mode"], 0),
+    make("Schedule Integrity", "Interval coverage", dispatch.length, expectedIntervals, "intervals", "minimum", `The ${result.market.product_minutes}-minute product requires ${expectedIntervals} delivery intervals for a normal day.`, "returned intervals ≥ expected delivery intervals", "API result integrity check", ["empty_schedule"], 0),
+    make("Order Executability", "Order reconciliation", orderIssues, 0, "issues", "maximum", `${result.orders.length} generated orders were reconstructed into the physical schedule.`, "market-valid orders + reconstructed SoC and throughput must remain feasible", "Post-rounding and post-trader-edit validation", [...orderCodes], 0),
+  ];
+  for (const row of rows) {
+    if ((row.category === "Schedule Integrity" || row.category === "Order Executability") && row.status !== "Issue") row.status = "Verified";
+  }
+  return rows;
 }
-function envelopeRow(
-  minimum: number,
-  maximum: number,
-  observedMinimum: number,
-  observedMaximum: number,
-) {
-  const lowerMargin = observedMinimum - minimum;
-  const upperMargin = maximum - observedMaximum;
-  const margin = Math.min(lowerMargin, upperMargin);
-  // Match the backend proposal-validation tolerance so rounded auction orders
-  // cannot appear invalid in the UI after the API has accepted them.
-  const tolerance = 0.15;
-  const status = margin < -tolerance ? "Failed" : Math.abs(margin) <= tolerance ? "Binding" : "Passed";
-  return {
-    label: "State-of-charge envelope",
-    limit: `${num(minimum)}–${num(maximum)} MWh`,
-    observed: `${num(observedMinimum)}–${num(observedMaximum)} MWh`,
-    headroom: margin < -tolerance ? `${num(Math.abs(margin))} MWh outside` : `${num(Math.max(0, margin))} MWh nearest limit`,
-    status,
-  };
-}
+
 const num = (v?: number, d = 1) =>
   typeof v === "number"
     ? new Intl.NumberFormat("en-CH", {
@@ -1538,11 +1604,11 @@ function scenarioDescription(v: string) {
     ? "Illustrative Day-Ahead forecast with a €15/MWh peak reduction."
     : v === "Peak compression"
       ? "Illustrative Day-Ahead peaks reduced by €25/MWh to test spread risk."
-      : v === "Availability stress"
-        ? "Illustrative 18:00–20:00 outage; dispatch re-optimizes around unavailable peak intervals."
+      : v === "Upside"
+        ? "Illustrative price case with an 8% uplift across the delivery day."
         : "Illustrative central Day-Ahead price forecast.";
 }
-function validate(b: Battery, d: string, u: string) {
+function validate(b: Battery, m: Market, d: string, u: string, probabilities: { downside: number; expected: number; upside: number }) {
   if (!d) return "Choose a delivery date.";
   if (!Number.isFinite(b.capacity_mwh) || b.capacity_mwh <= 0)
     return "Energy capacity must be greater than 0 MWh.";
@@ -1571,22 +1637,56 @@ function validate(b: Battery, d: string, u: string) {
     return "Degradation cost cannot be negative.";
   if (b.max_equivalent_cycles <= 0)
     return "Daily cycle budget must be greater than 0 EFC.";
+  const probabilityValues = Object.values(probabilities);
+  if (probabilityValues.some((value) => !Number.isFinite(value) || value < 0 || value > 100) || Math.abs(probabilityValues.reduce((sum, value) => sum + value, 0) - 100) > .001)
+    return "Downside, expected and upside probabilities must each be between 0% and 100% and total 100%.";
   try {
-    parseIntervals(u);
+    parseIntervals(u, m.product_minutes);
   } catch (e) {
     return e instanceof Error ? e.message : "Check unavailable intervals.";
   }
   return "";
 }
-function parseIntervals(v: string) {
+function parseIntervals(v: string, productMinutes: 15 | 60) {
   if (!v.trim()) return [];
-  const t = v.split(",").map((x) => x.trim());
-  if (t.some((x) => x === ""))
-    throw new Error("Remove empty unavailable-interval entries.");
-  const n = t.map(Number);
-  if (n.some((x) => !Number.isInteger(x) || x < 0))
-    throw new Error(
-      "Unavailable intervals must be non-negative whole numbers.",
-    );
-  return [...new Set(n)].sort((a, b) => a - b);
+  const windows = v.split(",").map((x) => x.trim());
+  if (windows.some((x) => !x)) throw new Error("Remove empty availability-window entries.");
+  const step = productMinutes;
+  const indexes: number[] = [];
+  for (const window of windows) {
+    const match = window.match(/^(\d{2}):(\d{2})\s*[-–]\s*(\d{2}):(\d{2})$/);
+    if (!match) throw new Error("Use local-time windows such as 06:00–08:00.");
+    const start = Number(match[1]) * 60 + Number(match[2]);
+    const end = Number(match[3]) * 60 + Number(match[4]);
+    if (start < 0 || end > 1440 || start >= end || start % step || end % step)
+      throw new Error(`Availability windows must align to ${productMinutes}-minute products and remain within one delivery day.`);
+    for (let minute = start; minute < end; minute += step) indexes.push(minute / step);
+  }
+  return [...new Set(indexes)].sort((a, b) => a - b);
+}
+function intervalsToWindows(indexes: number[], productMinutes: 15 | 60) {
+  if (!indexes.length) return "";
+  const sorted = [...new Set(indexes)].sort((a, b) => a - b);
+  const ranges: Array<[number, number]> = [];
+  let start = sorted[0], previous = sorted[0];
+  for (const index of sorted.slice(1)) {
+    if (index === previous + 1) previous = index;
+    else { ranges.push([start, previous + 1]); start = previous = index; }
+  }
+  ranges.push([start, previous + 1]);
+  const clock = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+  return ranges.map(([a, b]) => `${clock(a * productMinutes)}–${clock(b * productMinutes)}`).join(", ");
+}
+function configurationChanges(result: Simulation, battery: Battery, market: Market, scenario: string, risk: string, horizon: string, terminalValue: number, unavailable: string) {
+  const changes: string[] = [];
+  if (result.market.product_minutes !== market.product_minutes) changes.push(`Product ${result.market.product_minutes} → ${market.product_minutes} min`);
+  if (result.scenario_name !== scenario) changes.push(`Forecast ${result.scenario_name} → ${scenario}`);
+  if ((result.risk_posture ?? "balanced") !== risk) changes.push(`Policy ${title(result.risk_posture ?? "balanced")} → ${title(risk)}`);
+  if ((result.horizon_policy ?? "minimum_reserve") !== horizon) changes.push(`Horizon ${title(result.horizon_policy ?? "minimum_reserve")} → ${title(horizon)}`);
+  if (horizon === "terminal_value" && (result.terminal_value_eur_per_mwh ?? 0) !== terminalValue) changes.push(`Terminal value ${terminalValue} €/MWh`);
+  if (result.market.exchange_fee_policy !== market.exchange_fee_policy || result.market.exchange_fee_eur_per_mwh !== market.exchange_fee_eur_per_mwh) changes.push(market.exchange_fee_policy === "configured" ? `Exchange fee ${market.exchange_fee_eur_per_mwh} €/MWh` : "Exchange fee excluded");
+  const batteryKeys: Array<keyof Battery> = ["capacity_mwh", "max_charge_power_mw", "max_discharge_power_mw", "grid_limit_mw", "initial_soc_mwh", "min_soc_mwh", "max_soc_mwh", "target_soc_mwh", "round_trip_efficiency", "degradation_cost_eur_per_mwh", "max_equivalent_cycles"];
+  if (batteryKeys.some((key) => result.battery[key] !== battery[key])) changes.push("Battery envelope changed");
+  if (intervalsToWindows(result.battery.unavailable_intervals, result.market.product_minutes) !== unavailable) changes.push("Availability changed");
+  return changes;
 }

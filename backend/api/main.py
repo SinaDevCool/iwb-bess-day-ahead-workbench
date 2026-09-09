@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.config.defaults import DEFAULT_BATTERY, DEFAULT_MARKET
 from backend.db.repository import add_audit_event, get_simulation, initialize, list_audit_events, list_simulations, save_simulation_with_event
 from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order, OrderProposalEdit, SimulationRequest, SimulationRunSummary
-from backend.domain.economics import calculate_interval
+from backend.domain.economics import calculate_interval, effective_transaction_fee
 from backend.services.forecast_service import build_demo_forecast
 from backend.services.simulation_service import run_simulation
 from backend.validation.validators import validate_order_proposal
@@ -67,12 +67,19 @@ def _revalidate_payload(payload: dict):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "iwb-bess-day-ahead-workbench", "api_version": "2.0.0", "optimizer_version": "scipy_highs_milp_v1", "validation_version": "order_proposal_validation_v2", "submission_mode": "preview_only"}
+    return {"status": "ok", "service": "iwb-bess-day-ahead-workbench", "api_version": "2.0.0", "optimizer_version": "scipy_highs_milp_v1", "validation_version": "physical_and_order_validation_v3", "submission_mode": "preview_only"}
 
 
 @app.get("/api/configuration")
 def configuration():
-    return {"battery": DEFAULT_BATTERY, "market": DEFAULT_MARKET, "warning": "Market parameters are interview assumptions and require IWB confirmation."}
+    return {"battery": DEFAULT_BATTERY, "market": DEFAULT_MARKET, "warning": "Market parameters are interview assumptions and require IWB confirmation.", "assumption_sources": {
+        "battery.capacity_mwh": {"status": "task_baseline", "label": "IWB task input"},
+        "battery.max_charge_power_mw": {"status": "task_baseline", "label": "Derived from two-hour duration"},
+        "battery.max_discharge_power_mw": {"status": "task_baseline", "label": "Derived from two-hour duration"},
+        "market.exchange_fee_eur_per_mwh": {"status": "confirmation_required", "label": "IWB contract value not supplied"},
+        "market.clearing_fee_eur_per_mwh": {"status": "public_tariff", "label": "ECC public tariff assumption"},
+        "forecast": {"status": "illustrative", "label": "Illustrative deterministic profile"},
+    }}
 
 
 @app.get("/api/forecast")
@@ -194,7 +201,7 @@ def edit_proposal(simulation_id: str, edit: OrderProposalEdit):
         if adjustment.limit_price_eur_mwh is not None:
             order["limit_price_eur_mwh"] = adjustment.limit_price_eur_mwh
         market = MarketConfig.model_validate(payload["market"])
-        economics = calculate_interval(order["side"], order["volume_mw"], market.product_minutes / 60, order["expected_price_eur_mwh"], BatteryConfig.model_validate(payload["battery"]), market.exchange_fee_eur_per_mwh + market.clearing_fee_eur_per_mwh)
+        economics = calculate_interval(order["side"], order["volume_mw"], market.product_minutes / 60, order["expected_price_eur_mwh"], BatteryConfig.model_validate(payload["battery"]), effective_transaction_fee(market))
         order["sales_revenue_eur"] = round(economics.sales_revenue_eur, 2)
         order["purchase_cost_eur"] = round(economics.purchase_cost_eur, 2)
         order["degradation_cost_eur"] = round(economics.degradation_cost_eur, 2)
