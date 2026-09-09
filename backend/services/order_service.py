@@ -32,10 +32,13 @@ def build_orders(simulation_id: str, rows: list[DispatchRow], market: MarketConf
             break_even = future_peak * eta2 - fee * (1 + eta2) - 2 * battery.degradation_cost_eur_per_mwh * eta
             margin = break_even - row.price_eur_mwh
         else:
-            prior_low = min(prices[:row.interval] or [row.price_eur_mwh])
+            # Initial inventory may be sold before it is replenished. Prefer a
+            # later low-price opportunity; at the end of the horizon, fall
+            # back to the cheapest earlier purchase opportunity.
+            replacement_low = min(prices[row.interval + 1:] or prices[:row.interval] or [row.price_eur_mwh])
             # Replacement cost of one grid MWh sold: 1/eta² MWh must be
             # repurchased, and the two battery-side legs total 2/eta MWh.
-            break_even = (prior_low + fee) / eta2 + fee + 2 * battery.degradation_cost_eur_per_mwh / eta
+            break_even = (replacement_low + fee) / eta2 + fee + 2 * battery.degradation_cost_eur_per_mwh / eta
             margin = row.price_eur_mwh - break_even
         price = _round_increment(row.price_eur_mwh, market.price_increment_eur_mwh)
         start = row.timestamp_utc

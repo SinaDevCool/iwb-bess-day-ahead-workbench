@@ -186,6 +186,10 @@ def test_orders_expose_break_even_evidence_and_result_has_sensitivities():
     assert all("break_even_price_eur_mwh" in order for order in payload["orders"])
     assert all("margin_to_break_even_eur_mwh" in order for order in payload["orders"])
     assert {item["key"] for item in payload["sensitivities"]} >= {"cycles", "grid", "efficiency", "degradation"}
+    efficiency = next(item for item in payload["sensitivities"] if item["key"] == "efficiency")
+    assert efficiency["baseline_value"] == 90
+    assert efficiency["tested_value"] == 91
+    assert efficiency["unit"] == "%"
 
 
 def test_multi_day_policy_records_continuation_assumption():

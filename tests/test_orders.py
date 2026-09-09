@@ -36,3 +36,11 @@ def test_orders_include_cost_adjusted_break_even_evidence():
             assert order.margin_to_break_even_eur_mwh == round(
                 order.expected_price_eur_mwh - order.break_even_price_eur_mwh, 2
             )
+
+
+def test_initial_inventory_sale_uses_later_replenishment_opportunity():
+    result = run_simulation(SimulationRequest(price_values=[60, 58, 55, 50, 40, 25, 10, 15, 35, 70, 95, 80, 65, 55, 35, 20, 30, 75, 130, 110, 85, 72, 65, 55]))
+    first = next(order for order in result.orders if order.delivery_start_utc == result.dispatch[0].timestamp_utc)
+    assert first.side == "SELL"
+    assert first.break_even_price_eur_mwh < first.expected_price_eur_mwh
+    assert first.margin_to_break_even_eur_mwh > 0

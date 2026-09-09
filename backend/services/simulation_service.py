@@ -130,7 +130,7 @@ def _sensitivities(request, prices, baseline, terminal_value):
         ("cycles", "Daily cycle budget", "max_equivalent_cycles", 0.1, "EFC"),
         ("grid", "Grid connection", "grid_limit_mw", 1.0, "MW"),
         ("capacity", "Usable energy capacity", "max_soc_mwh", 1.0, "MWh"),
-        ("efficiency", "Round-trip efficiency", "round_trip_efficiency", 0.01, "pp"),
+        ("efficiency", "Round-trip efficiency", "round_trip_efficiency", 0.01, "%"),
         ("degradation", "Degradation cost", "degradation_cost_eur_per_mwh", 1.0, "€/MWh"),
     ]
     items = []
@@ -148,10 +148,13 @@ def _sensitivities(request, prices, baseline, terminal_value):
             change = round(value - baseline, 2)
         except ValueError:
             change = 0.0
+        display_before = before * 100 if field == "round_trip_efficiency" else before
+        display_after = after * 100 if field == "round_trip_efficiency" else after
+        display_delta = display_after - display_before
         items.append({
-            "key": key, "label": label, "baseline_value": before, "tested_value": after,
+            "key": key, "label": label, "baseline_value": display_before, "tested_value": display_after,
             "unit": unit, "contribution_delta_eur": change,
-            "marginal_value_eur": round(change / (after - before), 2),
+            "marginal_value_eur": round(change / display_delta, 2),
             "interpretation": "Local sensitivity under the same forecast and all other saved assumptions.",
         })
     return sorted(items, key=lambda item: abs(item["contribution_delta_eur"]), reverse=True)
