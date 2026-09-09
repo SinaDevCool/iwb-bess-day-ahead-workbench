@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, time, timedelta, timezone
 from enum import Enum
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -122,6 +122,13 @@ class SimulationRequest(BaseModel):
             raise ValueError("Delivery date must use YYYY-MM-DD") from error
         if len(self.battery.unavailable_intervals) != len(set(self.battery.unavailable_intervals)):
             raise ValueError("Unavailable intervals must be unique")
+        local_zone = ZoneInfo(self.market.timezone)
+        local_date = datetime.strptime(self.delivery_date, "%Y-%m-%d").date()
+        start = datetime.combine(local_date, time.min, tzinfo=local_zone).astimezone(timezone.utc)
+        end = datetime.combine(local_date + timedelta(days=1), time.min, tzinfo=local_zone).astimezone(timezone.utc)
+        interval_count = int((end - start).total_seconds() / 60 / self.market.product_minutes)
+        if any(index < 0 or index >= interval_count for index in self.battery.unavailable_intervals):
+            raise ValueError(f"Unavailable intervals must be between 0 and {interval_count - 1} for this delivery day")
         if self.prices:
             timestamps = [point.timestamp_utc for point in self.prices]
             if timestamps != sorted(timestamps) or len(timestamps) != len(set(timestamps)):
@@ -154,6 +161,12 @@ class ValidationFinding(BaseModel):
     code: str
     message: str
     interval: int | None = None
+    observed_value: float | None = None
+    configured_limit: float | None = None
+    difference: float | None = None
+    tolerance: float | None = None
+    unit: str | None = None
+    source: str | None = None
 
 
 class ValidationResult(BaseModel):

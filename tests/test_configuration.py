@@ -81,3 +81,18 @@ def test_exchange_fee_can_be_explicitly_excluded():
         OrderProposalEdit(adjustments=[
             {"order_id": "a", "exclude": True, "volume_mw": 1, "comment": "contradictory change"},
         ])
+
+
+@pytest.mark.parametrize("product_minutes,last_valid", [(60, 23), (15, 95)])
+def test_unavailable_intervals_follow_product_duration(product_minutes, last_valid):
+    from backend.domain.models import SimulationRequest
+
+    SimulationRequest(
+        market=MarketConfig(product_minutes=product_minutes),
+        battery=BatteryConfig(unavailable_intervals=[0, last_valid]),
+    )
+    with pytest.raises(ValidationError):
+        SimulationRequest(
+            market=MarketConfig(product_minutes=product_minutes),
+            battery=BatteryConfig(unavailable_intervals=[last_valid + 1]),
+        )

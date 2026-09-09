@@ -67,7 +67,7 @@ def _revalidate_payload(payload: dict):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "iwb-bess-day-ahead-workbench", "api_version": "2.0.0", "optimizer_version": "scipy_highs_milp_v1", "validation_version": "physical_and_order_validation_v3", "submission_mode": "preview_only"}
+    return {"status": "ok", "service": "iwb-bess-day-ahead-workbench", "api_version": "2.1.0", "optimizer_version": "scipy_highs_milp_v1", "validation_version": "physical_and_order_validation_v4", "submission_mode": "preview_only"}
 
 
 @app.get("/api/configuration")

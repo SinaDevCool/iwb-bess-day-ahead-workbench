@@ -16,7 +16,8 @@ The dispatch is solved as a mixed-integer linear program with SciPy/HiGHS. It ex
 - The saved-run comparison keeps each completed simulation immutable, supports two to four selected runs and one explicit reference, and reveals the exact market, strategy, battery and availability inputs behind every result.
 - End-of-day energy can use the hard minimum reserve alone, a configured terminal value, or an explicitly illustrative next-day forecast proxy. Cash contribution and continuation value remain separate.
 - Exchange fees distinguish an unconfigured/excluded contract value from a confirmed numeric zero. The ECC clearing fee remains a documented public-tariff assumption.
-- New decision records use audit schema v3 and preserve assumption provenance, scenario probabilities, forecast version, optimizer version and validation version.
+- New decision records use audit schema v4 and preserve assumption provenance, scenario probabilities, forecast version, optimizer version and validation version.
+- Executable orders are checked against strict SoC boundaries after market-increment rounding. Numerical solver tolerance, energy-balance tolerance and display precision are deliberately separate concepts.
 
 ## Safety boundary
 

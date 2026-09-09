@@ -7,7 +7,9 @@ import math
 from backend.domain.economics import calculate_interval, effective_transaction_fee
 from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order, ValidationFinding, ValidationResult
 
-SOC_TOLERANCE_MWH = 0.15
+SOLVER_SOC_EPSILON_MWH = 1e-3
+ORDER_SOC_BOUNDARY_EPSILON_MWH = 1e-6
+ENERGY_BALANCE_TOLERANCE_MWH = 0.15
 POWER_TOLERANCE_MW = 1e-3
 
 
@@ -17,9 +19,9 @@ def validate_dispatch(rows: list[DispatchRow], battery: BatteryConfig) -> Valida
     throughput = 0.0
     eta = math.sqrt(battery.round_trip_efficiency)
     for row in rows:
-        if row.soc_mwh < battery.min_soc_mwh - 1e-3:
+        if row.soc_mwh < battery.min_soc_mwh - SOLVER_SOC_EPSILON_MWH:
             findings.append(ValidationFinding(severity="error", code="soc_below_min", message="SOC is below the configured minimum", interval=row.interval))
-        if row.soc_mwh > battery.max_soc_mwh + 1e-3:
+        if row.soc_mwh > battery.max_soc_mwh + SOLVER_SOC_EPSILON_MWH:
             findings.append(ValidationFinding(severity="error", code="soc_above_max", message="SOC is above the configured maximum", interval=row.interval))
         if abs(row.power_mw) > battery.grid_limit_mw + POWER_TOLERANCE_MW:
             findings.append(ValidationFinding(severity="error", code="grid_limit", message="Grid power limit exceeded", interval=row.interval))
@@ -37,16 +39,16 @@ def validate_dispatch(rows: list[DispatchRow], battery: BatteryConfig) -> Valida
             expected_delta = abs(row.power_mw) * duration_hours * eta
         elif row.power_mw > POWER_TOLERANCE_MW:
             expected_delta = -row.power_mw * duration_hours / eta
-        if abs((row.soc_mwh - previous_soc) - expected_delta) > SOC_TOLERANCE_MWH:
+        if abs((row.soc_mwh - previous_soc) - expected_delta) > ENERGY_BALANCE_TOLERANCE_MWH:
             findings.append(ValidationFinding(severity="error", code="energy_balance", message="State-of-charge movement does not reconcile with power, duration and efficiency", interval=row.interval))
         previous_soc = row.soc_mwh
         throughput += row.battery_energy_mwh
-    if rows and rows[-1].soc_mwh < battery.target_soc_mwh - 1e-3:
+    if rows and rows[-1].soc_mwh < battery.target_soc_mwh - SOLVER_SOC_EPSILON_MWH:
         findings.append(ValidationFinding(severity="error", code="terminal_soc", message="Terminal SOC target not met"))
     if not rows:
         findings.append(ValidationFinding(severity="error", code="empty_schedule", message="No dispatch intervals generated"))
     maximum_throughput = 2 * battery.capacity_mwh * battery.max_equivalent_cycles
-    if throughput > maximum_throughput + SOC_TOLERANCE_MWH:
+    if throughput > maximum_throughput + ENERGY_BALANCE_TOLERANCE_MWH:
         findings.append(ValidationFinding(severity="error", code="cycle_limit", message="Dispatch exceeds the configured equivalent-cycle budget"))
     return _result(findings)
 
@@ -148,16 +150,38 @@ def validate_order_proposal(orders: list[Order], market: MarketConfig, battery: 
             degradation_cost_eur=order_degradation,
             transaction_fee_eur=order_transaction,
         ))
-        if soc < battery.min_soc_mwh - SOC_TOLERANCE_MWH and not below_reported:
-            findings.append(ValidationFinding(severity="error", code="proposal_soc_below_min", message=f"Edited orders drive SoC below minimum at interval {row.interval}", interval=row.interval))
+        # Executable market orders are a discrete schedule, not a floating-point
+        # solver candidate. Their reconstructed SoC must remain strictly inside
+        # the configured physical envelope; build_executable_orders trims the
+        # offending order by one market increment and revalidates it.
+        if soc < battery.min_soc_mwh - ORDER_SOC_BOUNDARY_EPSILON_MWH and not below_reported:
+            findings.append(ValidationFinding(
+                severity="error", code="proposal_soc_below_min",
+                message=f"Executable orders drive SoC below minimum at interval {row.interval}", interval=row.interval,
+                observed_value=round(soc, 6), configured_limit=battery.min_soc_mwh,
+                difference=round(soc - battery.min_soc_mwh, 6), tolerance=ORDER_SOC_BOUNDARY_EPSILON_MWH,
+                unit="MWh", source="post-order physical reconstruction",
+            ))
             below_reported = True
-        if soc > battery.max_soc_mwh + SOC_TOLERANCE_MWH and not above_reported:
-            findings.append(ValidationFinding(severity="error", code="proposal_soc_above_max", message=f"Edited orders drive SoC above maximum at interval {row.interval}", interval=row.interval))
+        if soc > battery.max_soc_mwh + ORDER_SOC_BOUNDARY_EPSILON_MWH and not above_reported:
+            findings.append(ValidationFinding(
+                severity="error", code="proposal_soc_above_max",
+                message=f"Executable orders drive SoC above maximum at interval {row.interval}", interval=row.interval,
+                observed_value=round(soc, 6), configured_limit=battery.max_soc_mwh,
+                difference=round(soc - battery.max_soc_mwh, 6), tolerance=ORDER_SOC_BOUNDARY_EPSILON_MWH,
+                unit="MWh", source="post-order physical reconstruction",
+            ))
             above_reported = True
-    if soc < battery.target_soc_mwh - SOC_TOLERANCE_MWH:
-        findings.append(ValidationFinding(severity="error", code="proposal_terminal_soc", message=f"Edited orders finish at {soc:.2f} MWh, below the {battery.target_soc_mwh:g} MWh target"))
+    if soc < battery.target_soc_mwh - ORDER_SOC_BOUNDARY_EPSILON_MWH:
+        findings.append(ValidationFinding(
+            severity="error", code="proposal_terminal_soc",
+            message=f"Executable orders finish at {soc:.2f} MWh, below the {battery.target_soc_mwh:g} MWh target",
+            observed_value=round(soc, 6), configured_limit=battery.target_soc_mwh,
+            difference=round(soc - battery.target_soc_mwh, 6), tolerance=ORDER_SOC_BOUNDARY_EPSILON_MWH,
+            unit="MWh", source="post-order physical reconstruction",
+        ))
     maximum_throughput = 2 * battery.capacity_mwh * battery.max_equivalent_cycles
-    if throughput > maximum_throughput + SOC_TOLERANCE_MWH:
+    if throughput > maximum_throughput + ENERGY_BALANCE_TOLERANCE_MWH:
         findings.append(ValidationFinding(severity="error", code="proposal_cycle_limit", message="Edited orders exceed the configured equivalent-cycle budget"))
     return _result(findings), {
         "proposal_contribution_eur": round(contribution, 2),

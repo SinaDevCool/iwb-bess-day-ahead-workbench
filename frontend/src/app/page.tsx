@@ -884,7 +884,7 @@ export default function Workbench() {
                 <ShieldCheck size={17} aria-hidden="true" />
                 <div>
                   <strong>Order proposal is executable</strong>
-                  <span>Volumes were rounded to valid market increments. Estimated rounding impact: {signedMoney(result.order_generation.contribution_delta_eur)}.</span>
+                  <span>Optimizer volumes were converted to valid market increments, then the complete order schedule was physically reconstructed and repaired before display. Estimated rounding impact: {signedMoney(result.order_generation.contribution_delta_eur)}.</span>
                   <details className="inline-evidence">
                     <summary>View order-generation details</summary>
                     <dl>
@@ -1189,6 +1189,8 @@ function Orders(p: OP) {
           <strong>
             {p.result?.approval_status
               ? "Approved for demo export"
+              : p.result?.validation.status === "passed" && p.result.orders.length === 0
+                ? "No orders recommended"
               : p.result?.validation.status === "passed"
                 ? "Ready for trader approval"
                 : "Approval blocked"}
@@ -1196,6 +1198,8 @@ function Orders(p: OP) {
           <span>
             {p.result?.approval_status
               ? "The validated proposal can now be exported as CSV; no market submission occurs."
+              : p.result?.validation.status === "passed" && p.result.orders.length === 0
+                ? "Remaining idle maximizes expected contribution under the configured assumptions."
               : p.result?.validation.status === "passed"
                 ? "Physical and market validation passed."
                 : "Resolve validation findings before export."}
@@ -1223,6 +1227,8 @@ function Orders(p: OP) {
             <FileCheck2 size={16} />
             {p.result?.approval_status
               ? "Approved for Demo Export"
+              : p.result?.orders.length === 0
+                ? "Confirm No-Trade Decision"
               : "Approve for Demo Export"}
           </button>
         </div>

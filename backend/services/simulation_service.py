@@ -88,7 +88,7 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         },
         optimization=optimization,
         proposal=proposal,
-        audit={"schema_version": 3, "input_hash": input_hash, "forecast_version": "illustrative-v1", "optimizer_version": optimization["engine"], "validation_version": "physical_and_order_validation_v3", "modified_by_trader": False, "assumption_sources": {
+        audit={"schema_version": 4, "input_hash": input_hash, "forecast_version": "illustrative-v1", "optimizer_version": optimization["engine"], "validation_version": "physical_and_order_validation_v4", "modified_by_trader": False, "assumption_sources": {
             "battery.capacity_mwh": "IWB task baseline",
             "battery.power_limits": "IWB task baseline / user input",
             "market.product_minutes": "Market configuration assumption",
@@ -108,5 +108,5 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         },
     )
     payload = result.model_dump(mode="json")
-    save_simulation_with_event(payload, created_at.isoformat(), "SIMULATION_CREATED", {"schema_version": 3, "input_hash": input_hash, "validation": validation_status, "optimizer": optimization["engine"]})
+    save_simulation_with_event(payload, created_at.isoformat(), "SIMULATION_CREATED", {"schema_version": 4, "input_hash": input_hash, "validation": validation_status, "optimizer": optimization["engine"]})
     return result

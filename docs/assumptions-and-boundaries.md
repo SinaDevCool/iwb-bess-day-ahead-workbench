@@ -23,6 +23,15 @@
 - Round-trip efficiency is split symmetrically with its square root on charge and discharge.
 - Equivalent full cycles use battery-side throughput divided by twice nominal capacity.
 - The terminal SoC input is a minimum reserve; the optimizer may finish above it.
+- Continuous solver quantities are floored to the configured market-volume increment. The complete discrete order package is then reconstructed interval by interval and repaired until minimum SoC, maximum SoC and terminal reserve are satisfied without using the energy-balance tolerance as extra capacity.
+- Solver SoC feasibility uses a 0.001 MWh numerical epsilon. Executable-order SoC boundaries use a strict 0.000001 MWh comparison. The separate 0.15 MWh tolerance applies only to independent interval energy-balance reconciliation.
+- Primary screens round values for readability; exact reconstructed values and calculation evidence remain available in Physical Validation.
+
+## Calculation chain
+
+Configuration → continuous MILP optimization → market-increment conversion → sequential SoC reconstruction and repair → physical validation → order economics → summaries and saved-run comparison.
+
+Rounding and repair evidence records the market increment, adjusted quantities, repair steps, removed volume and contribution impact for each saved run.
 
 ## Must be confirmed with IWB
 
