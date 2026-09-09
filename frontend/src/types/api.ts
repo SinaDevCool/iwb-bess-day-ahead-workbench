@@ -72,7 +72,7 @@ export type SensitivityItem = {
   calculation?: "full_reoptimization";
 };
 export type Simulation = {
-  simulation_id: string; created_at_utc: string; delivery_date: string; scenario_name: string;
+  simulation_id: string; display_name?: string; created_at_utc: string; delivery_date: string; scenario_name: string;
   strategy?: "expected_value" | "conservative"; risk_posture?: "expected_value" | "balanced" | "downside_protected"; horizon_policy?: "minimum_reserve" | "terminal_value" | "next_day_proxy" | "multi_day"; terminal_value_eur_per_mwh?: number; price_multiplier?: number; peak_reduction_eur_mwh?: number; scenario_probabilities?: { downside: number; expected: number; upside: number }; lookahead_hours?: number; proposal_revision?: number;
   data_mode: string; submission_mode: string; battery: Battery; market: Market; dispatch: Dispatch[];
   orders: Order[]; validation: { status: ValidationStatus; findings: { severity: string; code: string; message: string; interval?: number; observed_value?: number; configured_limit?: number; difference?: number; tolerance?: number; unit?: string; source?: string }[] };

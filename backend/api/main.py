@@ -6,7 +6,6 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
-from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,10 +14,11 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.config.defaults import DEFAULT_BATTERY, DEFAULT_MARKET
 from backend.db.repository import add_audit_event, get_simulation, initialize, list_audit_events, list_simulations, save_simulation_with_event
-from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order, OrderProposalEdit, SimulationRequest, SimulationRunSummary
+from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order, OrderProposalEdit, SimulationDisplayNameUpdate, SimulationRequest, SimulationRunSummary
 from backend.domain.economics import calculate_interval, effective_transaction_fee
 from backend.services.forecast_service import build_demo_forecast
 from backend.services.simulation_service import run_simulation
+from backend.services.run_identity_service import legacy_run_display_name
 from backend.validation.validators import validate_order_proposal
 
 
@@ -111,7 +111,7 @@ def _run_summary(payload: dict) -> SimulationRunSummary:
     return SimulationRunSummary(
         simulation_id=payload["simulation_id"],
         created_at_utc=created,
-        display_name=f"{scenario} · {product_minutes} min · {created.astimezone(ZoneInfo('Europe/Zurich')).strftime('%d %b %H:%M')}",
+        display_name=legacy_run_display_name(payload),
         delivery_date=payload["delivery_date"],
         scenario_name=scenario,
         product_minutes=product_minutes,
@@ -159,6 +159,19 @@ def simulation(simulation_id: str):
     payload = get_simulation(simulation_id)
     if payload is None:
         raise HTTPException(status_code=404, detail="Simulation not found")
+    payload["display_name"] = legacy_run_display_name(payload)
+    return payload
+
+
+@app.patch("/api/simulations/{simulation_id}/display-name")
+def rename_simulation(simulation_id: str, update: SimulationDisplayNameUpdate):
+    payload = get_simulation(simulation_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Simulation not found")
+    previous = legacy_run_display_name(payload)
+    payload["display_name"] = update.display_name
+    now = datetime.now(timezone.utc).isoformat()
+    save_simulation_with_event(payload, now, "SIMULATION_RENAMED", {"previous_name": previous, "display_name": update.display_name})
     return payload
 
 

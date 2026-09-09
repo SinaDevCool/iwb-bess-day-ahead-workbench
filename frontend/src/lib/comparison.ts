@@ -17,6 +17,26 @@ export function runLabel(run: Simulation) {
   return `${formatForecastLabel(run.scenario_name)} · ${run.market.product_minutes} min · ${time}`;
 }
 
+export const runDisplayName = (run: Pick<Simulation, "simulation_id" | "display_name">) =>
+  run.display_name?.trim() || `Saved run ${run.simulation_id.replace("sim-", "").slice(0, 8)}`;
+
+export const comparisonKey = (index: number) => String.fromCharCode(65 + index);
+
+const signatureLabels: Record<string, string> = {
+  scenario: "Forecast", product: "Product", risk: "Posture", horizon: "Energy policy",
+  terminal_value: "Terminal value", charge_limit: "Charge", discharge_limit: "Discharge",
+  grid_limit: "Grid", terminal_soc: "Reserve", soc_envelope: "SoC window",
+  efficiency: "Efficiency", degradation: "Degradation", cycles: "Cycles", availability: "Availability",
+};
+
+export function configurationSignature(reference: Simulation, current: Simulation, limit = 2) {
+  if (reference.simulation_id === current.simulation_id) return "Comparison reference";
+  const differences = configurationDiff(reference, current);
+  if (!differences.length) return "Same inputs as reference";
+  const summary = differences.slice(0, limit).map((item) => `${signatureLabels[item.key] ?? item.label}: ${item.value}`).join(" · ");
+  return differences.length > limit ? `${summary} · +${differences.length - limit} more` : summary;
+}
+
 export function configurationItems(run: Simulation): ConfigurationItem[] {
   const battery: Battery = run.battery;
   const market: Market = run.market;

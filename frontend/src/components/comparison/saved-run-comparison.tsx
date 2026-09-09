@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, ChevronDown, Plus, Search, X } from "lucide-react";
+import { Check, ChevronDown, Pencil, Plus, Search, X } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "@/lib/api";
-import { configurationDiff, configurationItems, formatForecastLabel, runLabel } from "@/lib/comparison";
+import { comparisonKey, configurationDiff, configurationItems, configurationSignature, formatForecastLabel, runDisplayName } from "@/lib/comparison";
 import type { ComparisonMetric, Simulation, SimulationRunSummary } from "@/types/api";
 
 const MAX_RUNS = 4;
@@ -44,7 +44,8 @@ export function SavedRunComparison() {
         if (!active) return;
         setSelectedIds(defaults);
         setReferenceId(reference);
-        setFocusedId(defaults.find((id) => id !== reference) ?? defaults[0] ?? "");
+        const requestedFocus = params.get("focus") ?? "";
+        setFocusedId(defaults.includes(requestedFocus) ? requestedFocus : defaults.find((id) => id !== reference) ?? defaults[0] ?? "");
         setMetric(nextMetric);
         setRuns(details);
       })
@@ -58,9 +59,10 @@ export function SavedRunComparison() {
     const url = new URL(location.href);
     if (selectedIds.length) url.searchParams.set("runs", selectedIds.join(",")); else url.searchParams.delete("runs");
     if (referenceId) url.searchParams.set("reference", referenceId); else url.searchParams.delete("reference");
+    if (focusedId) url.searchParams.set("focus", focusedId); else url.searchParams.delete("focus");
     url.searchParams.set("metric", metric);
     history.replaceState({}, "", url);
-  }, [selectedIds, referenceId, metric, loading]);
+  }, [selectedIds, referenceId, focusedId, metric, loading]);
 
   const addOrRemove = async (id: string) => {
     if (selectedIds.includes(id)) {
@@ -85,10 +87,13 @@ export function SavedRunComparison() {
 
   const reference = runs.find((run) => run.simulation_id === referenceId) ?? runs[0];
   const focused = runs.find((run) => run.simulation_id === focusedId) ?? runs.find((run) => run.simulation_id !== referenceId) ?? reference;
-  const duplicateCount = reference ? runs.filter((run) => run.audit.input_hash === reference.audit.input_hash).length : 0;
+  const descriptors = runs.map((run, index) => ({ run, key: comparisonKey(index), name: runDisplayName(run), signature: reference ? configurationSignature(reference, run) : "" }));
+  const grouped = new Map<string, typeof descriptors>();
+  descriptors.forEach((item) => grouped.set(item.run.audit.input_hash, [...(grouped.get(item.run.audit.input_hash) ?? []), item]));
+  const duplicateGroups = [...grouped.values()].filter((items) => items.length > 1);
   const filtered = catalogue.filter((run) => {
     const needle = query.trim().toLowerCase();
-    return (!needle || `${run.scenario_name} ${run.delivery_date} ${run.simulation_id}`.toLowerCase().includes(needle)) &&
+    return (!needle || `${run.display_name} ${run.scenario_name} ${run.delivery_date} ${run.simulation_id}`.toLowerCase().includes(needle)) &&
       (product === "ALL" || String(run.product_minutes) === product) &&
       (validation === "ALL" || run.validation_status === validation);
   });
@@ -116,7 +121,7 @@ export function SavedRunComparison() {
               const disabled = !checked && selectedIds.length >= MAX_RUNS;
               return <label className={`run-option ${checked ? "selected" : ""}`} key={run.simulation_id}>
                 <input type="checkbox" checked={checked} disabled={disabled} onChange={() => addOrRemove(run.simulation_id)} />
-                <span><strong>{formatForecastLabel(run.scenario_name)}</strong><small>{formatRunTime(run.created_at_utc)} · {run.product_minutes} min · <span translate="no">{shortId(run.simulation_id)}</span></small></span>
+                <span><strong>{run.display_name}</strong><small>{formatForecastLabel(run.scenario_name)} · {formatRunTime(run.created_at_utc)} · {run.product_minutes} min · <span translate="no">{shortId(run.simulation_id)}</span></small></span>
                 <b>{money(run.expected_contribution_eur)}</b>
               </label>;
             })}</div>
@@ -124,14 +129,14 @@ export function SavedRunComparison() {
           </div>
         </details>
       </div>
-      <div className="run-chips">{runs.map((run) => <div className={`run-chip ${run.simulation_id === focused?.simulation_id ? "active" : ""}`} key={run.simulation_id}>
+      <div className="run-chips">{descriptors.map(({ run, key, name, signature }) => <div className={`run-chip ${run.simulation_id === focused?.simulation_id ? "active" : ""}`} key={run.simulation_id}>
         <button type="button" className="run-chip-focus" onClick={() => setFocusedId(run.simulation_id)} aria-pressed={run.simulation_id === focused?.simulation_id}>
-          <span>{run.simulation_id === referenceId && <b>Reference</b>}{formatForecastLabel(run.scenario_name)}</span><small>{run.market.product_minutes} min · {shortId(run.simulation_id)}</small>
+          <span><i className="run-key">{key}</i><strong>{name}</strong>{run.simulation_id === referenceId && <b>Reference</b>}</span><small>{formatForecastLabel(run.scenario_name)} · {run.market.product_minutes} min · {shortId(run.simulation_id)}</small><em>{signature}</em>
         </button>
-        <button type="button" className="run-chip-remove" aria-label={`Remove ${run.scenario_name} run`} onClick={() => addOrRemove(run.simulation_id)}><X size={13} aria-hidden="true" /></button>
+        <button type="button" className="run-chip-remove" aria-label={`Remove ${name} from comparison`} onClick={() => addOrRemove(run.simulation_id)}><X size={13} aria-hidden="true" /></button>
       </div>)}</div>
       {selectedIds.length === 1 && <p className="comparison-prompt">Select at least 1 more completed run to compare results.</p>}
-      {duplicateCount > 1 && <p className="comparison-prompt neutral"><Check size={14} aria-hidden="true" /> {duplicateCount} selected runs have identical input fingerprints.</p>}
+      {duplicateGroups.map((group) => <p className="comparison-prompt neutral" key={group[0].run.audit.input_hash}><Check size={14} aria-hidden="true" /> Runs {group.map((item) => item.key).join(" and ")} use identical configuration inputs; their saved results may still differ by revision or forecast data.</p>)}
     </section>
 
     {runs.length >= 2 && <>
@@ -148,18 +153,22 @@ export function SavedRunComparison() {
           <div><strong>3 · Net Contribution</strong><span>Sales minus charging purchases, degradation and transaction fees.</span></div>
         </div>}
         <RunComparisonChart runs={runs} metric={metric} referenceId={referenceId} focusedId={focused?.simulation_id} onFocus={setFocusedId} />
-        <ComparisonTable runs={runs} metric={metric} referenceId={referenceId} onFocus={setFocusedId} />
+        <ComparisonTable runs={runs} metric={metric} referenceId={referenceId} focusedId={focused?.simulation_id} onFocus={setFocusedId} />
       </section>
 
-      {reference && focused && <RunInspector run={focused} reference={reference} setReference={() => setReferenceId(focused.simulation_id)} showUnchanged={showUnchanged} setShowUnchanged={setShowUnchanged} />}
+      {reference && focused && <RunInspector key={`${focused.simulation_id}:${focused.display_name}`} run={focused} runKey={descriptors.find((item) => item.run.simulation_id === focused.simulation_id)?.key ?? "A"} reference={reference} setReference={() => setReferenceId(focused.simulation_id)} showUnchanged={showUnchanged} setShowUnchanged={setShowUnchanged} onRenamed={(updated) => { setRuns((items) => items.map((item) => item.simulation_id === updated.simulation_id ? updated : item)); setCatalogue((items) => items.map((item) => item.simulation_id === updated.simulation_id ? { ...item, display_name: runDisplayName(updated) } : item)); }} />}
     </>}
   </div>;
 }
 
 function RunComparisonChart({ runs, metric, referenceId, focusedId, onFocus }: { runs: Simulation[]; metric: ComparisonMetric; referenceId: string; focusedId?: string; onFocus: (id: string) => void }) {
+  const reference = runs.find((run) => run.simulation_id === referenceId) ?? runs[0];
   const data = runs.map((run) => ({
     runId: run.simulation_id,
-    name: `${formatForecastLabel(run.scenario_name)}${run.simulation_id === referenceId ? " · Ref" : ""}`,
+    name: `${comparisonKey(runs.indexOf(run))} · ${runDisplayName(run)}`,
+    forecast: formatForecastLabel(run.scenario_name),
+    metadata: `${run.market.product_minutes} min · ${formatRunTime(run.created_at_utc)} · ${shortId(run.simulation_id)}`,
+    signature: configurationSignature(reference, run),
     lowerPrice: metric === "contribution" ? outcomeValue(run, "Downside") : metricValue(run, metric),
     centralPrice: metric === "contribution" ? outcomeValue(run, "Expected") : metricValue(run, metric),
     higherPrice: metric === "contribution" ? outcomeValue(run, "Upside") : metricValue(run, metric),
@@ -176,7 +185,7 @@ function RunComparisonChart({ runs, metric, referenceId, focusedId, onFocus }: {
         <XAxis type="number" tickFormatter={(value) => metric === "contribution" ? axisMoney(value) : number(value, metric === "cycles" ? 2 : 0)} tick={{ fontSize: 10, fill: "#607477" }} axisLine={{ stroke: "#b7c7c4" }} tickLine={false} />
         <YAxis type="category" dataKey="name" width={148} tick={{ fontSize: 10, fill: "#284b4d", fontWeight: 650 }} axisLine={false} tickLine={false} />
         <ReferenceLine x={0} stroke="#748986" />
-        <Tooltip formatter={(value, name) => [formatter(Number(value)), outcomeLegend(String(name))]} labelFormatter={(label) => `${String(label)} · net contribution`} cursor={{ fill: "rgba(8, 125, 120, .045)" }} />
+        <Tooltip content={({ active, payload }) => active && payload?.length ? <div className="comparison-tooltip"><strong>{payload[0].payload.name}</strong><span>{payload[0].payload.forecast} · {payload[0].payload.metadata}</span><em>{payload[0].payload.signature}</em>{payload.map((item) => <div key={String(item.dataKey)}><i style={{ background: String(item.color) }} /><span>{outcomeLegend(String(item.dataKey))}</span><b>{formatter(Number(item.value))}</b></div>)}</div> : null} cursor={{ fill: "rgba(8, 125, 120, .045)" }} />
         {metric === "contribution" ? <>
           <Bar dataKey="lowerPrice" fill={COLORS.downside} radius={[0, 3, 3, 0]} maxBarSize={16} onClick={(_, index) => onFocus(data[index].runId)}>{data.map((row) => <Cell key={`down-${row.runId}`} opacity={focusedId && row.runId !== focusedId ? .55 : 1} cursor="pointer" />)}</Bar>
           <Bar dataKey="centralPrice" fill={COLORS.expected} radius={[0, 3, 3, 0]} maxBarSize={16} onClick={(_, index) => onFocus(data[index].runId)}>{data.map((row) => <Cell key={`expected-${row.runId}`} opacity={focusedId && row.runId !== focusedId ? .55 : 1} cursor="pointer" />)}</Bar>
@@ -187,24 +196,38 @@ function RunComparisonChart({ runs, metric, referenceId, focusedId, onFocus }: {
   </figure>;
 }
 
-function ComparisonTable({ runs, metric, referenceId, onFocus }: { runs: Simulation[]; metric: ComparisonMetric; referenceId: string; onFocus: (id: string) => void }) {
+function ComparisonTable({ runs, metric, referenceId, focusedId, onFocus }: { runs: Simulation[]; metric: ComparisonMetric; referenceId: string; focusedId?: string; onFocus: (id: string) => void }) {
   const reference = runs.find((run) => run.simulation_id === referenceId) ?? runs[0];
-  return <div className="table-scroll comparison-results-table"><table><caption className="sr-only">Accessible comparison of selected simulation runs</caption><thead><tr><th>Saved Run &amp; Optimization Forecast</th>{metric === "contribution" ? <><th>Lower-Price Outcome<small>Net contribution</small></th><th>Central-Price Outcome<small>Net contribution</small></th><th>Higher-Price Outcome<small>Net contribution</small></th><th>Probability-Weighted<small>Using saved probabilities</small></th></> : <th>{words(metric)}</th>}<th>Change vs Reference</th><th>Validation</th></tr></thead><tbody>{runs.map((run) => {
+  return <div className="table-scroll comparison-results-table"><table><caption className="sr-only">Accessible comparison of selected simulation runs</caption><thead><tr><th>Saved Run</th>{metric === "contribution" ? <><th>Lower-Price Outcome<small>Net contribution</small></th><th>Central-Price Outcome<small>Net contribution</small></th><th>Higher-Price Outcome<small>Net contribution</small></th><th>Probability-Weighted<small>Using saved probabilities</small></th></> : <th>{words(metric)}</th>}<th>Change vs Reference</th><th>Validation</th></tr></thead><tbody>{runs.map((run, index) => {
     const value = metricValue(run, metric);
     const referenceValue = metricValue(reference, metric);
-    return <tr key={run.simulation_id} tabIndex={0} onClick={() => onFocus(run.simulation_id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onFocus(run.simulation_id); } }}>
-      <td><strong>{formatForecastLabel(run.scenario_name)}</strong><small>{formatRunTime(run.created_at_utc)} · {shortId(run.simulation_id)}{run.simulation_id === referenceId ? " · Reference" : ""}</small>{metric === "contribution" && <small>{probabilityLabel(run)}</small>}</td>
+    return <tr className={run.simulation_id === focusedId ? "active" : ""} aria-current={run.simulation_id === focusedId ? "true" : undefined} key={run.simulation_id} tabIndex={0} onClick={() => onFocus(run.simulation_id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onFocus(run.simulation_id); } }}>
+      <td><div className="run-title"><i className="run-key">{comparisonKey(index)}</i><strong>{runDisplayName(run)}</strong>{run.simulation_id === referenceId && <b>Reference</b>}</div><small>{formatForecastLabel(run.scenario_name)} · {formatRunTime(run.created_at_utc)} · {shortId(run.simulation_id)}</small><small>{configurationSignature(reference, run)}</small>{metric === "contribution" && <small>{probabilityLabel(run)}</small>}</td>
       {metric === "contribution" ? <><td>{money(outcomeValue(run, "Downside"))}</td><td>{money(outcomeValue(run, "Expected"))}</td><td>{money(outcomeValue(run, "Upside"))}</td><td><strong>{money(run.risk?.expected_contribution_eur ?? run.summary.expected_contribution_eur)}</strong></td></> : <td>{formatMetric(value, metric)}</td>}
       <td>{run.simulation_id === referenceId ? "Reference" : signedMetric(value - referenceValue, metric)}</td><td><span className={`validation-pill ${run.validation.status}`}>{run.validation.status}</span></td>
     </tr>;
   })}</tbody></table></div>;
 }
 
-function RunInspector({ run, reference, setReference, showUnchanged, setShowUnchanged }: { run: Simulation; reference: Simulation; setReference: () => void; showUnchanged: boolean; setShowUnchanged: (value: boolean) => void }) {
+function RunInspector({ run, runKey, reference, setReference, showUnchanged, setShowUnchanged, onRenamed }: { run: Simulation; runKey: string; reference: Simulation; setReference: () => void; showUnchanged: boolean; setShowUnchanged: (value: boolean) => void; onRenamed: (run: Simulation) => void }) {
   const differences = configurationDiff(reference, run);
   const groups = ["Market", "Strategy", "Battery", "Availability"] as const;
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(runDisplayName(run));
+  const [saving, setSaving] = useState(false);
+  const [renameError, setRenameError] = useState("");
+  const saveName = async () => {
+    const normalized = name.trim().replace(/\s+/g, " ");
+    if (!normalized) { setRenameError("Enter a visible run name."); return; }
+    setSaving(true); setRenameError("");
+    try {
+      const updated = await api<Simulation>(`/api/simulations/${run.simulation_id}/display-name`, { method: "PATCH", body: JSON.stringify({ display_name: normalized }) });
+      onRenamed(updated); setEditing(false);
+    } catch (cause) { setRenameError(cause instanceof Error ? cause.message : "The run name could not be saved"); }
+    finally { setSaving(false); }
+  };
   return <section className="run-inspector" aria-labelledby="selected-run-title">
-    <div className="inspector-heading"><div><span className="eyebrow">SELECTED RUN</span><h3 id="selected-run-title">{runLabel(run)}</h3><p><span translate="no">{run.simulation_id}</span> · {money(run.summary.expected_contribution_eur)} · {run.orders.length} orders · {run.audit.modified_by_trader ? "Trader revised" : "Optimizer proposal"}</p></div>{run.simulation_id !== reference.simulation_id && <button type="button" className="secondary small" onClick={setReference}>Use as Reference</button>}</div>
+    <div className="inspector-heading"><div className="inspector-identity"><span className="eyebrow">SELECTED RUN · {runKey}</span>{editing ? <div className="rename-form"><label htmlFor="run-display-name">Run name</label><div><input id="run-display-name" name="run-display-name" autoComplete="off" maxLength={48} value={name} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveName(); if (event.key === "Escape") setEditing(false); }} autoFocus /><button type="button" className="secondary small" disabled={saving} onClick={saveName}>{saving ? "Saving…" : "Save"}</button><button type="button" className="text-button" onClick={() => { setEditing(false); setName(runDisplayName(run)); }}>Cancel</button></div>{renameError && <small role="alert">{renameError}</small>}</div> : <h3 id="selected-run-title">{runDisplayName(run)} <button type="button" className="rename-button" aria-label={`Rename ${runDisplayName(run)}`} onClick={() => setEditing(true)}><Pencil size={14} aria-hidden="true" /></button></h3>}<p>{formatForecastLabel(run.scenario_name)} · {run.market.product_minutes} min · {formatRunTime(run.created_at_utc)} · <span translate="no">{shortId(run.simulation_id)}</span></p><p>{money(run.summary.expected_contribution_eur)} · {run.orders.length} orders · {run.audit.modified_by_trader ? "Trader revised" : "Optimizer proposal"}</p></div>{run.simulation_id !== reference.simulation_id && <button type="button" className="secondary small" onClick={setReference}>Use as Reference</button>}</div>
     {run.simulation_id === reference.simulation_id ? <p className="reference-note"><Check size={15} aria-hidden="true" /> This run is the comparison reference.</p> : <div className="configuration-diff">
       <div className="diff-heading"><strong>Changed From Reference</strong><span>{differences.length} changed {differences.length === 1 ? "input" : "inputs"}</span></div>
       {differences.length ? <dl>{differences.map((item) => <div key={item.key}><dt>{item.label}</dt><dd><span>{item.before}</span><b aria-hidden="true">→</b><strong>{item.value}</strong></dd></div>)}</dl> : <p>No configuration differences. These runs share the same recorded inputs.</p>}

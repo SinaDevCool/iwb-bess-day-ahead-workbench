@@ -9,6 +9,7 @@ from backend.db.repository import save_simulation_with_event
 from backend.domain.models import SimulationRequest, SimulationResult
 from backend.services.forecast_service import apply_scenario, build_demo_forecast
 from backend.services.decision_support_service import build_executable_orders, resolve_terminal_value, select_risk_aware_dispatch
+from backend.services.run_identity_service import default_run_display_name
 from backend.optimization.milp_optimizer import optimize_dispatch
 from backend.validation.validators import validate_dispatch
 
@@ -54,6 +55,7 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
     sensitivities = _sensitivities(request, base_prices, prices, dispatch, round(contribution, 2), terminal_value)
     result = SimulationResult(
         simulation_id=simulation_id,
+        display_name=default_run_display_name(request),
         created_at_utc=created_at,
         delivery_date=request.delivery_date,
         scenario_name=request.scenario_name,

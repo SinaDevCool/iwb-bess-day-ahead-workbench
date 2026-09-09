@@ -401,6 +401,7 @@ class AuditMetadata(MappingModel):
 
 class SimulationResult(BaseModel):
     simulation_id: str
+    display_name: str = Field(..., min_length=1, max_length=48)
     created_at_utc: datetime
     delivery_date: str
     scenario_name: str
@@ -454,3 +455,14 @@ class SimulationRunSummary(BaseModel):
     equivalent_cycles: float
     order_count: int
     input_hash: str
+
+
+class SimulationDisplayNameUpdate(BaseModel):
+    display_name: str = Field(..., min_length=1, max_length=48)
+
+    @model_validator(mode="after")
+    def normalize_display_name(self):
+        self.display_name = " ".join(self.display_name.split())
+        if not self.display_name or any(ord(character) < 32 for character in self.display_name):
+            raise ValueError("Run name must contain visible text only")
+        return self

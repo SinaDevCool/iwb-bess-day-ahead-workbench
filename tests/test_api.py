@@ -35,6 +35,33 @@ def test_product_duration_changes_dispatch_granularity_and_orders():
     )
 
 
+def test_saved_runs_have_decision_oriented_names_and_can_be_renamed():
+    baseline = client.post("/api/simulations", json={}).json()
+    constrained = client.post("/api/simulations", json={"battery": {"unavailable_intervals": [6, 7]}}).json()
+
+    assert baseline["display_name"] == "Task baseline"
+    assert constrained["display_name"] == "Availability restriction"
+
+    original_hash = constrained["audit"]["input_hash"]
+    renamed = client.patch(
+        f"/api/simulations/{constrained['simulation_id']}/display-name",
+        json={"display_name": "  Morning maintenance  "},
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["display_name"] == "Morning maintenance"
+    assert renamed.json()["audit"]["input_hash"] == original_hash
+    assert client.get(f"/api/simulations/{constrained['simulation_id']}").json()["display_name"] == "Morning maintenance"
+    catalogue = client.get("/api/simulation-runs", params={"limit": 100}).json()["items"]
+    assert next(item for item in catalogue if item["simulation_id"] == constrained["simulation_id"])["display_name"] == "Morning maintenance"
+
+
+def test_saved_run_name_validation_is_bounded():
+    payload = client.post("/api/simulations", json={}).json()
+    endpoint = f"/api/simulations/{payload['simulation_id']}/display-name"
+    assert client.patch(endpoint, json={"display_name": "   "}).status_code == 422
+    assert client.patch(endpoint, json={"display_name": "x" * 49}).status_code == 422
+
+
 def test_simulation_approval_and_audit():
     response = client.post("/api/simulations", json={})
     assert response.status_code == 200
