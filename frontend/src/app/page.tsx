@@ -485,8 +485,11 @@ export default function Workbench() {
               </div>
             </div>
             <div id="configuration-content" className="inputs-content">
-            <fieldset className="config-group">
-              <legend>1 · Market &amp; Costs</legend>
+            <fieldset className="config-group market-config">
+              <legend>
+                <span className="config-step">1</span>
+                <span className="config-legend-copy"><strong>Market &amp; Costs</strong><small>Delivery setup &amp; trading costs</small></span>
+              </legend>
               <p className="section-intro">Set the delivery product, illustrative price case and marginal execution costs.</p>
               <label htmlFor="date">
                 Delivery date
@@ -584,8 +587,11 @@ export default function Workbench() {
               </div>
               <small>Both fees apply to every executed MWh, whether BUY or SELL. Fixed membership costs are excluded from dispatch optimization.</small>
             </fieldset>
-            <fieldset className="config-group">
-              <legend>2 · Optimization Policy</legend>
+            <fieldset className="config-group policy-config">
+              <legend>
+                <span className="config-step">2</span>
+                <span className="config-legend-copy"><strong>Optimization Policy</strong><small>Risk preference &amp; terminal value</small></span>
+              </legend>
               <p className="section-intro">Choose how uncertainty and stored energy after the delivery day should be valued.</p>
               <label htmlFor="risk-posture">
                 Decision posture
@@ -615,8 +621,11 @@ export default function Workbench() {
                 />
               )}
             </fieldset>
-            <fieldset className="config-group">
-              <legend>3 · Battery &amp; Availability</legend>
+            <fieldset className="config-group battery-config">
+              <legend>
+                <span className="config-step">3</span>
+                <span className="config-legend-copy"><strong>Battery &amp; Availability</strong><small>Physical limits &amp; outages</small></span>
+              </legend>
               <p className="section-intro">Define the executable operating envelope. These limits are enforced by the optimizer.</p>
               <div className="assumption-note">
                 <BatteryCharging size={16} aria-hidden="true" />

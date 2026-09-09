@@ -267,6 +267,7 @@ select {
 .inputs-content {
   display: flex;
   flex-direction: column;
+  gap: 12px;
 }
 .panel-title,
 .section-head {
@@ -330,22 +331,72 @@ select {
 .icon-button:hover {
   background: #dcece9;
 }
-.inputs fieldset {
-  border: 0;
-  border-top: 1px solid #e6edeb;
-  margin: 15px 0 0;
-  padding: 15px 0 0;
+.inputs-content > .config-group {
+  --section-accent: #267f7a;
+  --section-tint: #f2f8f7;
+  min-width: 0;
+  margin: 0;
+  padding: 0 12px 13px;
+  border: 1px solid #dce8e6;
+  border-top: 3px solid var(--section-accent);
+  border-radius: 9px;
+  background: linear-gradient(180deg, var(--section-tint) 0, #fff 76px);
 }
-.inputs legend {
-  padding: 0 8px 0 0;
-  font-size: 11px;
-  letter-spacing: 0.7px;
-  text-transform: uppercase;
+.inputs-content > .policy-config {
+  --section-accent: #6171a4;
+  --section-tint: #f5f6fb;
+}
+.inputs-content > .battery-config {
+  --section-accent: #347a5f;
+  --section-tint: #f2f8f4;
+}
+.inputs-content > .config-group > legend {
+  width: calc(100% + 2px);
+  margin-left: -1px;
+  padding: 10px 1px 8px;
+  color: var(--ink);
+}
+.inputs-content > .config-group > legend,
+.config-legend-copy {
+  display: flex;
+  align-items: center;
+}
+.inputs-content > .config-group > legend { gap: 9px; }
+.config-step {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: none;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--section-accent);
+  color: #fff;
+  font-size: 10px;
   font-weight: 850;
-  color: #3e6566;
+  font-variant-numeric: tabular-nums;
+}
+.config-legend-copy {
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+.config-legend-copy strong {
+  font-size: 12px;
+  font-weight: 820;
+  text-wrap: balance;
+}
+.config-legend-copy small {
+  margin-top: 2px;
+  color: #637a7d;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 .section-intro {
-  margin: 4px 0 13px;
+  margin: 0 0 13px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5ecea;
   color: #637a7d;
   font-size: 11px;
   line-height: 1.45;
