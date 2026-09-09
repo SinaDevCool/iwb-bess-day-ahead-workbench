@@ -729,6 +729,23 @@ select {
   font-weight: 750;
   font-size: 12px;
 }
+.solver-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
+}
+.solver-details > summary::-webkit-details-marker { display: none; }
+.solver-details > summary::before {
+  content: "›";
+  font-size: 18px;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 140ms ease;
+}
+.solver-details[open] > summary::before { transform: rotate(90deg); }
+.solver-details > summary small { margin-left: auto; color: var(--muted); font-size: 10px; font-weight: 600; }
 .table-scroll {
   overflow: auto;
   border: 1px solid var(--line);
@@ -1031,6 +1048,50 @@ td {
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+.solver-explainer {
+  display: grid;
+  grid-template-columns: minmax(240px, .72fr) minmax(0, 1.7fr);
+  gap: 12px;
+  margin-top: 13px;
+}
+.solver-outcome {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 15px;
+  border: 1px solid #cfe4da;
+  border-radius: 9px;
+  background: #f1f8f5;
+}
+.solver-outcome svg { flex: 0 0 auto; color: var(--success); }
+.solver-outcome div { display: flex; flex-direction: column; min-width: 0; }
+.solver-outcome span { color: var(--success); font-size: 9px; font-weight: 850; letter-spacing: .55px; text-transform: uppercase; }
+.solver-outcome strong { margin: 3px 0; font-size: 14px; }
+.solver-outcome small,.solver-metrics small { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.solver-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  overflow: hidden;
+}
+.solver-metrics > div { display: flex; flex-direction: column; min-width: 0; padding: 13px 14px; border-left: 1px solid var(--line); }
+.solver-metrics > div:first-child { border-left: 0; }
+.solver-metrics dt { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .45px; text-transform: uppercase; }
+.solver-metrics dd { display: flex; flex-direction: column; gap: 3px; margin: 4px 0 0; font-size: 12px; font-weight: 800; }
+.solver-metrics code { width: fit-content; max-width: 100%; margin-top: 4px; padding: 2px 5px; border-radius: 4px; background: #edf3f2; color: #496568; font-size: 9px; font-weight: 600; overflow-wrap: anywhere; }
+.model-safeguards { margin-top: 16px; }
+.model-safeguards > div { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; }
+.model-safeguards h4 { margin: 0; font-size: 13px; }
+.model-safeguards p { margin: 0; color: var(--muted); font-size: 10px; }
+.model-safeguards ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 9px 0 0; padding: 0; list-style: none; }
+.model-safeguards li { display: flex; align-items: flex-start; gap: 8px; min-width: 0; padding: 9px 10px; border: 1px solid #dde7e5; border-radius: 7px; background: #fafcfb; }
+.model-safeguards li > svg { flex: 0 0 auto; margin-top: 1px; color: var(--success); }
+.model-safeguards li > span { display: flex; flex-direction: column; min-width: 0; }
+.model-safeguards li strong { font-size: 11px; }
+.model-safeguards li small { color: var(--muted); font-size: 9px; line-height: 1.4; }
 .checks {
   list-style: none;
   padding: 0;
@@ -1676,6 +1737,7 @@ body {
 @media (max-width:1200px) {
   .economics-grid { grid-template-columns:1fr; }
   .economics-bridge { min-height:230px; }
+  .solver-explainer { grid-template-columns:1fr; }
 }
 @media (min-width:1800px) {
   .workspace { max-width:1900px; grid-template-columns:360px minmax(0,1fr); gap:22px; }
@@ -1718,4 +1780,8 @@ body {
   .column-picker summary { justify-content:center; }
   .column-menu { position:fixed; top:auto; right:12px; bottom:12px; left:12px; width:auto; }
   .interval-table-scroll { max-height:430px; }
+  .solver-metrics,.model-safeguards ul { grid-template-columns:1fr; }
+  .solver-metrics > div { border-top:1px solid var(--line); border-left:0; }
+  .solver-metrics > div:first-child { border-top:0; }
+  .model-safeguards > div { align-items:flex-start; flex-direction:column; gap:3px; }
 }

@@ -1195,6 +1195,7 @@ function ProofView({
       result?.proposal?.proposal_terminal_soc_mwh ??
       result?.optimization.terminal_soc_mwh ??
       0,
+    solverStatus = result?.optimization.solver_status ?? "unknown",
     rows = result
       ? [
           constraintRow("Charge power", Math.min(battery.max_charge_power_mw, battery.grid_limit_mw), chargePower, "MW", "maximum"),
@@ -1249,27 +1250,29 @@ function ProofView({
             </table>
           </div>
           <details className="solver-details">
-            <summary>Solver & Model Details</summary>
-            <div className="proof-grid">
-              <Proof label="Objective" value={result.optimization.objective} />
-              <Proof label="Engine" value={result.optimization.engine} />
-              <Proof
-                label="Solver status"
-                value={result.optimization.solver_status ?? "–"}
-              />
-              <Proof
-                label="Solve time"
-                value={num(result.optimization.solve_time_ms, 2) + " ms"}
-              />
+            <summary><span>Solver & Model Details</span><small>Technical evidence</small></summary>
+            <div className="solver-explainer">
+              <div className="solver-outcome">
+                <CheckCircle2 size={22} aria-hidden="true" />
+                <div><span>Solver result</span><strong>{solverStatus === "optimal" ? "Optimal solution found" : title(solverStatus)}</strong><small>{solverStatus === "optimal" ? "The model found the highest-value feasible schedule under the configured assumptions." : "Review this technical status before using the proposal."}</small></div>
+              </div>
+              <dl className="solver-metrics">
+                <div><dt>Optimization goal</dt><dd>Maximize expected net contribution<small>Sales revenue minus charging purchases, degradation and transaction fees.</small></dd></div>
+                <div><dt>Method</dt><dd>Mixed-integer linear optimization<small>HiGHS selects charge, discharge or idle for every delivery interval.</small><code translate="no">{result.optimization.engine}</code></dd></div>
+                <div><dt>Calculation time</dt><dd>{num(result.optimization.solve_time_ms, 2)} ms<small>Backend solver runtime for this completed simulation.</small></dd></div>
+              </dl>
             </div>
-            <ul className="checks">
+            <div className="model-safeguards">
+              <div><h4>Safeguards enforced by the model</h4><p>Every item below was included in the optimization—not checked only after calculation.</p></div>
+              <ul>
               {result.optimization.constraints.map((x) => (
                 <li key={x}>
-                  <CheckCircle2 size={15} />
-                  {title(x)}
+                  <CheckCircle2 size={15} aria-hidden="true" />
+                  <span><strong>{constraintExplanation(x).title}</strong><small>{constraintExplanation(x).text}</small></span>
                 </li>
               ))}
-            </ul>
+              </ul>
+            </div>
           </details>
         </>
       )}
@@ -1513,16 +1516,20 @@ function Empty({
     </div>
   );
 }
-function Proof({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="proof">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
 type ConstraintDirection = "minimum" | "maximum";
+
+function constraintExplanation(value: string) {
+  const explanations: Record<string, { title: string; text: string }> = {
+    "SOC balance": { title: "Energy balance", text: "Tracks stored energy after every charge and discharge." },
+    "SOC envelope": { title: "State-of-charge limits", text: "Keeps stored energy between the configured minimum and maximum." },
+    "power and grid limits": { title: "Power & grid limits", text: "Respects charge, discharge and grid-connection capacity." },
+    availability: { title: "Asset availability", text: "Prevents dispatch during unavailable delivery intervals." },
+    "terminal SOC": { title: "End-of-day reserve", text: "Finishes with at least the required stored energy." },
+    "throughput limit": { title: "Daily cycle budget", text: "Limits total charged and discharged energy for the day." },
+    "binary charge/discharge exclusivity": { title: "Operating mode", text: "Prevents simultaneous charging and discharging." },
+  };
+  return explanations[value] ?? { title: title(value), text: "Included in the optimization model." };
+}
 
 function constraintRow(
   label: string,
