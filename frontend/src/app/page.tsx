@@ -67,6 +67,12 @@ const tabs = [
   ["compare", "Scenario Comparison"],
 ] as const;
 type TabKey = (typeof tabs)[number][0];
+const compactTabLabels: Record<TabKey, string> = {
+  schedule: "Dispatch",
+  orders: "Orders",
+  proof: "Validation",
+  compare: "Compare",
+};
 
 export default function Workbench() {
   const [battery, setBattery] = useState(defaultBattery),
@@ -205,7 +211,8 @@ export default function Workbench() {
       const parameters = new URLSearchParams(location.search);
       const requested = parameters.get("tab");
       if (tabs.some(([key]) => key === requested)) setTab(requested as TabKey);
-      setInputsCollapsed(parameters.get("panel") === "collapsed");
+      const panel = parameters.get("panel");
+      setInputsCollapsed(panel === "collapsed" || (panel === null && matchMedia("(max-width: 700px)").matches));
     };
     restoreTab();
     addEventListener("popstate", restoreTab);
@@ -440,6 +447,10 @@ export default function Workbench() {
                 <span>01</span>
                 <h2 id="input-title">Configure Market &amp; Battery</h2>
               </div>}
+              {inputsCollapsed && <div className="collapsed-context">
+                <strong>Configure Case</strong>
+                <span>{scenario} · {riskPosture.replaceAll("_", " ")} · {battery.capacity_mwh} MWh</span>
+              </div>}
               <div className="panel-title-actions">
                 {!inputsCollapsed && <button
                   className="icon-button"
@@ -543,25 +554,6 @@ export default function Workbench() {
                 </select>
                 <small>{scenarioDescription(scenario)}</small>
               </label>
-              <label htmlFor="risk-posture">
-                Decision posture
-                <select id="risk-posture" value={riskPosture} onChange={(e) => { setRiskPosture(e.target.value); change(); }}>
-                  <option value="expected_value">Expected value</option>
-                  <option value="balanced">Balanced</option>
-                  <option value="downside_protected">Downside protected</option>
-                </select>
-                <small>Frames the recommendation across downside, expected and upside prices.</small>
-              </label>
-              <label htmlFor="horizon-policy">
-                End-of-day energy policy
-                <select id="horizon-policy" value={horizonPolicy} onChange={(e) => { setHorizonPolicy(e.target.value); change(); }}>
-                  <option value="minimum_reserve">Minimum reserve only</option>
-                  <option value="terminal_value">Configured terminal value</option>
-                  <option value="next_day_proxy">Next-day forecast proxy</option>
-                </select>
-                <small>Values energy carried beyond the auction day separately from cash contribution.</small>
-              </label>
-              {horizonPolicy === "terminal_value" && <NF id="terminal-value" label="Terminal energy value" hint="Illustrative value for stored energy above the end-of-day reserve" value={terminalValue} unit="€/MWh" min={0} change={(v) => { setTerminalValue(v); change(); }} />}
               <div className="field-grid">
                 <NF
                   id="exchange-fee"
@@ -589,7 +581,29 @@ export default function Workbench() {
               <small>Both fees apply to every executed MWh, whether BUY or SELL. Fixed membership costs are excluded from dispatch optimization.</small>
             </fieldset>
             <fieldset>
-              <legend>Battery Constraints</legend>
+              <legend>Optimization Strategy</legend>
+              <label htmlFor="risk-posture">
+                Decision posture
+                <select id="risk-posture" name="risk-posture" autoComplete="off" value={riskPosture} onChange={(e) => { setRiskPosture(e.target.value); change(); }}>
+                  <option value="expected_value">Expected value</option>
+                  <option value="balanced">Balanced</option>
+                  <option value="downside_protected">Downside protected</option>
+                </select>
+                <small>Selects the preferred portfolio after testing schedules across downside, expected and upside prices.</small>
+              </label>
+              <label htmlFor="horizon-policy">
+                End-of-day energy policy
+                <select id="horizon-policy" name="horizon-policy" autoComplete="off" value={horizonPolicy} onChange={(e) => { setHorizonPolicy(e.target.value); change(); }}>
+                  <option value="minimum_reserve">Minimum reserve only</option>
+                  <option value="terminal_value">Configured terminal value</option>
+                  <option value="next_day_proxy">Next-day forecast proxy</option>
+                </select>
+                <small>Controls how energy remaining after the auction day is valued.</small>
+              </label>
+              {horizonPolicy === "terminal_value" && <NF id="terminal-value" label="Terminal energy value" hint="Illustrative value for stored energy above the end-of-day reserve" value={terminalValue} unit="€/MWh" min={0} change={(v) => { setTerminalValue(v); change(); }} />}
+            </fieldset>
+            <fieldset>
+              <legend>Battery Limits</legend>
               <div className="assumption-note">
                 <BatteryCharging size={16} aria-hidden="true" />
                 <span>
@@ -710,7 +724,7 @@ export default function Workbench() {
               </div>
             </fieldset>
             <fieldset>
-              <legend>Asset Availability</legend>
+              <legend>Availability</legend>
               <label htmlFor="availability">
                 Availability preset
                 <select
@@ -776,53 +790,34 @@ export default function Workbench() {
           <div className="main-column">
             <section className="kpis" aria-label={dirty && result ? "Previous optimization summary; rerun required" : "Optimization summary"}>
               <Kpi
-                label="Expected Net Contribution"
-                value={money(summary.expected_contribution_eur)}
-                detail="Sales − purchases − degradation − transaction fees"
+                label="Day-Ahead Cash Contribution"
+                value={result ? money(summary.expected_contribution_eur) : "Not calculated"}
+                detail={result
+                  ? result.horizon?.policy !== "minimum_reserve"
+                    ? `Terminal energy ${money(result.horizon?.terminal_energy_value_eur)} · total decision value ${money(summary.total_decision_value_eur)}`
+                    : "Sales − purchases − degradation − transaction fees"
+                  : "Run the optimization to calculate"}
                 stale={dirty && Boolean(result)}
               />
               <Kpi
-                label="Daily Throughput"
-                value={
-                  num(summary.throughput_mwh) +
-                  " / " +
-                  num(
-                    2 * resultBattery.capacity_mwh * resultBattery.max_equivalent_cycles,
-                    0,
-                  ) +
-                  " MWh"
-                }
-                detail={
-                  num(summary.equivalent_cycles, 2) +
-                  " EFC · " +
-                  num(cyclePct, 0) +
-                  "% of budget"
-                }
+                label="Battery Usage"
+                value={result ? `${num(summary.throughput_mwh)} MWh` : "Not calculated"}
+                detail={result
+                  ? `${num(summary.equivalent_cycles, 2)} / ${num(resultBattery.max_equivalent_cycles, 2)} EFC · ${num(cyclePct, 0)}% used`
+                  : `Cycle budget: ${num(resultBattery.max_equivalent_cycles, 2)} EFC`}
                 stale={dirty && Boolean(result)}
               />
               <Kpi
-                label="State of Charge"
-                value={
-                  num(summary.min_soc_mwh, 0) +
-                  "–" +
-                  num(summary.max_soc_mwh, 0) +
-                  " MWh"
-                }
-                detail={
-                  "Ends at " +
-                  num(result?.proposal?.proposal_terminal_soc_mwh ?? result?.optimization.terminal_soc_mwh, 0) +
-                  " MWh · target " +
-                  resultBattery.target_soc_mwh
-                }
+                label="Observed SoC Range"
+                value={result ? `${num(summary.min_soc_mwh, 0)}–${num(summary.max_soc_mwh, 0)} MWh` : "Not calculated"}
+                detail={result
+                  ? `Ends at ${num(result.proposal?.proposal_terminal_soc_mwh ?? result.optimization.terminal_soc_mwh, 0)} MWh · reserve ${resultBattery.target_soc_mwh} MWh`
+                  : `Configured envelope: ${resultBattery.min_soc_mwh}–${resultBattery.max_soc_mwh} MWh`}
                 stale={dirty && Boolean(result)}
               />
               <Kpi
                 label="Order Proposal"
-                value={
-                  String(summary.order_count ?? 0) +
-                  " " +
-                  (summary.order_count === 1 ? "order" : "orders")
-                }
+                value={result ? `${String(summary.order_count ?? 0)} ${summary.order_count === 1 ? "order" : "orders"}` : "Not generated"}
                 detail={
                   result
                     ? `${result.dispatch.length} × ${result.market.product_minutes}-min intervals · ${
@@ -860,10 +855,21 @@ export default function Workbench() {
               </div>
             )}
             {result?.order_generation && !dirty && (
-              <div className="status-message info" role="status">
+              <div className="status-message info executable-status" role="status" aria-live="polite">
                 <ShieldCheck size={17} aria-hidden="true" />
-                Executable-order check passed: {result.order_generation.adjusted_order_count} quantities quantized to {result.order_generation.volume_increment_mw} MW, {result.order_generation.repaired_order_count} repair steps, contribution impact {signedMoney(result.order_generation.contribution_delta_eur)}.
-                {result.horizon && result.horizon.policy !== "minimum_reserve" ? ` Terminal energy value: ${money(result.horizon.terminal_energy_value_eur)} (${result.horizon.policy.replaceAll("_", " ")}).` : ""}
+                <div>
+                  <strong>Order proposal is executable</strong>
+                  <span>Volumes were rounded to valid market increments. Estimated rounding impact: {signedMoney(result.order_generation.contribution_delta_eur)}.</span>
+                  <details className="inline-evidence">
+                    <summary>View order-generation details</summary>
+                    <dl>
+                      <div><dt>Volume increment</dt><dd>{result.order_generation.volume_increment_mw} MW</dd></div>
+                      <div><dt>Adjusted quantities</dt><dd>{result.order_generation.adjusted_order_count}</dd></div>
+                      <div><dt>Repair steps</dt><dd>{result.order_generation.repaired_order_count}</dd></div>
+                      <div><dt>Volume reduction</dt><dd>{num(result.order_generation.volume_reduction_mwh)} MWh</dd></div>
+                    </dl>
+                  </details>
+                </div>
               </div>
             )}
             {dst && (
@@ -883,6 +889,7 @@ export default function Workbench() {
                   key={key}
                   id={"tab-" + key}
                   role="tab"
+                  aria-label={label}
                   aria-selected={tab === key}
                   aria-controls={"panel-" + key}
                   tabIndex={tab === key ? 0 : -1}
@@ -890,7 +897,8 @@ export default function Workbench() {
                   onClick={() => chooseTab(key)}
                   onKeyDown={(e) => tabKey(e, i)}
                 >
-                  {label}
+                  <span className="tab-full">{label}</span>
+                  <span className="tab-compact" aria-hidden="true">{compactTabLabels[key]}</span>
                 </button>
               ))}
             </nav>
@@ -1385,7 +1393,7 @@ function Compare({
         }
       />
       <div className="scenario-callout">
-        <strong>Current: {scenario}</strong>
+        <strong>Current run: {scenario}</strong>
         <span>
           {result?.scenario_name === baseline?.scenario_name
             ? "Run another scenario to reveal the optimization response."
@@ -1395,11 +1403,18 @@ function Compare({
         </span>
       </div>
       <p className="scenario-instruction"><strong>How to compare:</strong> choose a scenario in the left panel, run the optimization, then return here. The previous baseline and new completed run will be shown side by side.</p>
-      {result?.risk && <div className="scenario-callout" role="status">
-        <strong>Risk-aware reference: {result.risk.recommended_scenario}</strong>
-        <span>{result.risk.recommendation}</span>
-        <span>Downside {money(result.risk.downside_contribution_eur)} · probability-weighted {money(result.risk.expected_contribution_eur)} · upside {money(result.risk.upside_contribution_eur)} · {riskPosture.replaceAll("_", " ")}</span>
-      </div>}
+      {result?.risk && <section className="portfolio-robustness" aria-labelledby="robustness-title">
+        <div className="robustness-heading">
+          <div><span className="eyebrow">PORTFOLIO ROBUSTNESS</span><h3 id="robustness-title">Recommended Portfolio: {result.risk.recommended_scenario}</h3></div>
+          <span className="posture-badge">{riskPosture.replaceAll("_", " ")}</span>
+        </div>
+        <p>Selected because the current decision posture is <strong>{riskPosture.replaceAll("_", " ")}</strong>. The same executable orders are valued under all three price cases.</p>
+        <div className="risk-outcomes" aria-label="Portfolio contribution across price cases">
+          <div><span>Downside Case</span><strong>{money(result.risk.downside_contribution_eur)}</strong></div>
+          <div><span>Probability-Weighted</span><strong>{money(result.risk.expected_contribution_eur)}</strong></div>
+          <div><span>Upside Case</span><strong>{money(result.risk.upside_contribution_eur)}</strong></div>
+        </div>
+      </section>}
       <details className="scenario-definitions">
         <summary>Scenario Definitions</summary>
         <div className="scenario-guide" aria-label="Available scenario definitions">
@@ -1410,7 +1425,10 @@ function Compare({
         </div>
       </details>
       {result && baseline && (
-        <ScenarioOutcomeChart baseline={baseline} current={result} />
+        <section aria-labelledby="run-comparison-title">
+          <div className="subsection-heading"><div><span className="eyebrow">RUN-TO-RUN COMPARISON</span><h3 id="run-comparison-title">Baseline vs Current Run</h3></div></div>
+          <ScenarioOutcomeChart baseline={baseline} current={result} />
+        </section>
       )}
       <div className="compare">
         <div className="compare-row compare-head">

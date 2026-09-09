@@ -54,16 +54,29 @@ export default function AuditPage() {
         <label className="sr-only" htmlFor="audit-search">Search runs</label><div className="audit-search"><Search size={16} aria-hidden="true" /><input id="audit-search" name="audit-search" autoComplete="off" placeholder="Search run, scenario or delivery date…" value={query} onChange={(e) => setQuery(e.target.value)} /></div>
         <label className="sr-only" htmlFor="validation-status">Validation status</label><select id="validation-status" name="validation-status" value={status} onChange={(e) => setStatus(e.target.value)}><option value="ALL">All validation results</option><option value="passed">Passed</option><option value="warning">Warning</option><option value="failed">Failed</option></select>
       </div>
-      {loading ? <div className="state-block"><strong>Loading saved runs…</strong></div> : loadError ? <div className="state-block" role="alert"><strong>Decision history unavailable</strong><span>{loadError}. Check the service and try again.</span></div> : !filtered.length ? <div className="state-block"><strong>{runs.length ? "No matching runs" : "No optimization runs yet"}</strong><span>{runs.length ? "Change the search or validation filter." : "Return to the workbench and run the optimizer to create the first record."}</span></div> :
-        <div className="table-scroll"><table><caption className="sr-only">Saved optimization runs and their lifecycle events</caption><thead><tr><th>Run</th><th>Case</th><th>Outcome</th><th>Recorded actions</th><th>Evidence</th></tr></thead><tbody>{filtered.map((run) => {
+      {loading ? <div className="state-block"><strong>Loading saved runs…</strong></div> : loadError ? <div className="state-block" role="alert"><strong>Decision history unavailable</strong><span>{loadError}. Check the service and try again.</span></div> : !filtered.length ? <div className="state-block"><strong>{runs.length ? "No matching runs" : "No optimization runs yet"}</strong><span>{runs.length ? "Change the search or validation filter." : "Return to the workbench and run the optimizer to create the first record."}</span></div> : <>
+        <div className="table-scroll audit-desktop"><table><caption className="sr-only">Saved optimization runs and their lifecycle events</caption><thead><tr><th>Run</th><th>Case</th><th>Outcome</th><th>Recorded actions</th><th>Evidence</th></tr></thead><tbody>{filtered.map((run) => {
           const lifecycle = [...(byRun.get(run.simulation_id) ?? [])].reverse();
-          return <tr key={run.simulation_id}><td className="run-cell"><strong>{localTime(run.created_at_utc)}</strong><span><code translate="no">{run.simulation_id}</code></span></td><td className="run-cell"><strong>{run.scenario_name}</strong><span>{formatDate(run.delivery_date)} · {run.market.product_minutes}-minute products</span></td><td className="run-outcome"><strong>{money(run.summary.expected_contribution_eur)}</strong><small>{run.orders.length} orders · validation {run.validation.status}</small></td><td><div className="run-events">{lifecycle.map((event) => <span className="event-step" key={event.event_id}>{shortTitle(event.event_type)}</span>)}</div></td><td><details className="evidence"><summary>View Evidence</summary><pre><code>{JSON.stringify({ input_fingerprint: run.audit.input_hash, optimizer: run.optimization.engine, validation: run.validation.status, events: lifecycle.map((event) => ({ time_utc: event.created_at, type: event.event_type, evidence: event.payload })) }, null, 2)}</code></pre></details></td></tr>;
-        })}</tbody></table></div>}
+          return <tr key={run.simulation_id}><td className="run-cell"><strong>{localTime(run.created_at_utc)}</strong><span><code translate="no">{run.simulation_id}</code></span></td><td className="run-cell"><strong>{run.scenario_name}</strong><span>{formatDate(run.delivery_date)} · {run.market.product_minutes}-minute products</span></td><td className="run-outcome"><strong>{money(run.summary.expected_contribution_eur)}</strong><small>{run.orders.length} orders · validation {run.validation.status}</small></td><td><div className="run-events">{lifecycle.map((event) => <span className="event-step" key={event.event_id}>{shortTitle(event.event_type)}</span>)}</div></td><td><RunEvidence run={run} lifecycle={lifecycle} /></td></tr>;
+        })}</tbody></table></div>
+        <div className="audit-mobile" aria-label="Saved optimization runs">{filtered.map((run) => {
+          const lifecycle = [...(byRun.get(run.simulation_id) ?? [])].reverse();
+          return <article className="run-card" key={run.simulation_id}>
+            <div className="run-card-heading"><div><strong>{run.scenario_name}</strong><span>{localTime(run.created_at_utc)} · {run.market.product_minutes}-minute products</span></div><strong className="run-card-value">{money(run.summary.expected_contribution_eur)}</strong></div>
+            <div className="run-card-meta"><span>{run.orders.length} orders</span><span className={`validation-pill ${run.validation.status}`}>{run.validation.status}</span></div>
+            <div className="run-events">{lifecycle.map((event) => <span className="event-step" key={event.event_id}>{shortTitle(event.event_type)}</span>)}</div>
+            <RunEvidence run={run} lifecycle={lifecycle} />
+          </article>;
+        })}</div>
+      </>}
       <p className="hint">{filtered.length} of {runs.length} saved runs shown</p>
     </main>
   </>;
 }
 function Stat({ label, value }: { label: string; value: number }) { return <div className="audit-stat"><span>{label}</span><strong>{value}</strong></div>; }
+function RunEvidence({ run, lifecycle }: { run: Simulation; lifecycle: Event[] }) {
+  return <details className="evidence"><summary>View Evidence</summary><pre><code>{JSON.stringify({ input_fingerprint: run.audit.input_hash, optimizer: run.optimization.engine, validation: run.validation.status, events: lifecycle.map((event) => ({ time_utc: event.created_at, type: event.event_type, evidence: event.payload })) }, null, 2)}</code></pre></details>;
+}
 const shortTitle = (value: string) => value === "SIMULATION_CREATED" ? "Optimized" : value.replace("ORDER_PROPOSAL_", "").replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 const localTime = (value: string) => new Intl.DateTimeFormat("en-CH", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Zurich" }).format(new Date(value));
 const formatDate = (value: string) => new Intl.DateTimeFormat("en-CH", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(value + "T12:00:00Z"));
