@@ -1621,6 +1621,12 @@ body {
 .plot-area .recharts-surface { overflow:visible; }
 .economics-area { height:220px; }
 .order-area { height:240px; }
+.interactive-chart .order-chart-bar {
+  transition: opacity 140ms ease, filter 140ms ease;
+}
+.interactive-chart .order-chart-bar:hover {
+  filter: brightness(0.9) saturate(1.08);
+}
 .scenario-area { height:210px; }
 .economics-bridge { display:flex; flex-direction:column; border:1px solid var(--line); border-radius:9px; background:#fbfcfc; padding:10px 15px; }
 .economics-bridge > div { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 0; border-bottom:1px solid #e7edeb; font-variant-numeric:tabular-nums; }

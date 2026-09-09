@@ -70,19 +70,19 @@ function EconomicsTip({ active, payload }: { active?: boolean; payload?: Array<{
   return <div className="chart-tip"><span className="tip-time">{row.time} · Europe/Zurich</span><strong>{money(order?.expected_contribution_eur ?? 0)} order contribution</strong><dl><div><dt>Revenue</dt><dd>{money(order?.sales_revenue_eur ?? 0)}</dd></div><div><dt>Purchases</dt><dd>{money(order?.purchase_cost_eur ?? 0)}</dd></div><div><dt>Degradation</dt><dd>{money(order?.degradation_cost_eur ?? 0)}</dd></div><div><dt>Transaction fees</dt><dd>{money(order?.transaction_fee_eur ?? 0)}</dd></div></dl></div>;
 }
 
-export function OrderTimeline({ orders }: { orders: Order[] }) {
+export function OrderTimeline({ orders, selectedId, onSelect }: { orders: Order[]; selectedId?: string; onSelect?: (order: Order) => void }) {
   if (!orders.length) return null;
   const data = orders.map((order) => ({ ...order, time: time(order.delivery_start_utc), signedVolume: order.side === "BUY" ? -order.volume_mw : order.volume_mw }));
   return <figure className="plot-card order-timeline">
-    <figcaption><div className="chart-caption-main"><strong>Day-Ahead Order Timeline</strong><span>Proposed auction volume by delivery start</span></div><div className="chart-legend" aria-hidden="true"><span><i className="legend-block discharge" />SELL +</span><span><i className="legend-block charge" />BUY −</span><b>MW</b></div></figcaption>
-    <div className="plot-area order-area" role="img" aria-label="Generated Day-Ahead buy and sell orders by delivery interval">
+    <figcaption><div className="chart-caption-main"><strong>Day-Ahead Order Timeline</strong><span>Click a bar or table row to review and edit that order</span></div><div className="chart-legend" aria-hidden="true"><span><i className="legend-block discharge" />SELL +</span><span><i className="legend-block charge" />BUY −</span><b>MW</b></div></figcaption>
+    <div className="plot-area order-area interactive-chart" role="img" aria-label="Generated Day-Ahead buy and sell orders by delivery interval. Click a bar to edit its order; the table below provides keyboard access.">
       <ResponsiveContainer width="100%" height="100%"><BarChart data={data} margin={{ top: 12, right: 12, bottom: 2, left: 4 }}>
         <CartesianGrid stroke="#e3ebe9" strokeDasharray="2 4" vertical={false} />
         <XAxis dataKey="time" interval={Math.max(Math.floor(data.length / 8), 0)} tick={{ fontSize: 10, fill: "#607477" }} axisLine={{ stroke: "#b7c7c4" }} tickLine={false} tickMargin={9} />
         <YAxis width={58} tick={{ fontSize: 10, fill: "#607477" }} axisLine={false} tickLine={false} tickMargin={7} tickFormatter={(v) => `${v}`} />
         <ReferenceLine y={0} stroke="#748986" strokeWidth={1.2} />
         <Tooltip content={<OrderTip />} cursor={{ fill: "rgba(8, 125, 120, .045)" }} />
-        <Bar dataKey="signedVolume" name="Order volume" radius={[3, 3, 0, 0]} maxBarSize={28}>{data.map((order) => <Cell key={order.order_id} fill={order.side === "BUY" ? "#1d9c98" : "#e67d11"} />)}</Bar>
+        <Bar dataKey="signedVolume" name="Order volume" radius={[3, 3, 0, 0]} maxBarSize={28}>{data.map((order) => <Cell key={order.order_id} className="order-chart-bar" cursor="pointer" fill={order.side === "BUY" ? "#1d9c98" : "#e67d11"} stroke={selectedId === order.order_id ? "#073f3d" : "transparent"} strokeWidth={selectedId === order.order_id ? 3 : 0} opacity={selectedId && selectedId !== order.order_id ? .58 : 1} onClick={() => onSelect?.(order)} />)}</Bar>
       </BarChart></ResponsiveContainer>
     </div>
   </figure>;

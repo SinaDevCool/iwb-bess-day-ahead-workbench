@@ -1030,7 +1030,7 @@ function Orders(p: OP) {
         aside="No live submission"
       />
       {p.result && (
-        <OrderTimeline orders={p.result.orders} />
+        <OrderTimeline orders={p.result.orders} selectedId={p.selected?.order_id} onSelect={p.choose} />
       )}
       <OrderTable
         orders={p.result?.orders ?? []}
