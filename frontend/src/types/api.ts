@@ -26,10 +26,13 @@ export type Order = {
 };
 export type Simulation = {
   simulation_id: string; created_at_utc: string; delivery_date: string; scenario_name: string;
-  strategy?: "expected_value" | "conservative"; price_multiplier?: number; peak_reduction_eur_mwh?: number; proposal_revision?: number;
+  strategy?: "expected_value" | "conservative"; risk_posture?: "expected_value" | "balanced" | "downside_protected"; horizon_policy?: "minimum_reserve" | "terminal_value" | "next_day_proxy"; terminal_value_eur_per_mwh?: number; price_multiplier?: number; peak_reduction_eur_mwh?: number; proposal_revision?: number;
   data_mode: string; submission_mode: string; battery: Battery; market: Market; dispatch: Dispatch[];
   orders: Order[]; validation: { status: string; findings: { severity: string; code: string; message: string; interval?: number }[] };
   summary: Record<string, number>; optimization: { engine: string; prototype_solver: boolean; solver_status?: string; solve_time_ms?: number; mip_gap?: number; objective: string; objective_value_eur: number; terminal_soc_mwh: number; constraint_status: string; constraints: string[] };
   proposal?: { proposal_contribution_eur: number; proposal_terminal_soc_mwh: number; proposal_throughput_mwh: number; proposal_equivalent_cycles: number; proposal_min_soc_mwh: number; proposal_max_soc_mwh: number; proposal_sales_revenue_eur: number; proposal_purchase_cost_eur: number; proposal_degradation_cost_eur: number; proposal_buy_volume_mwh: number; proposal_sell_volume_mwh: number; implied_soc_mwh: number[]; implied_dispatch?: Dispatch[] };
   audit: Record<string, string | boolean | number>; approval_status?: string;
+  order_generation?: { method: string; volume_increment_mw: number; adjusted_order_count: number; repaired_order_count: number; volume_reduction_mwh: number; contribution_delta_eur: number; validation_status: string };
+  risk?: { posture: string; expected_contribution_eur: number; downside_contribution_eur: number; upside_contribution_eur: number; worst_case_contribution_eur: number; value_range_eur: number; recommended_scenario: string; recommendation: string; outcomes: { name: string; probability: number; contribution_eur: number }[] };
+  horizon?: { policy: string; terminal_value_eur_per_mwh: number; reserve_soc_mwh: number; terminal_soc_mwh: number; incremental_stored_energy_mwh: number; terminal_energy_value_eur: number };
 };

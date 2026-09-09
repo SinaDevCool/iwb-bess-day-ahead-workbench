@@ -13,7 +13,7 @@ from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Pric
 from backend.domain.economics import calculate_interval
 
 
-def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: MarketConfig):
+def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: MarketConfig, terminal_value_eur_per_mwh: float = 0):
     """Solve one battery's Day-Ahead dispatch as a mixed-integer linear program."""
     n = len(prices)
     if not n:
@@ -28,6 +28,9 @@ def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: 
     for t, point in enumerate(prices):
         objective[charge_offset + t] = dt * (point.price_eur_mwh + transaction_fee + battery.degradation_cost_eur_per_mwh * eta)
         objective[discharge_offset + t] = dt * (-point.price_eur_mwh + transaction_fee + battery.degradation_cost_eur_per_mwh / eta)
+    # A continuation value prevents an artificial end-of-horizon sell-off. The
+    # hard terminal reserve remains in force; this only values energy above it.
+    objective[soc_offset + n] = -terminal_value_eur_per_mwh
 
     lower = np.zeros(variable_count)
     upper = np.full(variable_count, np.inf)
@@ -151,7 +154,7 @@ def optimize_dispatch(prices: list[PricePoint], battery: BatteryConfig, market: 
         "solver_status": "optimal",
         "solve_time_ms": solve_time_ms,
         "mip_gap": float(getattr(result, "mip_gap", 0) or 0),
-        "objective": "maximize energy sales - purchases - degradation - transaction fees",
+        "objective": "maximize energy sales - purchases - degradation - transaction fees + terminal energy value",
         "objective_value_eur": round(-result.fun, 2),
         "terminal_soc_mwh": round(result.x[soc_offset + n], 6),
         "throughput_mwh": round(throughput, 6),

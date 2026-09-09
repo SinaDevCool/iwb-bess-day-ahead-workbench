@@ -59,6 +59,27 @@ def test_downside_scenario_compresses_expected_contribution():
     assert downside.summary["expected_contribution_eur"] < base.summary["expected_contribution_eur"]
 
 
+def test_rounded_orders_remain_executable_at_tight_power_limits():
+    request = SimulationRequest(
+        battery=BatteryConfig(max_charge_power_mw=25, max_discharge_power_mw=25, grid_limit_mw=25),
+        peak_reduction_eur_mwh=25,
+    )
+    result = run_simulation(request)
+    assert result.validation.status == "passed"
+    assert result.order_generation.validation_status == "passed"
+    assert all(order.volume_mw <= 25 for order in result.orders)
+
+
+def test_terminal_value_is_reported_separately_from_cash_contribution():
+    result = run_simulation(SimulationRequest(horizon_policy="terminal_value", terminal_value_eur_per_mwh=100))
+    assert result.horizon.terminal_value_eur_per_mwh == 100
+    assert result.summary["total_decision_value_eur"] == round(
+        result.summary["expected_contribution_eur"] + result.summary["terminal_energy_value_eur"], 2
+    )
+    assert result.risk.outcomes[0].name == "Downside"
+    assert any(order.confidence == "high" for order in result.orders)
+
+
 def test_milp_retains_value_when_throughput_constraint_binds():
     values = [50, 70, 10, 100, 130, 20, 0, 0]
     points = [PricePoint(timestamp_utc=datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(hours=i), price_eur_mwh=value) for i, value in enumerate(values)]

@@ -9,8 +9,8 @@ from backend.db.repository import save_simulation_with_event
 from backend.domain.models import SimulationRequest, SimulationResult
 from backend.optimization.milp_optimizer import optimize_dispatch
 from backend.services.forecast_service import apply_scenario, build_demo_forecast
-from backend.services.order_service import build_orders
-from backend.validation.validators import validate_dispatch, validate_order_proposal
+from backend.services.decision_support_service import build_executable_orders, build_risk_summary, resolve_terminal_value
+from backend.validation.validators import validate_dispatch
 
 
 def run_simulation(request: SimulationRequest) -> SimulationResult:
@@ -21,11 +21,11 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         peak_reduction=request.peak_reduction_eur_mwh,
         conservative=request.strategy == "conservative",
     )
-    dispatch, optimization = optimize_dispatch(prices, request.battery, request.market)
+    terminal_value = resolve_terminal_value(request)
+    dispatch, optimization = optimize_dispatch(prices, request.battery, request.market, terminal_value)
     simulation_id = f"sim-{uuid4().hex[:10]}"
-    orders = build_orders(simulation_id, dispatch, request.market, request.battery)
+    orders, order_validation, proposal, order_generation = build_executable_orders(simulation_id, dispatch, request.market, request.battery)
     dispatch_validation = validate_dispatch(dispatch, request.battery)
-    order_validation, proposal = validate_order_proposal(orders, request.market, request.battery, dispatch)
     findings = dispatch_validation.findings + order_validation.findings
     validation_status = "failed" if any(x.severity == "error" for x in findings) else "warning" if findings else "passed"
     validation = dispatch_validation.model_copy(update={"status": validation_status, "findings": findings})
@@ -38,6 +38,13 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
     transaction_fees = sum(row.transaction_fee_eur for row in dispatch)
     # Reconcile the public daily total to the cent-rounded interval ledger.
     contribution = sum(row.interval_pnl_eur for row in dispatch)
+    incremental_energy = max(proposal["proposal_terminal_soc_mwh"] - request.battery.target_soc_mwh, 0)
+    terminal_energy_value = round(incremental_energy * terminal_value, 2)
+    risk, stable_intervals = build_risk_summary(request, base_prices, terminal_value)
+    for order in orders:
+        if order.delivery_start_utc in stable_intervals:
+            order.confidence = "high"
+            order.explanation += "; direction is stable across downside, expected and upside cases"
     created_at = datetime.now(timezone.utc)
     input_hash = hashlib.sha256(json.dumps(request.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()[:16]
     result = SimulationResult(
@@ -46,6 +53,9 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         delivery_date=request.delivery_date,
         scenario_name=request.scenario_name,
         strategy=request.strategy,
+        risk_posture=request.risk_posture,
+        horizon_policy=request.horizon_policy,
+        terminal_value_eur_per_mwh=request.terminal_value_eur_per_mwh,
         price_multiplier=request.price_multiplier,
         peak_reduction_eur_mwh=request.peak_reduction_eur_mwh,
         battery=request.battery,
@@ -72,10 +82,23 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
             "order_count": len(orders),
             "buy_volume_mwh": round(sum(o.energy_mwh for o in orders if o.side == "BUY"), 3),
             "sell_volume_mwh": round(sum(o.energy_mwh for o in orders if o.side == "SELL"), 3),
+            "executable_rounding_delta_eur": order_generation["contribution_delta_eur"],
+            "terminal_energy_value_eur": terminal_energy_value,
+            "total_decision_value_eur": round(proposal["proposal_contribution_eur"] + terminal_energy_value, 2),
         },
         optimization=optimization,
         proposal=proposal,
         audit={"schema_version": 2, "input_hash": input_hash, "forecast_version": "illustrative-v1", "optimizer_version": optimization["engine"], "validation_version": "order_proposal_validation_v2", "modified_by_trader": False},
+        order_generation=order_generation,
+        risk=risk,
+        horizon={
+            "policy": request.horizon_policy,
+            "terminal_value_eur_per_mwh": terminal_value,
+            "reserve_soc_mwh": request.battery.target_soc_mwh,
+            "terminal_soc_mwh": proposal["proposal_terminal_soc_mwh"],
+            "incremental_stored_energy_mwh": round(incremental_energy, 3),
+            "terminal_energy_value_eur": terminal_energy_value,
+        },
     )
     payload = result.model_dump(mode="json")
     save_simulation_with_event(payload, created_at.isoformat(), "SIMULATION_CREATED", {"schema_version": 2, "input_hash": input_hash, "validation": validation_status, "optimizer": optimization["engine"]})

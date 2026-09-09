@@ -90,6 +90,10 @@ class SimulationRequest(BaseModel):
     price_multiplier: float = Field(1, gt=0)
     peak_reduction_eur_mwh: float = Field(0, ge=0)
     strategy: Literal["expected_value", "conservative"] = "expected_value"
+    risk_posture: Literal["expected_value", "balanced", "downside_protected"] = "balanced"
+    horizon_policy: Literal["minimum_reserve", "terminal_value", "next_day_proxy"] = "minimum_reserve"
+    terminal_value_eur_per_mwh: float = Field(0, ge=0)
+    lookahead_hours: int = Field(4, ge=1, le=12)
 
     @model_validator(mode="after")
     def validate_request(self):
@@ -241,6 +245,46 @@ class SimulationSummary(MappingModel):
     order_count: int
     buy_volume_mwh: float
     sell_volume_mwh: float
+    executable_rounding_delta_eur: float = 0
+    terminal_energy_value_eur: float = 0
+    total_decision_value_eur: float = 0
+
+
+class OrderGenerationEvidence(MappingModel):
+    method: str
+    volume_increment_mw: float
+    adjusted_order_count: int
+    repaired_order_count: int
+    volume_reduction_mwh: float
+    contribution_delta_eur: float
+    validation_status: str
+
+
+class ScenarioOutcome(MappingModel):
+    name: str
+    probability: float
+    contribution_eur: float
+
+
+class RiskSummary(MappingModel):
+    posture: str
+    expected_contribution_eur: float
+    downside_contribution_eur: float
+    upside_contribution_eur: float
+    worst_case_contribution_eur: float
+    value_range_eur: float
+    recommended_scenario: str
+    recommendation: str
+    outcomes: list[ScenarioOutcome]
+
+
+class HorizonSummary(MappingModel):
+    policy: str
+    terminal_value_eur_per_mwh: float
+    reserve_soc_mwh: float
+    terminal_soc_mwh: float
+    incremental_stored_energy_mwh: float
+    terminal_energy_value_eur: float
 
 
 class OptimizationEvidence(MappingModel):
@@ -272,6 +316,9 @@ class SimulationResult(BaseModel):
     delivery_date: str
     scenario_name: str
     strategy: Literal["expected_value", "conservative"] = "expected_value"
+    risk_posture: Literal["expected_value", "balanced", "downside_protected"] = "balanced"
+    horizon_policy: Literal["minimum_reserve", "terminal_value", "next_day_proxy"] = "minimum_reserve"
+    terminal_value_eur_per_mwh: float = 0
     price_multiplier: float = 1
     peak_reduction_eur_mwh: float = 0
     proposal_revision: int = 1
@@ -286,4 +333,7 @@ class SimulationResult(BaseModel):
     optimization: OptimizationEvidence
     proposal: ProposalSummary
     audit: AuditMetadata
+    order_generation: OrderGenerationEvidence
+    risk: RiskSummary
+    horizon: HorizonSummary
     approval_status: str | None = None

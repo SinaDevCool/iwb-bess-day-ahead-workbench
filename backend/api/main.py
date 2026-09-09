@@ -48,6 +48,17 @@ def _revalidate_payload(payload: dict):
     payload["summary"]["min_soc_mwh"] = proposal["proposal_min_soc_mwh"]
     payload["summary"]["max_soc_mwh"] = proposal["proposal_max_soc_mwh"]
     payload["summary"]["expected_contribution_eur"] = proposal["proposal_contribution_eur"]
+    if payload.get("horizon"):
+        reserve = payload["horizon"]["reserve_soc_mwh"]
+        value = payload["horizon"]["terminal_value_eur_per_mwh"]
+        terminal_energy_value = round(max(proposal["proposal_terminal_soc_mwh"] - reserve, 0) * value, 2)
+        payload["horizon"].update({
+            "terminal_soc_mwh": proposal["proposal_terminal_soc_mwh"],
+            "incremental_stored_energy_mwh": round(max(proposal["proposal_terminal_soc_mwh"] - reserve, 0), 3),
+            "terminal_energy_value_eur": terminal_energy_value,
+        })
+        payload["summary"]["terminal_energy_value_eur"] = terminal_energy_value
+        payload["summary"]["total_decision_value_eur"] = round(proposal["proposal_contribution_eur"] + terminal_energy_value, 2)
     baseline = payload["summary"].get("baseline_proposal_contribution_eur", payload["summary"].get("optimized_contribution_eur", proposal["proposal_contribution_eur"]))
     payload["summary"]["trader_adjustment_delta_eur"] = round(proposal["proposal_contribution_eur"] - baseline, 2)
     return validation, proposal

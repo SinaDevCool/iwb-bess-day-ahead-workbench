@@ -74,6 +74,9 @@ export default function Workbench() {
     [date, setDate] = useState("2026-09-09"),
     [scenario, setScenario] = useState("Expected forecast"),
     [strategy, setStrategy] = useState("expected_value"),
+    [riskPosture, setRiskPosture] = useState("balanced"),
+    [horizonPolicy, setHorizonPolicy] = useState("minimum_reserve"),
+    [terminalValue, setTerminalValue] = useState(55),
     [peak, setPeak] = useState(0),
     [availability, setAvailability] = useState("Fully available"),
     [unavailable, setUnavailable] = useState("");
@@ -114,6 +117,9 @@ export default function Workbench() {
           },
           market,
           strategy,
+          risk_posture: riskPosture,
+          horizon_policy: horizonPolicy,
+          terminal_value_eur_per_mwh: terminalValue,
           peak_reduction_eur_mwh: peak,
         }),
       });
@@ -168,6 +174,9 @@ export default function Workbench() {
         setDate(latest.delivery_date);
         setScenario(latest.scenario_name);
         setStrategy(latest.strategy ?? "expected_value");
+        setRiskPosture(latest.risk_posture ?? "balanced");
+        setHorizonPolicy(latest.horizon_policy ?? "minimum_reserve");
+        setTerminalValue(latest.terminal_value_eur_per_mwh ?? 55);
         setPeak(latest.peak_reduction_eur_mwh ?? 0);
         setUnavailable(latest.battery.unavailable_intervals.join(", "));
         setAvailability(latest.battery.unavailable_intervals.length ? "Custom" : "Fully available");
@@ -534,6 +543,25 @@ export default function Workbench() {
                 </select>
                 <small>{scenarioDescription(scenario)}</small>
               </label>
+              <label htmlFor="risk-posture">
+                Decision posture
+                <select id="risk-posture" value={riskPosture} onChange={(e) => { setRiskPosture(e.target.value); change(); }}>
+                  <option value="expected_value">Expected value</option>
+                  <option value="balanced">Balanced</option>
+                  <option value="downside_protected">Downside protected</option>
+                </select>
+                <small>Frames the recommendation across downside, expected and upside prices.</small>
+              </label>
+              <label htmlFor="horizon-policy">
+                End-of-day energy policy
+                <select id="horizon-policy" value={horizonPolicy} onChange={(e) => { setHorizonPolicy(e.target.value); change(); }}>
+                  <option value="minimum_reserve">Minimum reserve only</option>
+                  <option value="terminal_value">Configured terminal value</option>
+                  <option value="next_day_proxy">Next-day forecast proxy</option>
+                </select>
+                <small>Values energy carried beyond the auction day separately from cash contribution.</small>
+              </label>
+              {horizonPolicy === "terminal_value" && <NF id="terminal-value" label="Terminal energy value" hint="Illustrative value for stored energy above the end-of-day reserve" value={terminalValue} unit="€/MWh" min={0} change={(v) => { setTerminalValue(v); change(); }} />}
               <div className="field-grid">
                 <NF
                   id="exchange-fee"
@@ -831,6 +859,13 @@ export default function Workbench() {
                 {message.text}
               </div>
             )}
+            {result?.order_generation && !dirty && (
+              <div className="status-message info" role="status">
+                <ShieldCheck size={17} aria-hidden="true" />
+                Executable-order check passed: {result.order_generation.adjusted_order_count} quantities quantized to {result.order_generation.volume_increment_mw} MW, {result.order_generation.repaired_order_count} repair steps, contribution impact {signedMoney(result.order_generation.contribution_delta_eur)}.
+                {result.horizon && result.horizon.policy !== "minimum_reserve" ? ` Terminal energy value: ${money(result.horizon.terminal_energy_value_eur)} (${result.horizon.policy.replaceAll("_", " ")}).` : ""}
+              </div>
+            )}
             {dst && (
               <div className="status-message warning">
                 <AlertTriangle size={17} />
@@ -897,6 +932,7 @@ export default function Workbench() {
                   baseline={baseline}
                   delta={delta}
                   scenario={scenario}
+                  riskPosture={riskPosture}
                   setBase={() => {
                     if (result) {
                       setBaseline(result);
@@ -1284,12 +1320,14 @@ function Compare({
   baseline,
   delta,
   scenario,
+  riskPosture,
   setBase,
 }: {
   result?: Simulation;
   baseline?: Simulation;
   delta?: number;
   scenario: string;
+  riskPosture: string;
   setBase: () => void;
 }) {
   const rows = [
@@ -1357,6 +1395,11 @@ function Compare({
         </span>
       </div>
       <p className="scenario-instruction"><strong>How to compare:</strong> choose a scenario in the left panel, run the optimization, then return here. The previous baseline and new completed run will be shown side by side.</p>
+      {result?.risk && <div className="scenario-callout" role="status">
+        <strong>Risk-aware reference: {result.risk.recommended_scenario}</strong>
+        <span>{result.risk.recommendation}</span>
+        <span>Downside {money(result.risk.downside_contribution_eur)} · probability-weighted {money(result.risk.expected_contribution_eur)} · upside {money(result.risk.upside_contribution_eur)} · {riskPosture.replaceAll("_", " ")}</span>
+      </div>}
       <details className="scenario-definitions">
         <summary>Scenario Definitions</summary>
         <div className="scenario-guide" aria-label="Available scenario definitions">
