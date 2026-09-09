@@ -80,6 +80,17 @@ def test_terminal_value_is_reported_separately_from_cash_contribution():
     assert any(order.confidence == "high" for order in result.orders)
 
 
+def test_risk_posture_changes_the_selected_executable_portfolio():
+    expected = run_simulation(SimulationRequest(risk_posture="expected_value"))
+    protected = run_simulation(SimulationRequest(risk_posture="downside_protected"))
+    assert expected.risk.recommended_scenario == "Expected"
+    assert protected.risk.recommended_scenario == "Downside"
+    expected_orders = [(o.delivery_start_utc, o.side, o.volume_mw) for o in expected.orders]
+    protected_orders = [(o.delivery_start_utc, o.side, o.volume_mw) for o in protected.orders]
+    assert expected_orders != protected_orders
+    assert protected.validation.status == "passed"
+
+
 def test_milp_retains_value_when_throughput_constraint_binds():
     values = [50, 70, 10, 100, 130, 20, 0, 0]
     points = [PricePoint(timestamp_utc=datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(hours=i), price_eur_mwh=value) for i, value in enumerate(values)]

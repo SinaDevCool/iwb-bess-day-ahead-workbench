@@ -7,9 +7,8 @@ from uuid import uuid4
 
 from backend.db.repository import save_simulation_with_event
 from backend.domain.models import SimulationRequest, SimulationResult
-from backend.optimization.milp_optimizer import optimize_dispatch
 from backend.services.forecast_service import apply_scenario, build_demo_forecast
-from backend.services.decision_support_service import build_executable_orders, build_risk_summary, resolve_terminal_value
+from backend.services.decision_support_service import build_executable_orders, resolve_terminal_value, select_risk_aware_dispatch
 from backend.validation.validators import validate_dispatch
 
 
@@ -22,7 +21,7 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
         conservative=request.strategy == "conservative",
     )
     terminal_value = resolve_terminal_value(request)
-    dispatch, optimization = optimize_dispatch(prices, request.battery, request.market, terminal_value)
+    dispatch, optimization, risk, stable_intervals = select_risk_aware_dispatch(request, base_prices, prices, terminal_value)
     simulation_id = f"sim-{uuid4().hex[:10]}"
     orders, order_validation, proposal, order_generation = build_executable_orders(simulation_id, dispatch, request.market, request.battery)
     dispatch_validation = validate_dispatch(dispatch, request.battery)
@@ -40,7 +39,6 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
     contribution = sum(row.interval_pnl_eur for row in dispatch)
     incremental_energy = max(proposal["proposal_terminal_soc_mwh"] - request.battery.target_soc_mwh, 0)
     terminal_energy_value = round(incremental_energy * terminal_value, 2)
-    risk, stable_intervals = build_risk_summary(request, base_prices, terminal_value)
     for order in orders:
         if order.delivery_start_utc in stable_intervals:
             order.confidence = "high"
