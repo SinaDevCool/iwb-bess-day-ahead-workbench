@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.api.main import app
@@ -50,6 +51,13 @@ def test_limit_conditions_are_side_specific(tmp_path, monkeypatch):
     ]))
     statuses = {item.submitted_order.client_order_id: item.execution_status.value for item in result.order_results}
     assert statuses == {"buy-reject": "NOT_EXECUTED", "sell-reject": "NOT_EXECUTED", "buy-equal": "EXECUTED", "sell-equal": "EXECUTED"}
+    outcomes = {item.submitted_order.client_order_id: item for item in result.order_results}
+    assert outcomes["buy-reject"].price_condition_operator == "<="
+    assert outcomes["buy-reject"].price_margin_eur_mwh == -5
+    assert outcomes["sell-reject"].price_condition_operator == ">="
+    assert outcomes["sell-reject"].price_margin_eur_mwh == -8
+    assert outcomes["buy-equal"].price_condition_passed is True
+    assert outcomes["buy-equal"].price_margin_eur_mwh == 0
 
 
 def test_infeasible_order_is_not_silently_reduced(tmp_path, monkeypatch):
@@ -59,6 +67,30 @@ def test_infeasible_order_is_not_silently_reduced(tmp_path, monkeypatch):
     assert outcome.execution_status.value == "PHYSICALLY_INFEASIBLE"
     assert outcome.executed_volume_mw == 0
     assert result.summary.final_soc_mwh == DEFAULT_BATTERY.initial_soc_mwh
+    assert result.submitted_portfolio_feasible is False
+    assert result.executed_schedule_feasible is True
+
+
+def test_execution_evidence_matches_energy_and_soc_math(tmp_path, monkeypatch):
+    monkeypatch.setattr("backend.db.repository.DB_PATH", tmp_path / "test.sqlite")
+    result = run_order_simulation(request_with([(5, order("buy", "BUY", "MARKET", 10))]))
+    outcome = result.order_results[0]
+    assert outcome.price_condition_operator is None
+    assert outcome.price_margin_eur_mwh is None
+    assert outcome.price_condition_passed is True
+    assert outcome.executed_energy_mwh == 10
+    assert outcome.soc_delta_mwh > 0
+    assert outcome.soc_after_mwh == pytest.approx(outcome.soc_before_mwh + outcome.soc_delta_mwh, abs=1e-6)
+    assert result.summary.net_contribution_eur == outcome.contribution_eur
+
+
+def test_price_rejection_does_not_change_soc_or_contribution(tmp_path, monkeypatch):
+    monkeypatch.setattr("backend.db.repository.DB_PATH", tmp_path / "test.sqlite")
+    result = run_order_simulation(request_with([(5, order("rejected", "BUY", "LIMIT", 10, 1))]))
+    outcome = result.order_results[0]
+    assert outcome.soc_after_mwh == outcome.soc_before_mwh
+    assert outcome.executed_energy_mwh == 0
+    assert result.summary.net_contribution_eur == 0
 
 
 def test_conflicting_sides_are_reported(tmp_path, monkeypatch):

@@ -5,13 +5,13 @@ Interview prototype for a 100 MWh / 50 MW battery participating in a configurabl
 ## Homework workflow
 
 1. Enter or edit the hourly Day-Ahead price forecast.
-2. Enter BUY/SELL orders and choose `Market` or `Limit` for every order. Market orders are always eligible in the simulation; Limit orders execute only when the entered forecast price crosses their side-specific limit.
+2. Enter BUY/SELL orders and choose `Market` or `Limit` for every order. Market orders have no limit-price condition; Limit orders pass the price condition only when the entered forecast crosses their side-specific limit. Every price-accepted order remains subject to physical feasibility.
 3. Run the simulation to process orders chronologically through the battery state of charge.
 4. Inspect executed, price-rejected and physically infeasible orders alongside the shared power/SoC chart, economics and validation findings.
 
 The entered forecast is deliberately used as the simulated auction clearing and settlement price. Execution is all-or-nothing per entered order; the prototype does not model clearing probability, partial fills, price impact, a live market feed or order submission.
 
-The dispatch is solved as a mixed-integer linear program with SciPy/HiGHS. It explicitly enforces SoC balance and bounds, power/grid limits, unavailable periods, minimum terminal SoC, cycle throughput, and mutually exclusive charging/discharging. A single domain economics module supplies battery-side energy, revenue, purchase, degradation, transaction-fee and contribution calculations to dispatch, orders, edits and validation.
+The homework-facing Order Simulator reconstructs dispatch deterministically from the trader's entered orders. The separate Advanced Optimizer solves dispatch as a mixed-integer linear program with SciPy/HiGHS. Both workflows reuse the same domain economics and physical-validation modules.
 
 ## Decision semantics
 

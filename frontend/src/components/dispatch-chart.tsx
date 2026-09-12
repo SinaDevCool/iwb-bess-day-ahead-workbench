@@ -6,11 +6,12 @@ import {
   ComposedChart,
   ReferenceLine,
   ResponsiveContainer,
+  Scatter,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import type { Battery, Dispatch } from "@/types/api";
+import type { Battery, Dispatch, SimulatedOrderResult } from "@/types/api";
 
 export function DispatchChart({
   rows,
@@ -19,6 +20,9 @@ export function DispatchChart({
   mode = "optimization",
   executedOrderCount,
   submittedOrderCount,
+  orderResults,
+  selectedOrderId,
+  onSelectOrder,
 }: {
   rows: Dispatch[];
   battery: Battery;
@@ -26,6 +30,9 @@ export function DispatchChart({
   mode?: "optimization" | "order-simulation";
   executedOrderCount?: number;
   submittedOrderCount?: number;
+  orderResults?: SimulatedOrderResult[];
+  selectedOrderId?: string;
+  onSelectOrder?: (id: string) => void;
 }) {
   const data = rows.map((row) => ({
     ...row,
@@ -56,6 +63,14 @@ export function DispatchChart({
     ? `${executedOrderCount ?? 0} of ${submittedOrderCount ?? 0} submitted orders executed under the entered price forecast.`
     : `The battery charges in ${charges.length} low-price intervals and discharges in ${discharges.length} high-price intervals.`;
   const forecastLabel = forecast?.source_type === "manual" ? forecast.source_name : "Illustrative Day-Ahead Price Forecast";
+  const markers = (orderResults ?? []).map((result) => ({
+    time: rows.find((row) => row.timestamp_utc === result.submitted_order.delivery_start_utc)?.timestamp_local.slice(11, 16) ?? "",
+    price_eur_mwh: result.forecast_price_eur_mwh,
+    orderId: result.submitted_order.client_order_id,
+    side: result.submitted_order.side,
+    status: result.execution_status,
+  }));
+  const selectedTime = markers.find((marker) => marker.orderId === selectedOrderId)?.time;
   return (
     <figure className="dispatch-figure">
       <div className="chart-overview">
@@ -123,6 +138,18 @@ export function DispatchChart({
                 fill="url(#priceFill)"
                 strokeWidth={2.5}
                 dot={false}
+              />
+              {selectedTime && <ReferenceLine x={selectedTime} stroke="#087d78" strokeDasharray="3 3" />}
+              <Scatter
+                data={markers}
+                dataKey="price_eur_mwh"
+                name="Submitted orders"
+                shape={<OrderMarker selectedOrderId={selectedOrderId} />}
+                onClick={(point) => {
+                  const marker = point as unknown as { orderId?: string; payload?: { orderId?: string } };
+                  const orderId = marker.orderId ?? marker.payload?.orderId;
+                  if (orderId) onSelectOrder?.(orderId);
+                }}
               />
             </ComposedChart>
           </ResponsiveContainer>
@@ -253,6 +280,20 @@ export function DispatchChart({
       </div>
     </figure>
   );
+}
+
+function OrderMarker(props: { cx?: number; cy?: number; payload?: { orderId: string; side: "BUY" | "SELL"; status: string }; selectedOrderId?: string }) {
+  const { cx = 0, cy = 0, payload, selectedOrderId } = props;
+  if (!payload) return <g />;
+  const executed = payload.status === "EXECUTED";
+  const infeasible = payload.status === "PHYSICALLY_INFEASIBLE";
+  const fill = executed ? (payload.side === "BUY" ? "#1d9c98" : "#e67d11") : "#fff";
+  const stroke = infeasible ? "#b54838" : payload.side === "BUY" ? "#1d9c98" : "#e67d11";
+  const selected = payload.orderId === selectedOrderId;
+  return <g role="button" tabIndex={0} aria-label={`${payload.side} order ${payload.status.toLowerCase().replaceAll("_", " ")}`}>
+    {selected && <circle cx={cx} cy={cy} r={9} fill="none" stroke="#087d78" strokeWidth={2} />}
+    <circle cx={cx} cy={cy} r={5} fill={fill} stroke={stroke} strokeWidth={2} />
+  </g>;
 }
 
 function Tip({

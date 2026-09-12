@@ -36,7 +36,8 @@ describe("OrderSimulatorWorkbench", () => {
     expect(await screen.findByRole("heading", { name: "Simulate Entered Orders" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("24/24 values")).toBeInTheDocument());
     expect(screen.getAllByRole("button", { name: /Remove order/ })).toHaveLength(4);
-    expect(screen.getByLabelText("Limit price for order 1")).toBeDisabled();
+    expect(screen.queryByLabelText("Limit price for order 1")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Market order")).toHaveLength(2);
     expect(screen.getByLabelText("Limit price for order 2")).toBeEnabled();
   });
 
