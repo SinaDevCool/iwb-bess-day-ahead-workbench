@@ -44,7 +44,7 @@ describe("OrderSimulatorWorkbench", () => {
   it("switches the limit input when the order type changes and can add an order", async () => {
     render(<OrderSimulatorWorkbench openOptimizer={() => undefined} />);
     await waitFor(() => expect(screen.getByText("24/24 values")).toBeInTheDocument());
-    const types = screen.getAllByLabelText("Type");
+    const types = screen.getAllByLabelText(/Type for order/);
     fireEvent.change(types[0], { target: { value: "LIMIT" } });
     expect(screen.getByLabelText("Limit price for order 1")).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Add Order" }));
