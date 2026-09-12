@@ -75,6 +75,8 @@ export type SimulatedOrderResult = {
   executed_volume_mw: number; execution_price_eur_mwh?: number | null; reason_code: string; reason: string;
   soc_before_mwh: number; soc_after_mwh: number; contribution_eur: number;
   sales_revenue_eur: number; purchase_cost_eur: number; degradation_cost_eur: number; transaction_fee_eur: number;
+  price_condition_operator?: "<=" | ">=" | null; price_condition_passed: boolean; price_margin_eur_mwh?: number | null;
+  executed_energy_mwh: number; soc_delta_mwh: number;
 };
 export type OrderSimulationSummary = {
   submitted_order_count: number; executed_order_count: number; not_executed_order_count: number; infeasible_order_count: number;
@@ -89,6 +91,7 @@ export type OrderSimulation = {
   order_results: SimulatedOrderResult[]; dispatch: Dispatch[];
   validation: { status: ValidationStatus; findings: { severity: string; code: string; message: string; interval?: number }[] };
   summary: OrderSimulationSummary; audit: Record<string, unknown>;
+  submitted_portfolio_feasible: boolean; executed_schedule_feasible: boolean;
 };
 export type SensitivityItem = {
   key: string; label: string; baseline_value: number; tested_value: number; unit: string;

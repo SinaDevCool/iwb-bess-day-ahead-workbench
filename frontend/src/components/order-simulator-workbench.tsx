@@ -35,6 +35,9 @@ export function OrderSimulatorWorkbench({ openOptimizer }: { openOptimizer: () =
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [forecastOpen, setForecastOpen] = useState(false);
+  const [batteryOpen, setBatteryOpen] = useState(false);
+  const [paste, setPaste] = useState("");
   const errorRef = useRef<HTMLDivElement>(null);
 
   const loadDemo = async (deliveryDate = date, resetOrders = false) => {
@@ -69,7 +72,7 @@ export function OrderSimulatorWorkbench({ openOptimizer }: { openOptimizer: () =
     return () => removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  const setChanged = () => { setDirty(true); setResult(undefined); setError(""); };
+  const setChanged = () => { setDirty(true); setError(""); };
   const updateOrder = (id: string, patch: Partial<DraftOrder>) => {
     setOrders((current) => current.map((order) => order.id === id ? { ...order, ...patch } : order).sort((a, b) => a.interval - b.interval));
     setChanged();
@@ -129,6 +132,14 @@ export function OrderSimulatorWorkbench({ openOptimizer }: { openOptimizer: () =
       setBusy(false);
     }
   };
+  const applyPaste = () => {
+    const values = paste.trim().split(/[\n,;\s]+/).filter(Boolean);
+    if (values.length !== points.length || values.some((value) => !Number.isFinite(Number(value)))) {
+      setError(`Paste exactly ${points.length} numeric prices.`);
+      return;
+    }
+    setPrices(values); setChanged(); setPaste(""); setForecastOpen(false);
+  };
 
   if (!battery || !market) return <div className="simulator-loading"><LoaderCircle className="spin" aria-hidden="true" /> Loading order simulator…</div>;
 
@@ -142,29 +153,31 @@ export function OrderSimulatorWorkbench({ openOptimizer }: { openOptimizer: () =
     <main id="order-simulator" className="order-simulator-page">
       <section className="simulator-hero">
         <div><span className="eyebrow">IWB HOMEWORK · SWISS DAY-AHEAD</span><h1>Simulate Entered Orders</h1><p>Enter a price forecast and Market or Limit orders, then inspect execution, battery schedule and state of charge.</p></div>
-        <div className="mode-switch" aria-label="Workbench mode"><button type="button" className="active" aria-pressed="true">Order Simulation</button><button type="button" aria-pressed="false" onClick={openOptimizer}>Dispatch Optimizer</button></div>
+        <nav className="mode-switch" aria-label="Workbench mode"><span aria-current="page">Order Simulator</span><button type="button" onClick={openOptimizer}>Advanced Optimizer</button></nav>
       </section>
+      <div className="run-context"><strong>{date}</strong><span>Switzerland · 60-minute products</span><span>100 MWh · 50 MW · 2 h</span><button type="button" onClick={() => setBatteryOpen((value) => !value)} aria-expanded={batteryOpen}>Edit assumptions</button></div>
 
       <section className="simulator-layout">
         <aside className="simulator-inputs" aria-label="Simulation inputs">
           <div className="simulator-card compact-config">
             <div className="simulator-card-heading"><div><span className="step-badge">1</span><h2>Delivery &amp; Battery</h2></div><button type="button" className="icon-button" aria-label="Restore demo inputs" title="Restore demo inputs" onClick={() => void loadDemo(date, true)}><RotateCcw size={16} aria-hidden="true" /></button></div>
             <label htmlFor="sim-date">Delivery date<input id="sim-date" name="delivery-date" type="date" autoComplete="off" value={date} onChange={(event) => { const value = event.target.value; setDate(value); void loadDemo(value, true); }} /></label>
-            <div className="mini-field-grid">
+            {batteryOpen && <div className="mini-field-grid">
               <NumberField label="Initial SoC" unit="MWh" value={battery.initial_soc_mwh} change={(value) => { setBattery({ ...battery, initial_soc_mwh: value }); setChanged(); }} />
               <NumberField label="Minimum SoC" unit="MWh" value={battery.min_soc_mwh} change={(value) => { setBattery({ ...battery, min_soc_mwh: value }); setChanged(); }} />
               <NumberField label="Maximum SoC" unit="MWh" value={battery.max_soc_mwh} change={(value) => { setBattery({ ...battery, max_soc_mwh: value }); setChanged(); }} />
               <NumberField label="End reserve" unit="MWh" value={battery.target_soc_mwh} change={(value) => { setBattery({ ...battery, target_soc_mwh: value }); setChanged(); }} />
               <NumberField label="Charge limit" unit="MW" value={battery.max_charge_power_mw} change={(value) => { setBattery({ ...battery, max_charge_power_mw: value }); setChanged(); }} />
               <NumberField label="Discharge limit" unit="MW" value={battery.max_discharge_power_mw} change={(value) => { setBattery({ ...battery, max_discharge_power_mw: value }); setChanged(); }} />
-            </div>
-            <p className="assumption-note">100 MWh capacity · {number(battery.round_trip_efficiency * 100, 0)}% round-trip efficiency · {number(battery.max_equivalent_cycles)} EFC/day</p>
+            </div>}
+            <p className="assumption-note">100 MWh · 50 MW baseline · 2 h · {number(battery.round_trip_efficiency * 100, 0)}% efficiency · {number(battery.max_equivalent_cycles)} EFC/day</p>
           </div>
 
           <div className="simulator-card">
-            <div className="simulator-card-heading"><div><span className="step-badge">2</span><h2>Day-Ahead Forecast</h2></div><strong>{prices.filter((price) => price.trim() !== "").length}/{points.length}</strong></div>
+            <div className="simulator-card-heading"><div><span className="step-badge">1</span><h2>Day-Ahead Forecast</h2></div><button type="button" className="secondary small" onClick={() => setForecastOpen((value) => !value)} aria-expanded={forecastOpen}>Edit / Paste</button></div>
             <p>Enter the simulated clearing price for each hourly delivery product.</p>
-            <div className="forecast-grid">{points.map((point, index) => <label key={point.timestamp_utc} htmlFor={`forecast-${index}`}><span>{time(point.timestamp_utc, market.timezone)}</span><span className="unit-input"><input id={`forecast-${index}`} name={`forecast-${index}`} type="number" inputMode="decimal" autoComplete="off" step={market.price_increment_eur_mwh} value={prices[index] ?? ""} onChange={(event) => { setPrices((current) => current.map((value, item) => item === index ? event.target.value : value)); setChanged(); }} /><small>€/MWh</small></span></label>)}</div>
+            <div className="forecast-summary"><strong>{prices.filter(Boolean).length}/{points.length} values</strong><span>€{Math.min(...prices.map(Number))}–€{Math.max(...prices.map(Number))}/MWh</span></div>
+            {forecastOpen && <><textarea className="forecast-paste" value={paste} onChange={(event) => setPaste(event.target.value)} placeholder="Paste 24 prices separated by lines, commas or semicolons…" aria-label="Paste Day-Ahead prices"/><button type="button" className="secondary small" onClick={applyPaste}>Apply Pasted Prices</button><div className="forecast-grid">{points.map((point, index) => <label key={point.timestamp_utc} htmlFor={`forecast-${index}`}><span>{time(point.timestamp_utc, market.timezone)}</span><span className="unit-input"><input id={`forecast-${index}`} name={`forecast-${index}`} type="number" inputMode="decimal" autoComplete="off" step={market.price_increment_eur_mwh} value={prices[index] ?? ""} onChange={(event) => { setPrices((current) => current.map((value, item) => item === index ? event.target.value : value)); setChanged(); }} /><small>€/MWh</small></span></label>)}</div></>}
           </div>
         </aside>
 

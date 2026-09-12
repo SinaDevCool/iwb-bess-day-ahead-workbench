@@ -45,6 +45,9 @@ def _not_executed(order: SubmittedOrder, price: float, soc: float) -> SimulatedO
         soc_before_mwh=soc,
         soc_after_mwh=soc,
         contribution_eur=0,
+        price_condition_operator="<=" if order.side == "BUY" else ">=",
+        price_condition_passed=False,
+        price_margin_eur_mwh=(order.limit_price_eur_mwh - price) if order.side == "BUY" else (price - order.limit_price_eur_mwh),
     )
 
 
@@ -151,6 +154,11 @@ def run_order_simulation(request: OrderSimulationRequest) -> OrderSimulationResu
                     purchase_cost_eur=round(item.purchase_cost_eur, 2),
                     degradation_cost_eur=round(item.degradation_cost_eur, 2),
                     transaction_fee_eur=round(item.transaction_fee_eur, 2),
+                    price_condition_operator=None if order.order_type == SubmittedOrderType.MARKET else ("<=" if order.side == "BUY" else ">="),
+                    price_condition_passed=True,
+                    price_margin_eur_mwh=None if order.order_type == SubmittedOrderType.MARKET else ((order.limit_price_eur_mwh - point.price_eur_mwh) if order.side == "BUY" else (point.price_eur_mwh - order.limit_price_eur_mwh)),
+                    executed_energy_mwh=round(order.volume_mw * dt, 6),
+                    soc_delta_mwh=round(item.soc_delta_mwh, 6),
                 ))
                 sales += item.sales_revenue_eur
                 purchases += item.purchase_cost_eur
@@ -223,6 +231,8 @@ def run_order_simulation(request: OrderSimulationRequest) -> OrderSimulationResu
             "validation_version": "physical_and_order_validation_v4",
             "clearing_assumption": "Forecast price is used as simulated auction clearing and settlement price; full execution only.",
         },
+        submitted_portfolio_feasible=not bool(infeasible),
+        executed_schedule_feasible=physical.status != "failed",
     )
     payload = result.model_dump(mode="json")
     save_simulation_with_event(payload, created.isoformat(), "ORDER_SIMULATION_CREATED", {"run_type": result.run_type, "validation_status": validation.status})

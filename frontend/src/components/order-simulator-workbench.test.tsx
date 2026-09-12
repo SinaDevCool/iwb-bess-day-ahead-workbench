@@ -34,7 +34,7 @@ describe("OrderSimulatorWorkbench", () => {
   it("loads an hourly forecast and the example Market and Limit orders", async () => {
     render(<OrderSimulatorWorkbench openOptimizer={() => undefined} />);
     expect(await screen.findByRole("heading", { name: "Simulate Entered Orders" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText("24/24")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("24/24 values")).toBeInTheDocument());
     expect(screen.getAllByRole("button", { name: /Remove order/ })).toHaveLength(4);
     expect(screen.getByLabelText("Limit price for order 1")).toBeDisabled();
     expect(screen.getByLabelText("Limit price for order 2")).toBeEnabled();
@@ -42,7 +42,7 @@ describe("OrderSimulatorWorkbench", () => {
 
   it("switches the limit input when the order type changes and can add an order", async () => {
     render(<OrderSimulatorWorkbench openOptimizer={() => undefined} />);
-    await waitFor(() => expect(screen.getByText("24/24")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("24/24 values")).toBeInTheDocument());
     const types = screen.getAllByLabelText("Type");
     fireEvent.change(types[0], { target: { value: "LIMIT" } });
     expect(screen.getByLabelText("Limit price for order 1")).toBeEnabled();

@@ -525,6 +525,11 @@ class SimulatedOrderResult(BaseModel):
     purchase_cost_eur: float = 0
     degradation_cost_eur: float = 0
     transaction_fee_eur: float = 0
+    price_condition_operator: Literal["<=", ">="] | None = None
+    price_condition_passed: bool = True
+    price_margin_eur_mwh: float | None = None
+    executed_energy_mwh: float = 0
+    soc_delta_mwh: float = 0
 
 
 class OrderSimulationSummary(BaseModel):
@@ -562,6 +567,8 @@ class OrderSimulationResult(BaseModel):
     validation: ValidationResult
     summary: OrderSimulationSummary
     audit: dict[str, object]
+    submitted_portfolio_feasible: bool
+    executed_schedule_feasible: bool
 
 
 class SimulationRunSummary(BaseModel):
