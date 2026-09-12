@@ -1,6 +1,15 @@
 # IWB BESS Day-Ahead Workbench
 
-Interview prototype for a 100 MWh / 50 MW battery participating in a configurable Day-Ahead auction. The product converts a price forecast and battery assumptions into a feasible dispatch, scenario comparison, explainable economics, and a validated preview-only order proposal.
+Interview prototype for a 100 MWh / 50 MW battery participating in a configurable Day-Ahead auction. Its primary homework workflow simulates trader-entered Market and Limit orders against an entered price forecast and graphs the resulting battery schedule. The existing optimization workbench remains available as an advanced mode that converts a forecast and battery assumptions into a feasible dispatch, scenario comparison, explainable economics, and a validated preview-only order proposal.
+
+## Homework workflow
+
+1. Enter or edit the hourly Day-Ahead price forecast.
+2. Enter BUY/SELL orders and choose `Market` or `Limit` for every order. Market orders are always eligible in the simulation; Limit orders execute only when the entered forecast price crosses their side-specific limit.
+3. Run the simulation to process orders chronologically through the battery state of charge.
+4. Inspect executed, price-rejected and physically infeasible orders alongside the shared power/SoC chart, economics and validation findings.
+
+The entered forecast is deliberately used as the simulated auction clearing and settlement price. Execution is all-or-nothing per entered order; the prototype does not model clearing probability, partial fills, price impact, a live market feed or order submission.
 
 The dispatch is solved as a mixed-integer linear program with SciPy/HiGHS. It explicitly enforces SoC balance and bounds, power/grid limits, unavailable periods, minimum terminal SoC, cycle throughput, and mutually exclusive charging/discharging. A single domain economics module supplies battery-side energy, revenue, purchase, degradation, transaction-fee and contribution calculations to dispatch, orders, edits and validation.
 

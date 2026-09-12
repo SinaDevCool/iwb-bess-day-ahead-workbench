@@ -14,10 +14,11 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.config.defaults import DEFAULT_BATTERY, DEFAULT_MARKET
 from backend.db.repository import add_audit_event, get_simulation, initialize, list_audit_events, list_simulations, save_simulation_with_event
-from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order, OrderProposalEdit, SimulationDisplayNameUpdate, SimulationRequest, SimulationRunSummary
+from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order, OrderProposalEdit, OrderSimulationRequest, OrderSimulationResult, SimulationDisplayNameUpdate, SimulationRequest, SimulationRunSummary
 from backend.domain.economics import calculate_interval, effective_transaction_fee
 from backend.services.forecast_service import build_demo_forecast
 from backend.services.simulation_service import run_simulation
+from backend.services.order_simulation_service import run_order_simulation
 from backend.services.run_identity_service import legacy_run_display_name
 from backend.validation.validators import validate_order_proposal
 
@@ -67,7 +68,7 @@ def _revalidate_payload(payload: dict):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "iwb-bess-day-ahead-workbench", "api_version": "2.1.0", "optimizer_version": "scipy_highs_milp_v1", "validation_version": "physical_and_order_validation_v4", "submission_mode": "preview_only"}
+    return {"status": "ok", "service": "iwb-bess-day-ahead-workbench", "api_version": "3.0.0", "optimizer_version": "scipy_highs_milp_v1", "order_simulation_version": "market_limit_v1", "validation_version": "physical_and_order_validation_v4", "submission_mode": "preview_only"}
 
 
 @app.get("/api/configuration")
@@ -83,8 +84,10 @@ def configuration():
 
 
 @app.get("/api/forecast")
-def forecast(delivery_date: str = "2026-09-09", product_minutes: Literal[15, 60] = 60):
+def forecast(delivery_date: str = "2026-09-09", product_minutes: int = Query(60, ge=15, le=60)):
     try:
+        if product_minutes not in (15, 60):
+            raise ValueError("Product duration must be 15 or 60 minutes")
         market = MarketConfig.model_validate({**DEFAULT_MARKET.model_dump(), "product_minutes": product_minutes})
         return {"delivery_date": delivery_date, "timezone": market.timezone, "points": build_demo_forecast(delivery_date, market)}
     except ValueError as error:
@@ -99,9 +102,31 @@ def simulate(request: SimulationRequest):
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
+@app.post("/api/order-simulations", response_model=OrderSimulationResult)
+def simulate_orders(request: OrderSimulationRequest):
+    """Simulate entered Market/Limit orders against the entered DA forecast."""
+    try:
+        return run_order_simulation(request)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/api/order-simulations")
+def order_simulations():
+    return {"items": [item for item in list_simulations() if item.get("run_type") == "ORDER_SIMULATION"]}
+
+
+@app.get("/api/order-simulations/{simulation_id}", response_model=OrderSimulationResult)
+def order_simulation(simulation_id: str):
+    payload = get_simulation(simulation_id)
+    if payload is None or payload.get("run_type") != "ORDER_SIMULATION":
+        raise HTTPException(status_code=404, detail="Order simulation not found")
+    return payload
+
+
 @app.get("/api/simulations")
 def simulations():
-    return {"items": list_simulations()}
+    return {"items": [item for item in list_simulations() if item.get("run_type") != "ORDER_SIMULATION"]}
 
 
 def _run_summary(payload: dict) -> SimulationRunSummary:
@@ -141,7 +166,7 @@ def simulation_runs(
     """Return compact saved-run metadata without dispatch and order arrays."""
     if product_minutes is not None and product_minutes not in (15, 60):
         raise HTTPException(status_code=422, detail="product_minutes must be 15 or 60")
-    candidates = list_simulations(100)
+    candidates = [item for item in list_simulations(100) if item.get("run_type") != "ORDER_SIMULATION"]
     if delivery_date:
         candidates = [item for item in candidates if item.get("delivery_date") == delivery_date]
     if product_minutes:

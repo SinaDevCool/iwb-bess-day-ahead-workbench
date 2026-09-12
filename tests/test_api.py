@@ -13,6 +13,10 @@ def test_health_and_configuration():
 
 
 def test_forecast_rejects_unsupported_or_invalid_intervals_and_dates():
+    for duration in (15, 60):
+        response = client.get("/api/forecast", params={"product_minutes": duration})
+        assert response.status_code == 200
+        assert len(response.json()["points"]) == 1440 // duration
     for duration in (0, -15, 30):
         assert client.get("/api/forecast", params={"product_minutes": duration}).status_code == 422
     assert client.get("/api/forecast", params={"delivery_date": "not-a-date"}).status_code == 422

@@ -16,10 +16,16 @@ export function DispatchChart({
   rows,
   battery,
   forecast,
+  mode = "optimization",
+  executedOrderCount,
+  submittedOrderCount,
 }: {
   rows: Dispatch[];
   battery: Battery;
   forecast?: { source_type: "illustrative" | "manual" | "file"; source_name: string; version: string };
+  mode?: "optimization" | "order-simulation";
+  executedOrderCount?: number;
+  submittedOrderCount?: number;
 }) {
   const data = rows.map((row) => ({
     ...row,
@@ -46,14 +52,16 @@ export function DispatchChart({
       battery.capacity_mwh,
     ]),
   ].sort((a, b) => a - b);
-  const summary = `The battery charges in ${charges.length} low-price intervals and discharges in ${discharges.length} high-price intervals.`;
+  const summary = mode === "order-simulation"
+    ? `${executedOrderCount ?? 0} of ${submittedOrderCount ?? 0} submitted orders executed under the entered price forecast.`
+    : `The battery charges in ${charges.length} low-price intervals and discharges in ${discharges.length} high-price intervals.`;
   const forecastLabel = forecast?.source_type === "manual" ? forecast.source_name : "Illustrative Day-Ahead Price Forecast";
   return (
     <figure className="dispatch-figure">
       <div className="chart-overview">
         <div>
-          <span className="chart-kicker">OPTIMIZATION RESULT</span>
-          <h3>Day-Ahead Battery Dispatch</h3>
+          <span className="chart-kicker">{mode === "order-simulation" ? "ORDER SIMULATION RESULT" : "OPTIMIZATION RESULT"}</span>
+          <h3>{mode === "order-simulation" ? "Schedule From Entered Orders" : "Day-Ahead Battery Dispatch"}</h3>
           <p>{summary}</p>
         </div>
         <div className="chart-facts">

@@ -29,6 +29,7 @@ import {
 } from "@/components/analytics-charts";
 import { SavedRunComparison } from "@/components/comparison/saved-run-comparison";
 import { SensitivityPanel, SensitivitySummary } from "@/components/sensitivity-panel";
+import { OrderSimulatorWorkbench } from "@/components/order-simulator-workbench";
 import { api, download } from "@/lib/api";
 import type { Battery, Market, Order, Simulation, SimulationSummary } from "@/types/api";
 
@@ -82,7 +83,32 @@ const compactTabLabels: Record<TabKey, string> = {
   compare: "Compare",
 };
 
-export default function Workbench() {
+export default function WorkbenchRouter() {
+  const [mode, setMode] = useState<"simulate" | "optimize">("simulate");
+  useEffect(() => {
+    const restore = () => {
+      const parameters = new URLSearchParams(location.search);
+      setMode(parameters.get("mode") === "optimize" || parameters.has("tab") ? "optimize" : "simulate");
+    };
+    restore();
+    addEventListener("popstate", restore);
+    return () => removeEventListener("popstate", restore);
+  }, []);
+  if (mode === "simulate") return <OrderSimulatorWorkbench openOptimizer={() => {
+    const url = new URL(location.href);
+    url.searchParams.set("mode", "optimize");
+    history.pushState({}, "", url);
+    setMode("optimize");
+  }} />;
+  return <OptimizerWorkbench openSimulator={() => {
+    const url = new URL(location.href);
+    url.search = "?mode=simulate";
+    history.pushState({}, "", url);
+    setMode("simulate");
+  }} />;
+}
+
+function OptimizerWorkbench({ openSimulator }: { openSimulator: () => void }) {
   const [battery, setBattery] = useState(defaultBattery),
     [market, setMarket] = useState(defaultMarket),
     [date, setDate] = useState("2026-09-09"),
@@ -514,6 +540,10 @@ export default function Workbench() {
               {formatDate(date)} · {market.bidding_zone} ·{" "}
               {market.product_minutes}-minute products
             </p>
+          </div>
+          <div className="mode-switch" aria-label="Workbench mode">
+            <button type="button" aria-pressed="false" onClick={openSimulator}>Order Simulation</button>
+            <button type="button" className="active" aria-pressed="true">Dispatch Optimizer</button>
           </div>
         </section>
         <section className={`workspace${inputsCollapsed ? " sidebar-collapsed" : ""}${drawerWorkspace && !inputsCollapsed ? " drawer-open" : ""}`}>

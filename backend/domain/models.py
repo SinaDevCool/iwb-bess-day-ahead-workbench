@@ -107,6 +107,34 @@ class ForecastMetadata(BaseModel):
     bidding_zone: str = "CH"
 
 
+class SubmittedOrderType(str, Enum):
+    MARKET = "MARKET"
+    LIMIT = "LIMIT"
+
+
+class OrderExecutionStatus(str, Enum):
+    EXECUTED = "EXECUTED"
+    NOT_EXECUTED = "NOT_EXECUTED"
+    PHYSICALLY_INFEASIBLE = "PHYSICALLY_INFEASIBLE"
+
+
+class SubmittedOrder(BaseModel):
+    client_order_id: str = Field(..., min_length=1, max_length=80)
+    delivery_start_utc: datetime
+    side: Literal["BUY", "SELL"]
+    order_type: SubmittedOrderType
+    volume_mw: float = Field(..., gt=0)
+    limit_price_eur_mwh: float | None = None
+
+    @model_validator(mode="after")
+    def validate_order_type(self):
+        if self.order_type == SubmittedOrderType.LIMIT and self.limit_price_eur_mwh is None:
+            raise ValueError("Limit orders require a limit price")
+        if self.order_type == SubmittedOrderType.MARKET and self.limit_price_eur_mwh is not None:
+            raise ValueError("Market orders must not contain a limit price")
+        return self
+
+
 class SimulationRequest(BaseModel):
     delivery_date: str = "2026-09-09"
     scenario_name: str = "Expected forecast"
@@ -160,6 +188,54 @@ class SimulationRequest(BaseModel):
                 raise ValueError(f"Manual forecast must contain exactly {interval_count} prices")
             if any(not self.market.min_price_eur_mwh <= value <= self.market.max_price_eur_mwh for value in self.price_values):
                 raise ValueError("Manual forecast price is outside configured market limits")
+        return self
+
+
+class OrderSimulationRequest(BaseModel):
+    delivery_date: str = "2026-09-09"
+    battery: BatteryConfig = Field(default_factory=BatteryConfig)
+    market: MarketConfig = Field(default_factory=MarketConfig)
+    prices: list[PricePoint] | None = None
+    price_values: list[float] | None = None
+    forecast: ForecastMetadata = Field(default_factory=ForecastMetadata)
+    orders: list[SubmittedOrder] = Field(default_factory=list, max_length=500)
+
+    @model_validator(mode="after")
+    def validate_request(self):
+        SimulationRequest(
+            delivery_date=self.delivery_date,
+            battery=self.battery,
+            market=self.market,
+            prices=self.prices,
+            price_values=self.price_values,
+            forecast=self.forecast,
+        )
+        local_zone = ZoneInfo(self.market.timezone)
+        local_date = datetime.strptime(self.delivery_date, "%Y-%m-%d").date()
+        start = datetime.combine(local_date, time.min, tzinfo=local_zone).astimezone(timezone.utc)
+        end = datetime.combine(local_date + timedelta(days=1), time.min, tzinfo=local_zone).astimezone(timezone.utc)
+        ids = [order.client_order_id for order in self.orders]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Submitted order IDs must be unique")
+        for order in self.orders:
+            if order.delivery_start_utc.tzinfo is None:
+                raise ValueError("Order delivery timestamps must include a timezone")
+            timestamp = order.delivery_start_utc.astimezone(timezone.utc)
+            if timestamp < start or timestamp >= end:
+                raise ValueError(f"Order {order.client_order_id} is outside the delivery day")
+            elapsed_minutes = (timestamp - start).total_seconds() / 60
+            ratio = elapsed_minutes / self.market.product_minutes
+            if abs(ratio - round(ratio)) > 1e-9:
+                raise ValueError(f"Order {order.client_order_id} is not aligned to a delivery interval")
+            volume_ratio = order.volume_mw / self.market.volume_increment_mw
+            if abs(volume_ratio - round(volume_ratio)) > 1e-6:
+                raise ValueError(f"Order {order.client_order_id} violates the configured volume increment")
+            if order.limit_price_eur_mwh is not None:
+                if not self.market.min_price_eur_mwh <= order.limit_price_eur_mwh <= self.market.max_price_eur_mwh:
+                    raise ValueError(f"Order {order.client_order_id} limit price is outside market bounds")
+                price_ratio = order.limit_price_eur_mwh / self.market.price_increment_eur_mwh
+                if abs(price_ratio - round(price_ratio)) > 1e-6:
+                    raise ValueError(f"Order {order.client_order_id} violates the configured price increment")
         return self
 
 
@@ -432,6 +508,60 @@ class SimulationResult(BaseModel):
     forecast_points: list[PricePoint] = Field(default_factory=list)
     sensitivities: list[SensitivityItem] = Field(default_factory=list)
     approval_status: str | None = None
+
+
+class SimulatedOrderResult(BaseModel):
+    submitted_order: SubmittedOrder
+    forecast_price_eur_mwh: float
+    execution_status: OrderExecutionStatus
+    executed_volume_mw: float
+    execution_price_eur_mwh: float | None = None
+    reason_code: str
+    reason: str
+    soc_before_mwh: float
+    soc_after_mwh: float
+    contribution_eur: float
+    sales_revenue_eur: float = 0
+    purchase_cost_eur: float = 0
+    degradation_cost_eur: float = 0
+    transaction_fee_eur: float = 0
+
+
+class OrderSimulationSummary(BaseModel):
+    submitted_order_count: int
+    executed_order_count: int
+    not_executed_order_count: int
+    infeasible_order_count: int
+    initial_soc_mwh: float
+    final_soc_mwh: float
+    min_soc_mwh: float
+    max_soc_mwh: float
+    charged_grid_mwh: float
+    discharged_grid_mwh: float
+    throughput_mwh: float
+    equivalent_cycles: float
+    sales_revenue_eur: float
+    purchase_cost_eur: float
+    degradation_cost_eur: float
+    transaction_fee_eur: float
+    net_contribution_eur: float
+
+
+class OrderSimulationResult(BaseModel):
+    simulation_id: str
+    run_type: Literal["ORDER_SIMULATION"] = "ORDER_SIMULATION"
+    created_at_utc: datetime
+    delivery_date: str
+    battery: BatteryConfig
+    market: MarketConfig
+    forecast: ForecastMetadata
+    forecast_points: list[PricePoint]
+    submitted_orders: list[SubmittedOrder]
+    order_results: list[SimulatedOrderResult]
+    dispatch: list[DispatchRow]
+    validation: ValidationResult
+    summary: OrderSimulationSummary
+    audit: dict[str, object]
 
 
 class SimulationRunSummary(BaseModel):

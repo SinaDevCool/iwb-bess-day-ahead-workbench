@@ -31,6 +31,15 @@
 
 Configuration → continuous MILP optimization → market-increment conversion → sequential SoC reconstruction and repair → physical validation → order economics → summaries and saved-run comparison.
 
+The homework-facing order simulation is intentionally a separate entry path that reuses the same domain and calculation services:
+
+Entered forecast + Market/Limit orders → side-specific price acceptance → chronological SoC reconstruction → physical validation → shared economics and dispatch chart → persisted audit result.
+
+- A Market order is price-eligible by definition.
+- A BUY Limit order is eligible when forecast/clearing price ≤ its limit.
+- A SELL Limit order is eligible when forecast/clearing price ≥ its limit.
+- Eligible orders execute at the entered forecast price in this deterministic demo. An order that cannot execute in full within the battery envelope is clearly rejected as physically infeasible rather than silently resized.
+
 Rounding and repair evidence records the market increment, adjusted quantities, repair steps, removed volume and contribution impact for each saved run.
 
 ## Must be confirmed with IWB

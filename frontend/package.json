@@ -6,7 +6,8 @@
     "dev": "next dev --webpack -p 3100",
     "build": "next build --webpack",
     "start": "next start -p 3100",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -16,11 +17,15 @@
     "recharts": "^3.8.1"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^22.20.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
-    "typescript": "^5"
+    "jsdom": "^26.1.0",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }

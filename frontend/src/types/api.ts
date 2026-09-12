@@ -64,6 +64,32 @@ export type SensitivityCase = {
   value: number; unit: string; contribution_eur: number; delta_eur: number;
   feasible: boolean; bounded?: boolean; explanation: string;
 };
+export type SubmittedOrderType = "MARKET" | "LIMIT";
+export type OrderExecutionStatus = "EXECUTED" | "NOT_EXECUTED" | "PHYSICALLY_INFEASIBLE";
+export type SubmittedOrder = {
+  client_order_id: string; delivery_start_utc: string; side: "BUY" | "SELL";
+  order_type: SubmittedOrderType; volume_mw: number; limit_price_eur_mwh?: number | null;
+};
+export type SimulatedOrderResult = {
+  submitted_order: SubmittedOrder; forecast_price_eur_mwh: number; execution_status: OrderExecutionStatus;
+  executed_volume_mw: number; execution_price_eur_mwh?: number | null; reason_code: string; reason: string;
+  soc_before_mwh: number; soc_after_mwh: number; contribution_eur: number;
+  sales_revenue_eur: number; purchase_cost_eur: number; degradation_cost_eur: number; transaction_fee_eur: number;
+};
+export type OrderSimulationSummary = {
+  submitted_order_count: number; executed_order_count: number; not_executed_order_count: number; infeasible_order_count: number;
+  initial_soc_mwh: number; final_soc_mwh: number; min_soc_mwh: number; max_soc_mwh: number;
+  charged_grid_mwh: number; discharged_grid_mwh: number; throughput_mwh: number; equivalent_cycles: number;
+  sales_revenue_eur: number; purchase_cost_eur: number; degradation_cost_eur: number; transaction_fee_eur: number; net_contribution_eur: number;
+};
+export type OrderSimulation = {
+  simulation_id: string; run_type: "ORDER_SIMULATION"; created_at_utc: string; delivery_date: string;
+  battery: Battery; market: Market; forecast: { source_type: "illustrative" | "manual" | "file"; source_name: string; version: string; created_at_utc?: string; bidding_zone: string };
+  forecast_points: { timestamp_utc: string; price_eur_mwh: number }[]; submitted_orders: SubmittedOrder[];
+  order_results: SimulatedOrderResult[]; dispatch: Dispatch[];
+  validation: { status: ValidationStatus; findings: { severity: string; code: string; message: string; interval?: number }[] };
+  summary: OrderSimulationSummary; audit: Record<string, unknown>;
+};
 export type SensitivityItem = {
   key: string; label: string; baseline_value: number; tested_value: number; unit: string;
   contribution_delta_eur: number; marginal_value_eur: number; interpretation: string;
