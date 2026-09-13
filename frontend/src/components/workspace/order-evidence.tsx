@@ -38,7 +38,8 @@ const money = (value: number) =>
   new Intl.NumberFormat("en-CH", {
     style: "currency",
     currency: "EUR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 const number = (value: number, digits = 1) =>
   new Intl.NumberFormat("en-CH", { maximumFractionDigits: digits }).format(
@@ -230,11 +231,13 @@ export function SimulationResults({ result }: { result: OrderSimulation }) {
       o.submitted_order.order_type === "MARKET" ||
       o.price_condition_passed === true,
   ).length;
-  const summary = result.summary.infeasible_order_count
-    ? `${result.summary.executed_order_count} of ${result.summary.submitted_order_count} orders executed; ${result.summary.infeasible_order_count} physically infeasible.`
-    : result.summary.not_executed_order_count
-      ? `${result.summary.executed_order_count} of ${result.summary.submitted_order_count} orders executed; ${result.summary.not_executed_order_count} did not meet the price condition.`
-      : `All ${result.summary.executed_order_count} submitted orders executed.`;
+  const summary = !result.summary.submitted_order_count
+    ? "No orders entered. The simulation shows the idle battery schedule."
+    : result.summary.infeasible_order_count
+      ? `${result.summary.executed_order_count} of ${result.summary.submitted_order_count} orders executed; ${result.summary.infeasible_order_count} physically infeasible.`
+      : result.summary.not_executed_order_count
+        ? `${result.summary.executed_order_count} of ${result.summary.submitted_order_count} orders executed; ${result.summary.not_executed_order_count} did not meet the price condition.`
+        : `All ${result.summary.executed_order_count} submitted orders executed.`;
   const toggle = (id: OptionalColumn) =>
     setColumns((current) =>
       current.includes(id)
@@ -272,11 +275,6 @@ export function SimulationResults({ result }: { result: OrderSimulation }) {
         {marketPassed} price-eligible ·{" "}
         {result.summary.not_executed_order_count} price-rejected ·{" "}
         {result.summary.infeasible_order_count} physically rejected.
-        {!result.executed_schedule_feasible && (
-          <span className="field-error">
-            {result.validation.findings.map((f) => f.message).join(" · ")}
-          </span>
-        )}
       </div>
       <div className="simulation-kpis">
         <Kpi
@@ -317,11 +315,11 @@ export function SimulationResults({ result }: { result: OrderSimulation }) {
           <dt>Sales revenue</dt>
           <dd>{money(result.summary.sales_revenue_eur)}</dd>
           <dt>Purchases</dt>
-          <dd>− {money(result.summary.purchase_cost_eur)}</dd>
+          <dd>{money(-result.summary.purchase_cost_eur)}</dd>
           <dt>Degradation</dt>
-          <dd>− {money(result.summary.degradation_cost_eur)}</dd>
+          <dd>{money(-result.summary.degradation_cost_eur)}</dd>
           <dt>Transaction fees</dt>
-          <dd>− {money(result.summary.transaction_fee_eur)}</dd>
+          <dd>{money(-result.summary.transaction_fee_eur)}</dd>
         </dl>
         <p>
           Forecast-valued executed orders only. No continuation value, live
@@ -385,6 +383,14 @@ export function SimulationResults({ result }: { result: OrderSimulation }) {
               </tr>
             </thead>
             <tbody>
+              {!ordered.length && (
+                <tr>
+                  <td colSpan={6 + columns.length}>
+                    No submitted orders. Add orders in Inputs, or generate and
+                    apply a proposal.
+                  </td>
+                </tr>
+              )}
               {ordered.map((item) => (
                 <OutcomeRows
                   key={item.submitted_order.client_order_id}

@@ -88,7 +88,7 @@ describe("OrderSimulatorWorkbench", () => {
     vi.restoreAllMocks();
   });
   beforeEach(() => {
-    vi.spyOn(window,"scrollTo").mockImplementation(()=>undefined);
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     sessionStorage.clear();
     history.replaceState({}, "", "/");
     HTMLDialogElement.prototype.showModal = function () {
@@ -242,5 +242,104 @@ describe("OrderSimulatorWorkbench", () => {
       "Order simulator unavailable",
     );
     expect(screen.getByRole("button", { name: "Retry Loading" })).toBeEnabled();
+  });
+  it("confirms and cancels example replacement without a blocking browser dialog", async () => {
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: "Add order" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load example inputs" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Confirm input replacement" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel replacement" }));
+    expect(
+      screen.getAllByRole("button", { name: /Edit .* order/ }),
+    ).toHaveLength(5);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load example inputs" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Confirm replacement" }),
+    );
+    await screen.findByRole("button", { name: "Undo" });
+    expect(
+      screen.getAllByRole("button", { name: /Edit .* order/ }),
+    ).toHaveLength(4);
+    expect(window.confirm).not.toHaveBeenCalled();
+  });
+  it("does not overwrite newer input edits with a delayed example response", async () => {
+    await ready();
+    let resolve!: (r: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((r) => {
+            resolve = r;
+          }),
+      ),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load example inputs" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Confirm replacement" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add order" }));
+    resolve(response({ points }));
+    await screen.findByText(/Inputs changed while loading/);
+    expect(
+      screen.getAllByRole("button", { name: /Edit .* order/ }),
+    ).toHaveLength(5);
+  });
+  it("keeps battery labels stable and associates validation descriptions", async () => {
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: "Battery settings" }));
+    const field = screen.getByRole("spinbutton", { name: "Charge limit MW" });
+    fireEvent.change(field, { target: { value: "-1" } });
+    expect(field).toHaveAccessibleName("Charge limit MW");
+    expect(field).toHaveAccessibleDescription("Charge power must be positive.");
+    expect(
+      screen.getByRole("button", { name: "Apply settings" }),
+    ).toBeDisabled();
+    fireEvent.change(field, { target: { value: "50" } });
+    expect(
+      screen.getByRole("button", { name: "Apply settings" }),
+    ).toBeEnabled();
+  });
+  it("ignores a hidden terminal value when switching to minimum reserve", async () => {
+    await ready();
+    const bodies: string[] = [];
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        bodies.push(String(init?.body));
+        return response({
+          proposal: {
+            simulation_id: "p",
+            summary: {
+              expected_contribution_eur: 0,
+              proposal_terminal_soc_mwh: 50,
+            },
+          },
+          orders: [],
+          pricing_policy: "Forecast-derived",
+        });
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    fireEvent.click(screen.getByRole("button", { name: "Generate proposal" }));
+    fireEvent.change(screen.getByLabelText("End-of-day policy"), {
+      target: { value: "terminal_value" },
+    });
+    fireEvent.change(screen.getByLabelText("Terminal value €/MWh"), {
+      target: { value: "-1" },
+    });
+    fireEvent.change(screen.getByLabelText("End-of-day policy"), {
+      target: { value: "minimum_reserve" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
+    await screen.findByRole("button", { name: "Apply proposal" });
+    expect(JSON.parse(bodies[0]).terminal_value_eur_per_mwh).toBe(0);
   });
 });

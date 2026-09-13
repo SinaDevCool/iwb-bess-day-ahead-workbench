@@ -111,6 +111,14 @@ export function OrderWorkspace({
   const [terminal, setTerminal] = useState("55");
   const [weights, setWeights] = useState(["20", "60", "20"]);
   const [lookahead, setLookahead] = useState("4");
+  const [confirmation, setConfirmation] = useState<{
+    message: string;
+    action: () => void;
+  }>();
+  const draftRef = useRef(draft);
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
   const requestId = useRef(0);
   const errorRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -331,12 +339,14 @@ export function OrderWorkspace({
         (n, i) => !weights[i].trim() || !Number.isFinite(n) || n < 0 || n > 100,
       ) ||
       Math.abs(w.reduce((a, b) => a + b, 0) - 100) > 1e-6 ||
-      !terminal.trim() ||
-      !Number.isFinite(Number(terminal)) ||
-      Number(terminal) < 0 ||
-      !Number.isInteger(Number(lookahead)) ||
-      Number(lookahead) < 1 ||
-      Number(lookahead) > 24
+      (horizon === "terminal_value" &&
+        (!terminal.trim() ||
+          !Number.isFinite(Number(terminal)) ||
+          Number(terminal) < 0)) ||
+      (["next_day_proxy", "multi_day"].includes(horizon) &&
+        (!Number.isInteger(Number(lookahead)) ||
+          Number(lookahead) < 1 ||
+          Number(lookahead) > 24))
     ) {
       setError(
         "Use probabilities totalling 100%, a non-negative terminal value and 1–24 lookahead hours.",
@@ -353,8 +363,11 @@ export function OrderWorkspace({
           ...requestBody(snapshot),
           risk_posture: risk,
           horizon_policy: horizon,
-          terminal_value_eur_per_mwh: Number(terminal),
-          lookahead_hours: Number(lookahead),
+          terminal_value_eur_per_mwh:
+            horizon === "terminal_value" ? Number(terminal) : 0,
+          lookahead_hours: ["next_day_proxy", "multi_day"].includes(horizon)
+            ? Number(lookahead)
+            : 4,
           scenario_probabilities: {
             downside: w[0] / 100,
             expected: w[1] / 100,
@@ -388,19 +401,26 @@ export function OrderWorkspace({
       "Proposal applied to the editable order list. Simulate to evaluate these orders.",
     );
   };
-  const changeDate = async (value: string) => {
+  const changeDate = async (value: string, confirmed = false) => {
     if (!draft || !value || value === draft.date) return;
-    if (
-      !window.confirm(
-        "Changing the date loads its example forecast and clears orders. Battery settings are preserved; interval availability is cleared. Continue?",
-      )
-    )
+    if (!confirmed) {
+      setConfirmation({
+        message:
+          "Changing the date loads its example forecast and clears orders. Battery settings are preserved; interval availability is cleared.",
+        action: () => void changeDate(value, true),
+      });
       return;
+    }
+    const originalKey = identity(draft);
     setBusy("Loading date");
     try {
       const next = await api<{ points: Point[] }>(
         `/api/forecast?delivery_date=${value}&product_minutes=${draft.market.product_minutes}`,
       );
+      if (!draftRef.current || identity(draftRef.current) !== originalKey)
+        throw new Error(
+          "Inputs changed while loading. Change the date again to retry.",
+        );
       setUndo(draft);
       change({
         date: value,
@@ -423,19 +443,25 @@ export function OrderWorkspace({
       setBusy("");
     }
   };
-  const restore = async (runId: string, kind: string) => {
+  const restore = async (runId: string, kind: string, confirmed = false) => {
     if (busy) return;
-    if (
-      kind === "ORDER_SIMULATION" &&
-      draft &&
-      dirty &&
-      !window.confirm("Replace the current inputs with this saved snapshot?")
-    )
+    if (kind === "ORDER_SIMULATION" && draft && dirty && !confirmed) {
+      setConfirmation({
+        message:
+          "Replace the current inputs with this saved snapshot? You can undo the replacement.",
+        action: () => void restore(runId, kind, true),
+      });
       return;
+    }
+    const originalKey = draft ? identity(draft) : "";
     setBusy("Restoring");
     try {
       if (kind === "ORDER_SIMULATION") {
         const r = await api<OrderSimulation>(`/api/order-simulations/${runId}`);
+        if (draftRef.current && identity(draftRef.current) !== originalKey)
+          throw new Error(
+            "Inputs changed while restoring. Open the saved run again to retry.",
+          );
         const d: Draft = {
           date: r.delivery_date,
           battery: r.battery,
@@ -463,6 +489,41 @@ export function OrderWorkspace({
       }
     } catch (e) {
       setError(String(e));
+    } finally {
+      setBusy("");
+    }
+  };
+  const loadExample = async () => {
+    if (!draft || busy) return;
+    const originalKey = identity(draft);
+    setBusy("Loading example");
+    setError("");
+    try {
+      const x = await api<{ points: Point[] }>(
+        `/api/forecast?delivery_date=${draft.date}&product_minutes=${draft.market.product_minutes}`,
+      );
+      if (!draftRef.current || identity(draftRef.current) !== originalKey)
+        throw new Error(
+          "Inputs changed while loading. Load the example again to retry.",
+        );
+      setUndo(draft);
+      change({
+        points: x.points,
+        prices: x.points.map((p) => String(p.price_eur_mwh)),
+        forecast: {
+          source_type: "illustrative",
+          source_name: "Illustrative Day-Ahead example",
+          version: "illustrative-v1",
+          bidding_zone: draft.market.bidding_zone,
+        },
+        orders: draft.market.product_minutes === 60 ? examples() : [],
+        sourceProposalId: undefined,
+      });
+      setSelected("");
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Could not load example. Try again.",
+      );
     } finally {
       setBusy("");
     }
@@ -823,34 +884,14 @@ export function OrderWorkspace({
             </section>
             <button
               className="ws-text-button"
-              onClick={() => {
-                if (
-                  window.confirm(
-                    "Load example prices and orders? Battery settings are preserved.",
-                  )
-                ) {
-                  setUndo(draft);
-                  void api<{ points: Point[] }>(
-                    `/api/forecast?delivery_date=${draft.date}&product_minutes=${draft.market.product_minutes}`,
-                  )
-                    .then((x) =>
-                      change({
-                        points: x.points,
-                        prices: x.points.map((p) => String(p.price_eur_mwh)),
-                        forecast: {
-                          source_type: "illustrative",
-                          source_name: "Illustrative Day-Ahead example",
-                          version: "illustrative-v1",
-                          bidding_zone: draft.market.bidding_zone,
-                        },
-                        orders:
-                          draft.market.product_minutes === 60 ? examples() : [],
-                        sourceProposalId: undefined,
-                      }),
-                    )
-                    .catch((e) => setError(String(e)));
-                }
-              }}
+              disabled={Boolean(busy)}
+              onClick={() =>
+                setConfirmation({
+                  message:
+                    "Load example prices and orders? Battery settings are preserved. You can undo the replacement.",
+                  action: () => void loadExample(),
+                })
+              }
             >
               <RotateCcw size={14} />
               Load example inputs
@@ -937,6 +978,30 @@ export function OrderWorkspace({
           <WorkspaceHistory restore={restore} busy={Boolean(busy)} />
         )}
       </main>
+      {confirmation && (
+        <Dialog
+          title="Confirm input replacement"
+          close={() => setConfirmation(undefined)}
+        >
+          <p>{confirmation.message}</p>
+          <button
+            className="secondary"
+            onClick={() => setConfirmation(undefined)}
+          >
+            Cancel replacement
+          </button>
+          <button
+            className="primary"
+            onClick={() => {
+              const action = confirmation.action;
+              setConfirmation(undefined);
+              action();
+            }}
+          >
+            Confirm replacement
+          </button>
+        </Dialog>
+      )}
       {modal === "forecast" && (
         <Dialog title="Edit Day-Ahead prices" close={() => setModal(null)}>
           <ForecastEditor
@@ -1250,6 +1315,8 @@ function BatteryEditor({
   apply: (patch: Partial<Draft>) => void;
 }) {
   const [resetError, setResetError] = useState("");
+  const [resetPending, setResetPending] = useState(false);
+  const [resetRequested, setResetRequested] = useState(false);
   const [raw, setRaw] = useState(
     Object.fromEntries(
       BATTERY_FIELDS.map(([k]) => [k, String(draft.battery[k])]),
@@ -1291,11 +1358,20 @@ function BatteryEditor({
               type="number"
               step="any"
               value={raw[key]}
+              name={key}
+              autoComplete="off"
+              aria-label={`${label} ${unit}`}
+              aria-describedby={
+                issues[key] ? `battery-error-${key}` : undefined
+              }
+              disabled={resetPending}
               aria-invalid={Boolean(issues[key])}
               onChange={(e) => setRaw((x) => ({ ...x, [key]: e.target.value }))}
             />
             {issues[key] && (
-              <small className="field-error">{issues[key]}</small>
+              <small id={`battery-error-${key}`} className="field-error">
+                {issues[key]}
+              </small>
             )}
           </label>
         ))}
@@ -1358,7 +1434,7 @@ function BatteryEditor({
       </details>
       <button
         className="primary"
-        disabled={Object.keys(issues).length > 0 || feesInvalid}
+        disabled={Object.keys(issues).length > 0 || feesInvalid || resetPending}
         onClick={() =>
           apply({
             battery: b,
@@ -1385,30 +1461,54 @@ function BatteryEditor({
       )}
       <button
         className="secondary"
+        disabled={resetPending}
         onClick={() => {
-          if (
-            window.confirm("Restore baseline battery settings in this editor?")
-          )
-            void api<{ battery: Battery }>("/api/configuration")
-              .then((x) => {
-                setRaw(
-                  Object.fromEntries(
-                    BATTERY_FIELDS.map(([k]) => [k, String(x.battery[k])]),
-                  ),
-                );
-                setUnavailable([]);
-              })
-              .catch((e) =>
-                setResetError(
-                  e instanceof Error
-                    ? e.message
-                    : "Could not load baseline. Try again.",
+          if (!resetRequested) {
+            setResetRequested(true);
+            return;
+          }
+          setResetPending(true);
+          setResetError("");
+          void api<{ battery: Battery }>("/api/configuration")
+            .then((x) => {
+              setRaw(
+                Object.fromEntries(
+                  BATTERY_FIELDS.map(([k]) => [k, String(x.battery[k])]),
                 ),
               );
+              setUnavailable([]);
+            })
+            .catch((e) =>
+              setResetError(
+                e instanceof Error
+                  ? e.message
+                  : "Could not load baseline. Try again.",
+              ),
+            )
+            .finally(() => {
+              setResetPending(false);
+              setResetRequested(false);
+            });
         }}
       >
-        Reset battery assumptions
+        {resetPending
+          ? "Restoring baseline…"
+          : resetRequested
+            ? "Restore baseline in editor"
+            : "Reset battery assumptions"}
       </button>
+      {resetRequested && !resetPending && (
+        <p role="status">
+          This replaces the staged battery values. Nothing is applied until you
+          choose Apply settings.{" "}
+          <button
+            className="ws-text-button"
+            onClick={() => setResetRequested(false)}
+          >
+            Cancel reset
+          </button>
+        </p>
+      )}
     </>
   );
 }
