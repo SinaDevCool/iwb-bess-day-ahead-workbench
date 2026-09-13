@@ -110,7 +110,9 @@ export function OrdersTable({
         </tbody>
       </table>
       {!draft.orders.length && (
-        <p className="ws-empty">No orders yet. Add an order or generate a proposal.</p>
+        <p className="ws-empty">
+          No orders yet. Add an order or request additional-order suggestions.
+        </p>
       )}
     </div>
   );

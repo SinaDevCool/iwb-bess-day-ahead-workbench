@@ -15,12 +15,13 @@ def optimize_dispatch(
     battery: BatteryConfig,
     market: MarketConfig,
     terminal_value_eur_per_mwh: float = 0,
+    fixed_power: tuple[list[float], list[float]] | None = None,
 ):
     """Build, minimize negative decision value, and decode one feasible schedule."""
     n = len(prices)
     soc_offset = 2 * n
     objective, integrality, bounds, constraints = build_model(
-        prices, battery, market, terminal_value_eur_per_mwh
+        prices, battery, market, terminal_value_eur_per_mwh, fixed_power
     )
     started = time.perf_counter()
     with warnings.catch_warnings():
@@ -32,13 +33,19 @@ def optimize_dispatch(
             constraints=constraints,
             # A single solver thread keeps execution deterministic and avoids native
             # HiGHS worker teardown races when FastAPI tests create short-lived portals.
-            options={"time_limit": 5, "mip_rel_gap": 1e-9, "threads": 1},
+            options={
+                "time_limit": 5,
+                "mip_rel_gap": 1e-3 if fixed_power is not None else 1e-9,
+                "threads": 1,
+            },
         )
     solve_time_ms = round((time.perf_counter() - started) * 1000, 2)
     if not result.success or result.x is None:
         detail = result.message or "unknown solver failure"
         raise ValueError(f"No optimal dispatch found: {detail}")
 
+    if fixed_power is not None:
+        result.x[: 2 * n] *= market.volume_increment_mw
     dispatch, throughput = decode_dispatch(result, prices, battery, market)
     return dispatch, {
         "engine": "scipy_highs_milp_v1",

@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.api.routes import configuration, history, proposals, simulations
+from backend.api.routes import configuration, history, proposals, simulations, order_suggestions
 from backend.db.repository import initialize
 from backend.services.proposal_service import ProposalError
 
@@ -33,7 +33,13 @@ async def proposal_error(_request: Request, error: ProposalError):
     return JSONResponse(status_code=error.status_code, content={"detail": error.detail})
 
 
-for router in (configuration.router, simulations.router, history.router, proposals.router):
+for router in (
+    configuration.router,
+    simulations.router,
+    history.router,
+    proposals.router,
+    order_suggestions.router,
+):
     app.include_router(router)
 
 # Static mount comes last so API routes take precedence over the SPA export.

@@ -17,6 +17,7 @@ def build_model(
     battery: BatteryConfig,
     market: MarketConfig,
     terminal_value_eur_per_mwh: float,
+    fixed_power: tuple[list[float], list[float]] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, Bounds, LinearConstraint]:
     """Assemble minimization costs and MW/MWh constraints; this function never solves."""
     n = len(prices)
@@ -91,6 +92,23 @@ def build_model(
 
     integrality = np.zeros(variable_count)
     integrality[mode_offset:] = 1
+    if fixed_power is not None:
+        # Total dispatch includes immutable eligible orders. Lower bounds keep
+        # those obligations; the solver may only add power, never replace them.
+        charge, discharge = fixed_power
+        lower[:n] = charge
+        lower[n : 2 * n] = discharge
+        if np.any(lower > upper):
+            raise ValueError("Existing eligible orders exceed power or availability limits")
+        # Solve total powers in integer market lots. Baseline orders already
+        # obey this increment, so the difference is executable without clipping.
+        scale = np.ones(variable_count)
+        scale[: 2 * n] = market.volume_increment_mw
+        objective = objective * scale
+        matrix = matrix.tocsr().multiply(scale)
+        lower = lower / scale
+        upper = upper / scale
+        integrality[: 2 * n] = 1
     return (
         objective,
         integrality,

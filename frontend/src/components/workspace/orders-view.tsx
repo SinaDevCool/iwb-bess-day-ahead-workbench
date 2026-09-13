@@ -7,6 +7,8 @@ import { OrdersTable } from "./orders-table";
 import { useOrderLayout } from "./use-order-layout";
 import type { ReadyWorkbench } from "./use-workbench";
 import { AddOrderDialog } from "./add-order-dialog";
+import { OrderSuggestionsDialog } from "./order-suggestions-dialog";
+import { fromOrders } from "./workspace-adapters";
 
 /** Orchestrates selection only; every edit updates the existing shared case draft. */
 export function OrdersView({
@@ -27,6 +29,8 @@ export function OrdersView({
     | "orderIssues"
     | "loadExample"
     | "showOrderOnSchedule"
+    | "validate"
+    | "setNotice"
   >;
 }) {
   const {
@@ -46,6 +50,7 @@ export function OrdersView({
   } = context;
   const openerRef = useRef<HTMLElement | null>(null);
   const [adding, setAdding] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const addOrderRef = useRef<HTMLButtonElement | null>(null);
   const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const { layoutRef, wide } = useOrderLayout(view);
@@ -83,6 +88,20 @@ export function OrdersView({
   return (
     view === "orders" && (
       <>
+        {suggesting && (
+          <OrderSuggestionsDialog
+            draft={draft}
+            close={() => setSuggesting(false)}
+            add={(orders) => {
+              setUndo(draft);
+              change({ orders: [...draft.orders, ...fromOrders(orders, draft.points)] });
+              setSuggesting(false);
+              context.setNotice(
+                `Added ${orders.length} suggested orders. Simulate to update the schedule.`,
+              );
+            }}
+          />
+        )}
         {adding && (
           <AddOrderDialog
             points={draft.points}
@@ -115,6 +134,15 @@ export function OrdersView({
               >
                 <Plus size={14} aria-hidden="true" />
                 Add order
+              </button>
+              <button
+                className="secondary small"
+                disabled={Boolean(busy)}
+                onClick={() => {
+                  if (context.validate()) setSuggesting(true);
+                }}
+              >
+                Suggest additional orders
               </button>
             </div>
           </div>

@@ -4,7 +4,7 @@ import { api } from "@/lib/api";
 import type { OrderSimulation } from "@/types/api";
 
 import type { ActionContext } from "./workspace-action-types";
-import { calculationIdentity, requestBody } from "./workspace-adapters";
+import { calculationIdentity, orderRequest } from "./workspace-adapters";
 type SimulationActionContext = Pick<
   ActionContext,
   | "draft"
@@ -48,18 +48,7 @@ export function useSimulationActions(context: SimulationActionContext) {
     try {
       const next = await api<OrderSimulation>("/api/order-simulations", {
         method: "POST",
-        body: JSON.stringify({
-          ...requestBody(snapshot),
-          source_proposal_id: snapshot.sourceProposalId,
-          orders: snapshot.orders.map((o) => ({
-            client_order_id: o.id,
-            delivery_start_utc: snapshot.points[o.interval].timestamp_utc,
-            side: o.side,
-            order_type: o.orderType,
-            volume_mw: Number(o.volume),
-            limit_price_eur_mwh: o.orderType === "LIMIT" ? Number(o.limit) : null,
-          })),
-        }),
+        body: JSON.stringify(orderRequest(snapshot)),
       });
       if (ticket === requestId.current) {
         setResult(next);

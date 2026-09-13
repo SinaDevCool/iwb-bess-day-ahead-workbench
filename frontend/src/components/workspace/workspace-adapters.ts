@@ -69,3 +69,17 @@ export const requestBody = (snapshot: Draft) => ({
     bidding_zone: snapshot.market.bidding_zone,
   },
 });
+
+/** One serializer for simulation and suggestion baselines. */
+export const orderRequest = (snapshot: Draft) => ({
+  ...requestBody(snapshot),
+  source_proposal_id: snapshot.sourceProposalId,
+  orders: snapshot.orders.map((o) => ({
+    client_order_id: o.id,
+    delivery_start_utc: snapshot.points[o.interval].timestamp_utc,
+    side: o.side,
+    order_type: o.orderType,
+    volume_mw: Number(o.volume),
+    limit_price_eur_mwh: o.orderType === "LIMIT" ? Number(o.limit) : null,
+  })),
+});
