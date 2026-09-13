@@ -10,3 +10,4 @@ dependency-install-backup/
 .env.*
 !.env.example
 frontend/out/
+frontend/*.tsbuildinfo

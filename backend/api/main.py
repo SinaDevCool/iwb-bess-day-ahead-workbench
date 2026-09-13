@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import math
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,7 +18,7 @@ from backend.db.repository import add_audit_event, get_simulation, initialize, l
 from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order, OrderProposalEdit, OrderSimulationRequest, OrderSimulationResult, SimulationDisplayNameUpdate, SimulationRequest, SimulationRunSummary
 from backend.domain.economics import calculate_interval, effective_transaction_fee
 from backend.services.forecast_service import build_demo_forecast
-from backend.services.simulation_service import run_simulation
+from backend.services.simulation_service import run_simulation, sensitivities_for_snapshot
 from backend.services.order_simulation_service import run_order_simulation
 from backend.services.run_identity_service import legacy_run_display_name
 from backend.validation.validators import validate_order_proposal
@@ -111,9 +112,49 @@ def simulate_orders(request: OrderSimulationRequest):
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
+@app.post("/api/proposal-preview")
+def proposal_preview(request: SimulationRequest):
+    """Reuse the optimizer; explicit adapter into editable Limit orders. Never applies a draft."""
+    try:
+        result = run_simulation(request.model_copy(update={"include_sensitivities": False}))
+        drafts = []
+        for order in result.orders:
+            step = result.market.price_increment_eur_mwh
+            raw = order.expected_price_eur_mwh / step
+            limit = (math.ceil(raw - 1e-9) if order.side == "BUY" else math.floor(raw + 1e-9)) * step
+            limit = min(result.market.max_price_eur_mwh, max(result.market.min_price_eur_mwh, limit))
+            drafts.append({"client_order_id": order.order_id, "delivery_start_utc": order.delivery_start_utc, "side": order.side, "order_type": "LIMIT", "volume_mw": order.volume_mw, "limit_price_eur_mwh": round(limit, 6)})
+        return {"proposal": result, "orders": drafts, "pricing_policy": "Limit at forecast, rounded outward by side to the configured tick. Simulation still evaluates physical feasibility."}
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/api/workspace-history")
+def workspace_history():
+    return {"items": [{"simulation_id": p["simulation_id"], "run_type": p.get("run_type", "OPTIMIZATION"), "created_at_utc": p["created_at_utc"], "delivery_date": p["delivery_date"], "validation_status": p["validation"]["status"], "contribution_eur": p["summary"].get("net_contribution_eur", p["summary"].get("expected_contribution_eur", 0)), "source_proposal_id": p.get("audit", {}).get("source_proposal_id")} for p in list_simulations(100)]}
+
+
+def _optimization_payload(simulation_id: str):
+    payload = get_simulation(simulation_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Simulation not found")
+    if payload.get("run_type") == "ORDER_SIMULATION":
+        raise HTTPException(status_code=409, detail="This action requires an optimization proposal, not an order simulation")
+    return payload
+
+
 @app.get("/api/order-simulations")
 def order_simulations():
-    return {"items": [item for item in list_simulations() if item.get("run_type") == "ORDER_SIMULATION"]}
+    return {"items": list_simulations(run_type="ORDER_SIMULATION")}
+
+
+@app.post("/api/simulations/{simulation_id}/sensitivities")
+def simulation_sensitivities(simulation_id: str):
+    payload = _optimization_payload(simulation_id)
+    try:
+        return {"simulation_id": simulation_id, "items": sensitivities_for_snapshot(payload)}
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @app.get("/api/order-simulations/{simulation_id}", response_model=OrderSimulationResult)
@@ -126,7 +167,7 @@ def order_simulation(simulation_id: str):
 
 @app.get("/api/simulations")
 def simulations():
-    return {"items": [item for item in list_simulations() if item.get("run_type") != "ORDER_SIMULATION"]}
+    return {"items": list_simulations(run_type="OPTIMIZATION")}
 
 
 def _run_summary(payload: dict) -> SimulationRunSummary:
@@ -166,7 +207,7 @@ def simulation_runs(
     """Return compact saved-run metadata without dispatch and order arrays."""
     if product_minutes is not None and product_minutes not in (15, 60):
         raise HTTPException(status_code=422, detail="product_minutes must be 15 or 60")
-    candidates = [item for item in list_simulations(100) if item.get("run_type") != "ORDER_SIMULATION"]
+    candidates = list_simulations(100, run_type="OPTIMIZATION")
     if delivery_date:
         candidates = [item for item in candidates if item.get("delivery_date") == delivery_date]
     if product_minutes:
@@ -181,18 +222,14 @@ def simulation_runs(
 
 @app.get("/api/simulations/{simulation_id}")
 def simulation(simulation_id: str):
-    payload = get_simulation(simulation_id)
-    if payload is None:
-        raise HTTPException(status_code=404, detail="Simulation not found")
+    payload = _optimization_payload(simulation_id)
     payload["display_name"] = legacy_run_display_name(payload)
     return payload
 
 
 @app.patch("/api/simulations/{simulation_id}/display-name")
 def rename_simulation(simulation_id: str, update: SimulationDisplayNameUpdate):
-    payload = get_simulation(simulation_id)
-    if payload is None:
-        raise HTTPException(status_code=404, detail="Simulation not found")
+    payload = _optimization_payload(simulation_id)
     previous = legacy_run_display_name(payload)
     payload["display_name"] = update.display_name
     now = datetime.now(timezone.utc).isoformat()
@@ -202,7 +239,7 @@ def rename_simulation(simulation_id: str, update: SimulationDisplayNameUpdate):
 
 @app.post("/api/order-proposals/{simulation_id}/validate")
 def validate_proposal(simulation_id: str):
-    payload = get_simulation(simulation_id)
+    payload = _optimization_payload(simulation_id)
     if payload is None:
         raise HTTPException(status_code=404, detail="Simulation not found")
     validation, proposal = _revalidate_payload(payload)
@@ -216,7 +253,7 @@ def validate_proposal(simulation_id: str):
 
 @app.patch("/api/order-proposals/{simulation_id}")
 def edit_proposal(simulation_id: str, edit: OrderProposalEdit):
-    payload = get_simulation(simulation_id)
+    payload = _optimization_payload(simulation_id)
     if payload is None:
         raise HTTPException(status_code=404, detail="Simulation not found")
     by_id = {item.order_id: item for item in edit.adjustments}
@@ -262,7 +299,7 @@ def edit_proposal(simulation_id: str, edit: OrderProposalEdit):
 
 @app.post("/api/order-proposals/{simulation_id}/approve")
 def approve_proposal(simulation_id: str):
-    payload = get_simulation(simulation_id)
+    payload = _optimization_payload(simulation_id)
     if payload is None:
         raise HTTPException(status_code=404, detail="Simulation not found")
     if payload["validation"]["status"] != "passed":
@@ -278,7 +315,7 @@ def approve_proposal(simulation_id: str):
 
 
 def _export_response(simulation_id: str, record_event: bool):
-    payload = get_simulation(simulation_id)
+    payload = _optimization_payload(simulation_id)
     if payload is None:
         raise HTTPException(status_code=404, detail="Simulation not found")
     if payload["validation"]["status"] != "passed":

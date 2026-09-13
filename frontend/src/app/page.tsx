@@ -90,7 +90,7 @@ export default function WorkbenchRouter() {
   useEffect(() => {
     const restore = () => {
       const parameters = new URLSearchParams(location.search);
-      setMode(parameters.get("mode") === "optimize" || parameters.has("tab") ? "optimize" : "simulate");
+      setMode(parameters.get("mode") === "simulate" ? "simulate" : parameters.get("mode") === "optimize" || parameters.has("tab") ? "optimize" : "simulate");
     };
     restore();
     addEventListener("popstate", restore);

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from backend.db.repository import save_simulation_with_event
-from backend.domain.models import SimulationRequest, SimulationResult
+from backend.domain.models import DispatchRow, SimulationRequest, SimulationResult
 from backend.services.forecast_service import apply_scenario, build_demo_forecast
 from backend.services.decision_support_service import build_executable_orders, resolve_terminal_value, select_risk_aware_dispatch
 from backend.services.run_identity_service import default_run_display_name
@@ -28,7 +28,7 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
     dispatch, optimization, risk, stable_intervals = select_risk_aware_dispatch(request, base_prices, prices, terminal_value)
     simulation_id = f"sim-{uuid4().hex[:10]}"
     orders, order_validation, proposal, order_generation = build_executable_orders(simulation_id, dispatch, request.market, request.battery)
-    dispatch_validation = validate_dispatch(dispatch, request.battery)
+    dispatch_validation = validate_dispatch(dispatch, request.battery, request.market)
     findings = dispatch_validation.findings + order_validation.findings
     validation_status = "failed" if any(x.severity == "error" for x in findings) else "warning" if findings else "passed"
     validation = dispatch_validation.model_copy(update={"status": validation_status, "findings": findings})
@@ -51,8 +51,8 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
     forecast_metadata = request.forecast.model_copy(update={
         "created_at_utc": request.forecast.created_at_utc or created_at,
     })
-    input_hash = hashlib.sha256(json.dumps(request.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()[:16]
-    sensitivities = _sensitivities(request, base_prices, prices, dispatch, round(contribution, 2), terminal_value)
+    input_hash = hashlib.sha256(json.dumps(request.model_dump(mode="json", exclude={"include_sensitivities"}), sort_keys=True).encode()).hexdigest()[:16]
+    sensitivities = _sensitivities(request, base_prices, prices, dispatch, round(contribution, 2), terminal_value) if request.include_sensitivities else []
     result = SimulationResult(
         simulation_id=simulation_id,
         display_name=default_run_display_name(request),
@@ -124,6 +124,22 @@ def run_simulation(request: SimulationRequest) -> SimulationResult:
     payload = result.model_dump(mode="json")
     save_simulation_with_event(payload, created_at.isoformat(), "SIMULATION_CREATED", {"schema_version": 5, "input_hash": input_hash, "validation": validation_status, "optimizer": optimization["engine"]})
     return result
+
+
+def sensitivities_for_snapshot(payload: dict):
+    """Compute evidence from a saved optimizer snapshot without creating another run."""
+    if payload.get("audit", {}).get("modified_by_trader"):
+        raise ValueError("Generate a fresh proposal before evaluating sensitivities of trader-edited orders")
+    if payload.get("sensitivities"):
+        return payload["sensitivities"]
+    if not payload.get("forecast_points"):
+        raise ValueError("This older run has no exact forecast snapshot; generate a new proposal")
+    request = SimulationRequest.model_validate({**payload, "prices": payload["forecast_points"], "include_sensitivities": False})
+    prices = apply_scenario(request.prices, request.price_multiplier, request.peak_reduction_eur_mwh,
+                            request.scenario_name.casefold() == "downside" or request.strategy == "conservative")
+    dispatch = [DispatchRow.model_validate(row) for row in payload["dispatch"]]
+    return _sensitivities(request, request.prices, prices, dispatch,
+                          payload["summary"]["optimized_contribution_eur"], resolve_terminal_value(request))
 
 
 def _sensitivities(request, base_prices, prices, baseline_dispatch, baseline, terminal_value):

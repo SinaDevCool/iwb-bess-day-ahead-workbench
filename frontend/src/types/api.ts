@@ -75,7 +75,8 @@ export type SimulatedOrderResult = {
   executed_volume_mw: number; execution_price_eur_mwh?: number | null; reason_code: string; reason: string;
   soc_before_mwh: number; soc_after_mwh: number; contribution_eur: number;
   sales_revenue_eur: number; purchase_cost_eur: number; degradation_cost_eur: number; transaction_fee_eur: number;
-  price_condition_operator?: "<=" | ">=" | null; price_condition_passed: boolean; price_margin_eur_mwh?: number | null;
+  price_condition_operator?: "<=" | ">=" | null; price_condition_passed: boolean | null; price_margin_eur_mwh?: number | null;
+  soc_evidence_scope?: "delivery_interval"; interval_order_count?: number;
   executed_energy_mwh: number; soc_delta_mwh: number;
 };
 export type OrderSimulationSummary = {

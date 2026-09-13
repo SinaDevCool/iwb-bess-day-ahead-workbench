@@ -6,6 +6,8 @@ from decimal import Decimal
 import math
 from backend.domain.economics import calculate_interval, effective_transaction_fee
 from backend.domain.models import BatteryConfig, DispatchRow, MarketConfig, Order, ValidationFinding, ValidationResult
+from backend.domain.delivery_grid import delivery_grid
+from zoneinfo import ZoneInfo
 
 SOLVER_SOC_EPSILON_MWH = 1e-3
 ORDER_SOC_BOUNDARY_EPSILON_MWH = 1e-6
@@ -13,8 +15,12 @@ ENERGY_BALANCE_TOLERANCE_MWH = 0.15
 POWER_TOLERANCE_MW = 1e-3
 
 
-def validate_dispatch(rows: list[DispatchRow], battery: BatteryConfig) -> ValidationResult:
+def validate_dispatch(rows: list[DispatchRow], battery: BatteryConfig, market: MarketConfig | None = None) -> ValidationResult:
     findings = []
+    if market and rows:
+        date = rows[0].timestamp_utc.astimezone(ZoneInfo(market.timezone)).strftime("%Y-%m-%d")
+        if [r.timestamp_utc for r in rows] != delivery_grid(date, market.timezone, market.product_minutes):
+            findings.append(ValidationFinding(severity="error", code="interval_coverage", message="Dispatch must match the complete delivery grid"))
     previous_soc = battery.initial_soc_mwh
     throughput = 0.0
     eta = math.sqrt(battery.round_trip_efficiency)
@@ -33,12 +39,16 @@ def validate_dispatch(rows: list[DispatchRow], battery: BatteryConfig) -> Valida
             findings.append(ValidationFinding(severity="error", code="unavailable", message="Dispatch scheduled during unavailability", interval=row.interval))
         if (row.action == "charge" and row.power_mw >= -POWER_TOLERANCE_MW) or (row.action == "discharge" and row.power_mw <= POWER_TOLERANCE_MW) or (row.action == "idle" and abs(row.power_mw) > POWER_TOLERANCE_MW):
             findings.append(ValidationFinding(severity="error", code="operating_mode", message="Dispatch action and signed power are inconsistent", interval=row.interval))
-        duration_hours = row.grid_energy_mwh / abs(row.power_mw) if abs(row.power_mw) > POWER_TOLERANCE_MW else 0.0
+        duration_hours = market.product_minutes / 60 if market else (row.grid_energy_mwh / abs(row.power_mw) if abs(row.power_mw) > POWER_TOLERANCE_MW else 0.0)
+        if market and abs(row.grid_energy_mwh - abs(row.power_mw)*duration_hours) > 1e-5:
+            findings.append(ValidationFinding(severity="error", code="grid_energy", message="Grid energy does not match power times delivery duration", interval=row.interval))
         expected_delta = 0.0
         if row.power_mw < -POWER_TOLERANCE_MW:
             expected_delta = abs(row.power_mw) * duration_hours * eta
         elif row.power_mw > POWER_TOLERANCE_MW:
             expected_delta = -row.power_mw * duration_hours / eta
+        if market and abs(row.battery_energy_mwh - abs(expected_delta)) > 1e-5:
+            findings.append(ValidationFinding(severity="error", code="battery_energy", message="Battery throughput does not reconcile with power and efficiency", interval=row.interval))
         if abs((row.soc_mwh - previous_soc) - expected_delta) > ENERGY_BALANCE_TOLERANCE_MWH:
             findings.append(ValidationFinding(severity="error", code="energy_balance", message="State-of-charge movement does not reconcile with power, duration and efficiency", interval=row.interval))
         previous_soc = row.soc_mwh

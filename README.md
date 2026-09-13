@@ -7,9 +7,15 @@ Interview prototype for a 100 MWh / 50 MW battery participating in a configurabl
 1. Enter or edit the hourly Day-Ahead price forecast.
 2. Enter BUY/SELL orders and choose `Market` or `Limit` for every order. Market orders have no limit-price condition; Limit orders pass the price condition only when the entered forecast crosses their side-specific limit. Every price-accepted order remains subject to physical feasibility.
 3. Run the simulation to process orders chronologically through the battery state of charge.
-4. Inspect executed, price-rejected and physically infeasible orders alongside the shared power/SoC chart, economics and validation findings.
+4. Inspect executed, price-rejected and physically infeasible orders alongside separate, time-aligned price, power and state-of-charge charts, economics and validation findings.
+5. Optionally generate an optimization proposal, review it, and explicitly apply it to the editable orders. Applying is reversible; generating alone never replaces the draft. Re-run the simulation to evaluate the applied orders.
+6. Use Analysis for proposal comparisons and History for restoring complete saved simulation inputs and evidence. The advanced optimizer remains available without duplicating the primary order-entry workflow.
 
-The entered forecast is deliberately used as the simulated auction clearing and settlement price. Execution is all-or-nothing per entered order; the prototype does not model clearing probability, partial fills, price impact, a live market feed or order submission.
+The entered forecast is deliberately used as the simulated auction clearing and settlement price. Eligible orders in a delivery interval are checked as one all-or-nothing batch; opposing BUY/SELL orders in the same interval are unsupported. The prototype does not model clearing probability, partial fills, price impact, a live market feed or order submission. Interval SoC evidence belongs to the whole batch, not to an invented ordering within that interval.
+
+Inputs and their last result share one session-persisted workspace. Editing inputs marks prior results stale; late responses do not validate a newer draft. The canonical UTC delivery grid handles 23/25-hour daylight-saving days as well as normal days. Blank prices are not interpreted as zero.
+
+Implementation and verification details are in [docs/WORKSPACE_IMPLEMENTATION.md](docs/WORKSPACE_IMPLEMENTATION.md).
 
 The homework-facing Order Simulator reconstructs dispatch deterministically from the trader's entered orders. The separate Advanced Optimizer solves dispatch as a mixed-integer linear program with SciPy/HiGHS. Both workflows reuse the same domain economics and physical-validation modules.
 

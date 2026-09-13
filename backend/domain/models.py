@@ -6,9 +6,11 @@ from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from backend.domain.delivery_grid import delivery_grid
 
 
 class BatteryConfig(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     capacity_mwh: float = Field(100, gt=0)
     max_charge_power_mw: float = Field(50, gt=0)
     max_discharge_power_mw: float = Field(50, gt=0)
@@ -34,6 +36,7 @@ class BatteryConfig(BaseModel):
 
 
 class MarketConfig(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     market_name: str = "Swiss Day-Ahead (configuration assumption)"
     bidding_zone: str = "CH"
     currency: str = "EUR"
@@ -93,6 +96,7 @@ class ScenarioProbability(BaseModel):
 
 
 class PricePoint(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     timestamp_utc: datetime
     price_eur_mwh: float
     low_eur_mwh: float | None = None
@@ -119,6 +123,7 @@ class OrderExecutionStatus(str, Enum):
 
 
 class SubmittedOrder(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     client_order_id: str = Field(..., min_length=1, max_length=80)
     delivery_start_utc: datetime
     side: Literal["BUY", "SELL"]
@@ -136,6 +141,7 @@ class SubmittedOrder(BaseModel):
 
 
 class SimulationRequest(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     delivery_date: str = "2026-09-09"
     scenario_name: str = "Expected forecast"
     battery: BatteryConfig = Field(default_factory=BatteryConfig)
@@ -151,6 +157,7 @@ class SimulationRequest(BaseModel):
     terminal_value_eur_per_mwh: float = Field(0, ge=0)
     lookahead_hours: int = Field(4, ge=1, le=24)
     scenario_probabilities: ScenarioProbability = Field(default_factory=ScenarioProbability)
+    include_sensitivities: bool = True
 
     @model_validator(mode="after")
     def validate_request(self):
@@ -175,6 +182,8 @@ class SimulationRequest(BaseModel):
             raise ValueError("Forecast bidding zone must match the configured market")
         if self.prices is not None:
             timestamps = [point.timestamp_utc for point in self.prices]
+            if any(t.tzinfo is None or t.utcoffset() is None for t in timestamps):
+                raise ValueError("Forecast timestamps must include a timezone")
             if timestamps != sorted(timestamps) or len(timestamps) != len(set(timestamps)):
                 raise ValueError("Forecast timestamps must be unique and chronological")
             if any(not self.market.min_price_eur_mwh <= point.price_eur_mwh <= self.market.max_price_eur_mwh for point in self.prices):
@@ -183,6 +192,8 @@ class SimulationRequest(BaseModel):
                 raise ValueError(f"Forecast must contain exactly {interval_count} delivery intervals")
             if any(point.timestamp_utc < start or point.timestamp_utc >= end for point in self.prices):
                 raise ValueError("Forecast timestamps must cover only the configured local delivery day")
+            if timestamps != delivery_grid(self.delivery_date, self.market.timezone, self.market.product_minutes):
+                raise ValueError("Forecast timestamps must match the exact delivery grid")
         if self.price_values is not None:
             if len(self.price_values) != interval_count:
                 raise ValueError(f"Manual forecast must contain exactly {interval_count} prices")
@@ -192,6 +203,8 @@ class SimulationRequest(BaseModel):
 
 
 class OrderSimulationRequest(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+    source_proposal_id: str | None = Field(None, max_length=80)
     delivery_date: str = "2026-09-09"
     battery: BatteryConfig = Field(default_factory=BatteryConfig)
     market: MarketConfig = Field(default_factory=MarketConfig)
@@ -511,6 +524,8 @@ class SimulationResult(BaseModel):
 
 
 class SimulatedOrderResult(BaseModel):
+    soc_evidence_scope: Literal["delivery_interval"] = "delivery_interval"
+    interval_order_count: int = 1
     submitted_order: SubmittedOrder
     forecast_price_eur_mwh: float
     execution_status: OrderExecutionStatus
@@ -526,7 +541,7 @@ class SimulatedOrderResult(BaseModel):
     degradation_cost_eur: float = 0
     transaction_fee_eur: float = 0
     price_condition_operator: Literal["<=", ">="] | None = None
-    price_condition_passed: bool = True
+    price_condition_passed: bool | None = None
     price_margin_eur_mwh: float | None = None
     executed_energy_mwh: float = 0
     soc_delta_mwh: float = 0

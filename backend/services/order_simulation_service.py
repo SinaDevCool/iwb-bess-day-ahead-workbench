@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 from collections import defaultdict
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -62,6 +61,9 @@ def _infeasible(order: SubmittedOrder, price: float, soc: float, code: str, reas
         soc_before_mwh=soc,
         soc_after_mwh=soc,
         contribution_eur=0,
+        price_condition_operator=None if order.order_type == SubmittedOrderType.MARKET else ("<=" if order.side == "BUY" else ">="),
+        price_condition_passed=_clears(order, price),
+        price_margin_eur_mwh=None if order.limit_price_eur_mwh is None else (order.limit_price_eur_mwh-price if order.side == "BUY" else price-order.limit_price_eur_mwh),
     )
 
 
@@ -77,7 +79,6 @@ def run_order_simulation(request: OrderSimulationRequest) -> OrderSimulationResu
     dt = request.market.product_minutes / 60
     fee = effective_transaction_fee(request.market)
     local_zone = ZoneInfo(request.market.timezone)
-    eta = math.sqrt(request.battery.round_trip_efficiency)
     soc = request.battery.initial_soc_mwh
     throughput = cumulative = 0.0
     dispatch: list[DispatchRow] = []
@@ -138,7 +139,7 @@ def run_order_simulation(request: OrderSimulationRequest) -> OrderSimulationResu
             soc += sum(item.soc_delta_mwh for item in economics)
             throughput += sum(item.battery_energy_mwh for item in economics)
             for order, item in zip(eligible, economics):
-                contribution = round(item.contribution_eur, 2)
+                contribution = round(round(item.sales_revenue_eur, 2)-round(item.purchase_cost_eur, 2)-round(item.degradation_cost_eur, 2)-round(item.transaction_fee_eur, 2), 2)
                 order_results.append(SimulatedOrderResult(
                     submitted_order=order,
                     forecast_price_eur_mwh=point.price_eur_mwh,
@@ -160,10 +161,10 @@ def run_order_simulation(request: OrderSimulationRequest) -> OrderSimulationResu
                     executed_energy_mwh=round(order.volume_mw * dt, 6),
                     soc_delta_mwh=round(item.soc_delta_mwh, 6),
                 ))
-                sales += item.sales_revenue_eur
-                purchases += item.purchase_cost_eur
-                degradation += item.degradation_cost_eur
-                transaction += item.transaction_fee_eur
+                sales += round(item.sales_revenue_eur, 2)
+                purchases += round(item.purchase_cost_eur, 2)
+                degradation += round(item.degradation_cost_eur, 2)
+                transaction += round(item.transaction_fee_eur, 2)
                 interval_contribution += contribution
                 battery_energy += item.battery_energy_mwh
                 grid_energy += item.grid_energy_mwh
@@ -188,7 +189,15 @@ def run_order_simulation(request: OrderSimulationRequest) -> OrderSimulationResu
             transaction_fee_eur=round(transaction, 2),
         ))
 
-    physical = validate_dispatch(dispatch, request.battery)
+    for outcome in order_results:
+        interval_orders = by_start[outcome.submitted_order.delivery_start_utc.astimezone(timezone.utc)]
+        outcome.interval_order_count = len(interval_orders)
+        row_index = next(i for i, p in enumerate(points) if p.timestamp_utc == outcome.submitted_order.delivery_start_utc)
+        outcome.soc_before_mwh = request.battery.initial_soc_mwh if row_index == 0 else dispatch[row_index-1].soc_mwh
+        outcome.soc_after_mwh = dispatch[row_index].soc_mwh
+    if len(order_results) != len(request.orders) or {x.submitted_order.client_order_id for x in order_results} != {x.client_order_id for x in request.orders}:
+        raise ValueError("Every submitted order must have exactly one outcome")
+    physical = validate_dispatch(dispatch, request.battery, request.market)
     all_findings = findings + physical.findings
     status = "failed" if any(item.severity == "error" for item in all_findings) else "warning" if all_findings else "passed"
     validation = ValidationResult(status=status, findings=all_findings)
@@ -227,11 +236,12 @@ def run_order_simulation(request: OrderSimulationRequest) -> OrderSimulationResu
         ),
         audit={
             "schema_version": 6, "input_hash": input_hash,
+            "source_proposal_id": request.source_proposal_id,
             "simulation_engine": "deterministic_order_clearing_v1",
             "validation_version": "physical_and_order_validation_v4",
             "clearing_assumption": "Forecast price is used as simulated auction clearing and settlement price; full execution only.",
         },
-        submitted_portfolio_feasible=not bool(infeasible),
+        submitted_portfolio_feasible=not bool(infeasible) and physical.status != "failed",
         executed_schedule_feasible=physical.status != "failed",
     )
     payload = result.model_dump(mode="json")

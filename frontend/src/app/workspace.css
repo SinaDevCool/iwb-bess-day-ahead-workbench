@@ -1,0 +1,613 @@
+.order-workspace {
+  max-width: 1600px;
+  margin: auto;
+  padding: 0 28px 36px;
+  color: #183d43;
+}
+.ws-header,
+.ws-context,
+.ws-nav,
+.ws-actions,
+.ws-brand,
+.ws-section-head,
+.ws-section-head > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.ws-header {
+  justify-content: space-between;
+  padding: 20px 0;
+  border-bottom: 1px solid #d9e5e3;
+}
+.ws-header h1 {
+  font-size: 19px;
+  margin: 0;
+}
+.ws-header > span,
+.ws-context,
+.ws-help {
+  font-size: 13px;
+  color: #536f74;
+}
+.ws-context {
+  padding: 14px 0;
+  flex-wrap: wrap;
+}
+.ws-context input {
+  width: 150px;
+}
+.ws-context button {
+  margin-left: auto;
+}
+.ws-nav {
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #f3f7f6;
+  padding: 10px 0;
+  border-bottom: 1px solid #d4e1df;
+  margin-bottom: 20px;
+}
+.ws-nav nav {
+  display: flex;
+  gap: 8px;
+}
+.ws-nav nav button {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 10px 14px;
+  color: #526c71;
+}
+.ws-nav nav button[aria-current] {
+  color: #087d78;
+  border-color: #087d78;
+  font-weight: 700;
+}
+.order-workspace button,
+.ws-dialog button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.order-workspace .compact {
+  width: auto;
+  min-width: 115px;
+  margin: 0;
+}
+.ws-card {
+  background: white;
+  border: 1px solid #d8e4e2;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 18px;
+  min-width: 0;
+}
+.ws-section-head {
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.ws-section-head h2,
+.ws-card > h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.ws-section-head h3 {
+  font-size: 15px;
+  margin: 0;
+}
+.ws-section-head small {
+  font-weight: 400;
+  color: #536f74;
+  margin-left: 6px;
+}
+.ws-section-head > div {
+  gap: 10px;
+  font-size: 12px;
+  color: #536f74;
+}
+.ws-forecast-plot {
+  height: 180px;
+  width: 100%;
+  min-width: 0;
+}
+.ws-help {
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
+.ws-order-layout {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.ws-order-layout.editing {
+  grid-template-columns: minmax(0, 1fr) 280px;
+}
+.ws-order-editor {
+  background: #f5f9f8;
+  border: 1px solid #dce7e5;
+  border-radius: 8px;
+  padding: 14px;
+}
+.order-workspace .order-entry-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.order-workspace .order-entry-row label {
+  min-width: 0;
+}
+.order-workspace .order-entry-row .row-number {
+  display: none;
+}
+.order-workspace .order-entry-row .order-delivery,
+.order-workspace .order-entry-row .order-price,
+.order-workspace .order-entry-row .market-condition {
+  grid-column: 1/-1;
+}
+.order-workspace .order-entry-row .remove-order {
+  width: 36px;
+  grid-column: 2;
+  justify-self: end;
+}
+.order-workspace .order-entry-row input,
+.order-workspace .order-entry-row select {
+  height: 38px;
+}
+.order-workspace table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.order-workspace th {
+  padding: 10px 12px;
+  font-size: 11px;
+  text-align: left;
+  color: #526c71;
+  background: #f4f8f7;
+}
+.order-workspace td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #e5edeb;
+}
+.order-workspace td small {
+  display: block;
+  color: #647b80;
+  font-size: 11px;
+  margin-top: 3px;
+}
+.order-workspace tr.selected {
+  background: #edf7f5;
+}
+.order-workspace .table-scroll {
+  max-width: 100%;
+  overflow: auto;
+}
+.ws-row-link,
+.ws-text-button {
+  border: 0;
+  background: none;
+  color: #087d78;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.ws-row-link {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.ws-text-button {
+  font-size: 13px;
+  padding: 8px;
+}
+.ws-empty {
+  text-align: center;
+  padding: 32px;
+  color: #536f74;
+}
+.ws-notice {
+  padding: 10px 14px;
+  background: #edf6f3;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.ws-notice button {
+  margin-left: 8px;
+  border: 0;
+  background: none;
+  color: #087d78;
+  text-decoration: underline;
+}
+.ws-menu {
+  position: relative;
+}
+.ws-menu summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.ws-menu > div {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  width: 200px;
+  background: white;
+  border: 1px solid #d8e4e2;
+  box-shadow: 0 8px 24px #163f431a;
+  border-radius: 8px;
+  padding: 6px;
+  z-index: 30;
+}
+.ws-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  justify-content: flex-start;
+  border: 0;
+  background: none;
+  padding: 10px;
+  border-radius: 4px;
+}
+.ws-menu button:hover {
+  background: #edf6f4;
+}
+.ws-dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: 88dvh;
+  overflow: auto;
+  border: 1px solid #d4e1df;
+  border-radius: 14px;
+  padding: 24px;
+  color: #183d43;
+  box-shadow: 0 18px 80px #123b4333;
+}
+.ws-dialog::backdrop {
+  background: #17383e66;
+}
+.ws-dialog p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #536f74;
+}
+.ws-dialog .primary,
+.ws-dialog .secondary {
+  width: auto;
+  margin-top: 14px;
+  margin-right: 10px;
+}
+.ws-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 18px 0;
+}
+.ws-fields label,
+.ws-price-grid label,
+.ws-dialog > label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ws-fields small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: #536f74;
+}
+.ws-dialog input,
+.ws-dialog select,
+.ws-dialog textarea {
+  width: 100%;
+  padding: 9px;
+  border: 1px solid #bfd1cf;
+  border-radius: 6px;
+  background: #fff;
+  color: #183d43;
+  margin-top: 5px;
+}
+.ws-dialog textarea {
+  min-height: 85px;
+}
+.ws-dialog details {
+  border-top: 1px solid #e1eae8;
+  padding: 12px 0;
+}
+.ws-dialog summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ws-price-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+  max-height: 40vh;
+  overflow: auto;
+  padding: 2px;
+}
+.ws-price-grid small {
+  font-size: 10px;
+  display: block;
+  color: #647b80;
+  font-weight: 400;
+}
+.ws-availability {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.ws-dialog .ws-availability label,
+.ws-dialog .ws-check {
+  font-size: 12px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.ws-dialog input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+.ws-preview {
+  margin-top: 16px;
+  border: 1px solid #a4cbc6;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f3f9f7;
+}
+.ws-preview h3 {
+  font-size: 16px;
+  margin: 0;
+}
+.ws-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+  font-size: 12px;
+  color: #536f74;
+}
+.ws-metrics strong {
+  display: block;
+  color: #183d43;
+  font-size: 18px;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+.order-workspace pre {
+  max-height: 260px;
+  overflow: auto;
+  font-size: 12px;
+}
+.ws-schedule .plot-card {
+  margin-bottom: 10px;
+  border: 1px solid #dce6e4;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ws-schedule-plot {
+  height: 170px;
+  width: 100%;
+  min-width: 0;
+}
+.ws-schedule .plot-heading {
+  padding: 9px 12px;
+  font-size: 12px;
+}
+.ws-schedule .chart-overview {
+  margin-bottom: 12px;
+}
+.ws-schedule .chart-overview h3 {
+  font-size: 16px;
+}
+.ws-schedule .chart-overview p,
+.ws-schedule .chart-foot {
+  font-size: 12px;
+}
+.order-workspace .simulation-results {
+  gap: 16px;
+}
+.order-workspace .simulator-card {
+  padding: 18px;
+  border-radius: 12px;
+}
+.order-workspace .simulation-kpis {
+  margin: 0;
+}
+.order-workspace .sim-kpi {
+  padding: 12px;
+}
+.order-workspace .result-verdict {
+  padding: 14px;
+}
+.order-workspace .step-badge {
+  display: none;
+}
+.order-workspace :focus-visible,
+.ws-dialog :focus-visible {
+  outline: 2px solid #087d78;
+  outline-offset: 3px;
+}
+.ws-dialog .field-error {
+  color: #a5392f;
+}
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 20px;
+  z-index: 100;
+  background: white;
+  padding: 10px;
+}
+.skip-link:focus {
+  top: 10px;
+}
+.ws-cash-details {
+  font-size: 13px;
+  padding: 12px 0;
+}
+.ws-cash-details dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+.ws-cash-details dd {
+  margin: 0;
+}
+.order-workspace .stale-notice {
+  margin-bottom: 12px;
+}
+.ws-chart-orders {
+  font-size: 12px;
+  margin: 10px 0;
+}
+.ws-chart-orders > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0;
+}
+.ws-chart-orders button {
+  border: 1px solid #bfd1cf;
+  background: #fff;
+  border-radius: 5px;
+  padding: 6px;
+}
+.ws-chart-orders button[aria-pressed="true"] {
+  background: #e0f1ec;
+}
+.spin {
+  animation: ws-spin 1s linear infinite;
+}
+@keyframes ws-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 1100px) {
+  .order-workspace {
+    padding: 0 18px 24px;
+  }
+  .ws-order-layout.editing {
+    grid-template-columns: minmax(0, 1fr) 245px;
+  }
+  .ws-header {
+    padding: 14px 0;
+  }
+  .ws-schedule-plot {
+    height: 155px;
+  }
+}
+@media (max-width: 760px) {
+  .ws-order-layout.editing {
+    grid-template-columns: 1fr;
+  }
+  .ws-header > span {
+    font-size: 11px;
+  }
+  .ws-header h1 {
+    font-size: 15px;
+  }
+  .ws-header .logo {
+    display: none;
+  }
+  .ws-context {
+    gap: 8px;
+    font-size: 12px;
+  }
+  .ws-context button {
+    margin-left: 0;
+  }
+  .ws-nav {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .ws-nav nav button {
+    padding: 9px 6px;
+  }
+  .ws-actions {
+    gap: 6px;
+  }
+  .ws-card {
+    padding: 14px;
+  }
+  .ws-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ws-price-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ws-metrics {
+    grid-template-columns: 1fr;
+  }
+  .ws-availability {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ws-dialog {
+    padding: 18px;
+  }
+  .order-workspace .result-checks {
+    grid-template-columns: 1fr;
+  }
+  .order-workspace th,
+  .order-workspace td {
+    padding: 9px;
+  }
+  .ws-schedule-plot {
+    height: 165px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+.ws-validation-line {
+  font-size: 12px;
+  color: #536f74;
+  padding: 0 2px;
+}
+.ws-validation-line .field-error {
+  display: block;
+  margin-top: 5px;
+}
+.order-workspace main {
+  scroll-margin-top: 70px;
+}
+.order-workspace td,
+.ws-metrics strong,
+.order-workspace .sim-kpi strong {
+  font-variant-numeric: tabular-nums;
+}
+.ws-dialog {
+  overscroll-behavior: contain;
+}
+.order-workspace .execution-table tr {
+  content-visibility: auto;
+}
+.order-workspace .ws-context input {
+  border: 1px solid #bfd1cf;
+  border-radius: 6px;
+  padding: 8px;
+  background: white;
+}
+.order-workspace .ws-row-link:hover,
+.ws-text-button:hover {
+  color: #045b57;
+}
+.order-workspace .ws-nav button,
+.order-workspace .ws-context button {
+  min-height: 36px;
+}

@@ -1,4 +1,5 @@
 "use client";
+import { useId } from "react";
 import {
   Area,
   Bar,
@@ -6,13 +7,111 @@ import {
   ComposedChart,
   ReferenceLine,
   ResponsiveContainer,
-  Scatter,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import type { Battery, Dispatch, SimulatedOrderResult } from "@/types/api";
-
+type Point = { timestamp_utc: string; price_eur_mwh: number | null };
+const clock = (v: number, zone: string) =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: zone,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(v));
+const exact = (v: number, zone: string) =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: zone,
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "shortOffset",
+  }).format(new Date(v));
+const axis = { fontSize: 11, fill: "#607477" };
+const timeTicks = (start: number, end: number) => [
+  ...Array.from(
+    { length: Math.ceil((end - start) / 14400000) },
+    (_, i) => start + i * 14400000,
+  ),
+  end,
+];
+const grid = (
+  <CartesianGrid stroke="#e3ebe9" strokeDasharray="2 4" vertical={false} />
+);
+export function ForecastPlot({
+  points,
+  zone = "Europe/Zurich",
+}: {
+  points: Point[];
+  zone?: string;
+}) {
+  const data = points.map((p) => ({
+    x: Date.parse(p.timestamp_utc),
+    price: p.price_eur_mwh,
+  }));
+  const dt = data.length > 1 ? data[1].x - data[0].x : 3600000;
+  if (data.length)
+    data.push({ ...data[data.length - 1], x: data[data.length - 1].x + dt });
+  const end = data.at(-1)?.x ?? 0;
+  return (
+    <div
+      className="ws-forecast-plot"
+      role="img"
+      aria-label="Entered Day-Ahead forecast in euros per megawatt-hour"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart
+          data={data}
+          margin={{ top: 12, right: 18, bottom: 0, left: 0 }}
+        >
+          {grid}
+          <XAxis
+            dataKey="x"
+            type="number"
+            domain={["dataMin", "dataMax"]}
+            ticks={timeTicks(data[0]?.x ?? 0, end)}
+            tickFormatter={(v) => (v === end ? "24:00" : clock(v, zone))}
+            tick={axis}
+          />
+          <YAxis width={55} tick={axis} axisLine={false} tickLine={false} />
+          <Tooltip labelFormatter={(v) => exact(Number(v), zone)} />
+          <Area
+            dataKey="price"
+            name="Forecast €/MWh"
+            type="stepAfter"
+            stroke="#174b56"
+            fill="#eaf3f2"
+            dot={false}
+            isAnimationActive={false}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+export function scheduleChartData(rows: Dispatch[], battery: Battery) {
+  const dt =
+    rows.length > 1
+      ? Date.parse(rows[1].timestamp_utc) - Date.parse(rows[0].timestamp_utc)
+      : 3600000;
+  const start = rows.length ? Date.parse(rows[0].timestamp_utc) : 0;
+  return {
+    start,
+    end: start + rows.length * dt,
+    dt,
+    intervals: rows.map((r) => ({
+      x: Date.parse(r.timestamp_utc) + dt / 2,
+      charge: Math.min(0, r.power_mw),
+      discharge: Math.max(0, r.power_mw),
+    })),
+    soc: [
+      { x: start, soc: battery.initial_soc_mwh },
+      ...rows.map((r) => ({
+        x: Date.parse(r.timestamp_utc) + dt,
+        soc: r.soc_mwh,
+      })),
+    ],
+  };
+}
 export function DispatchChart({
   rows,
   battery,
@@ -26,7 +125,11 @@ export function DispatchChart({
 }: {
   rows: Dispatch[];
   battery: Battery;
-  forecast?: { source_type: "illustrative" | "manual" | "file"; source_name: string; version: string };
+  forecast?: {
+    source_type: "illustrative" | "manual" | "file";
+    source_name: string;
+    version: string;
+  };
   mode?: "optimization" | "order-simulation";
   executedOrderCount?: number;
   submittedOrderCount?: number;
@@ -34,308 +137,206 @@ export function DispatchChart({
   selectedOrderId?: string;
   onSelectOrder?: (id: string) => void;
 }) {
-  const data = rows.map((row) => ({
-    ...row,
-    time: row.timestamp_local.slice(11, 16),
-    charge: row.power_mw < 0 ? row.power_mw : 0,
-    discharge: row.power_mw > 0 ? row.power_mw : 0,
+  const sync = useId();
+  const { start, end, intervals, soc } = scheduleChartData(rows, battery);
+  const zone = "Europe/Zurich";
+  const prices = rows.map((r) => ({
+    x: Date.parse(r.timestamp_utc),
+    price: r.price_eur_mwh,
   }));
-  const charges = rows.filter((row) => row.action === "charge");
-  const discharges = rows.filter((row) => row.action === "discharge");
-  const low = Math.min(...rows.map((row) => row.price_eur_mwh));
-  const high = Math.max(...rows.map((row) => row.price_eur_mwh));
-  const effectivePower = Math.max(
-    battery.max_charge_power_mw,
-    battery.max_discharge_power_mw,
-    battery.grid_limit_mw,
+  if (prices.length) prices.push({ ...prices[prices.length - 1], x: end });
+  const xAxis = (
+    <XAxis
+      dataKey="x"
+      type="number"
+      domain={[start, end]}
+      ticks={timeTicks(start, end)}
+      tickFormatter={(v) => (v === end ? "24:00" : clock(v, zone))}
+      tick={axis}
+      axisLine={false}
+      tickLine={false}
+    />
   );
-  const powerAxis = Math.max(1, Math.ceil(effectivePower / 10) * 10);
-  const powerTicks = [-powerAxis, -powerAxis / 2, 0, powerAxis / 2, powerAxis];
-  const socTicks = [
-    ...new Set([
-      0,
-      battery.min_soc_mwh,
-      battery.max_soc_mwh,
-      battery.capacity_mwh,
-    ]),
-  ].sort((a, b) => a - b);
-  const summary = mode === "order-simulation"
-    ? `${executedOrderCount ?? 0} of ${submittedOrderCount ?? 0} submitted orders executed under the entered price forecast.`
-    : `The battery charges in ${charges.length} low-price intervals and discharges in ${discharges.length} high-price intervals.`;
-  const forecastLabel = forecast?.source_type === "manual" ? forecast.source_name : "Illustrative Day-Ahead Price Forecast";
-  const markers = (orderResults ?? []).map((result) => ({
-    time: rows.find((row) => row.timestamp_utc === result.submitted_order.delivery_start_utc)?.timestamp_local.slice(11, 16) ?? "",
-    price_eur_mwh: result.forecast_price_eur_mwh,
-    orderId: result.submitted_order.client_order_id,
-    side: result.submitted_order.side,
-    status: result.execution_status,
-  }));
-  const selectedTime = markers.find((marker) => marker.orderId === selectedOrderId)?.time;
+  const tip = <Tooltip labelFormatter={(v) => exact(Number(v), zone)} />;
+  const margin = { top: 12, right: 24, bottom: 0, left: 0 };
+  const selected = orderResults?.find(
+    (o) => o.submitted_order.client_order_id === selectedOrderId,
+  );
+  const selectedX = selected
+    ? Date.parse(selected.submitted_order.delivery_start_utc)
+    : undefined;
   return (
-    <figure className="dispatch-figure">
+    <figure className="dispatch-figure ws-schedule">
       <div className="chart-overview">
         <div>
-          <span className="chart-kicker">{mode === "order-simulation" ? "ORDER SIMULATION RESULT" : "OPTIMIZATION RESULT"}</span>
-          <h3>{mode === "order-simulation" ? "Schedule From Entered Orders" : "Day-Ahead Battery Dispatch"}</h3>
-          <p>{summary}</p>
-        </div>
-        <div className="chart-facts">
-          <span>
-            <small>Lowest DA price forecast</small>
-            <strong>{euro(low)}/MWh</strong>
-          </span>
-          <span>
-            <small>Highest DA price forecast</small>
-            <strong>{euro(high)}/MWh</strong>
-          </span>
-          <span>
-            <small>Forecast spread</small>
-            <strong>{euro(high - low)}/MWh</strong>
-          </span>
+          <h3>
+            {mode === "order-simulation"
+              ? "Schedule from entered orders"
+              : "Day-Ahead battery dispatch"}
+          </h3>
+          <p>
+            {mode === "order-simulation"
+              ? (executedOrderCount ?? 0) +
+                " of " +
+                (submittedOrderCount ?? 0) +
+                " orders executed under the entered forecast."
+              : "Forecast, scheduled power and stored energy share the delivery timeline."}
+          </p>
         </div>
       </div>
-      <div className="dispatch-plots">
-      <div className="plot-card price-plot">
+      <div className="plot-card">
         <div className="plot-heading">
-          <span>
-            <i className="legend-line price" aria-hidden="true" />
-            {forecastLabel}
-          </span>
+          <span>{forecast?.source_name ?? "Day-Ahead forecast"}</span>
           <strong>€/MWh</strong>
         </div>
         <div
-          className="plot-area"
+          className="ws-schedule-plot"
           role="img"
-          aria-label={`${forecastLabel} in euros per megawatt-hour. ${summary}`}
+          aria-label="Day-Ahead price forecast"
         >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
-              data={data}
-              syncId="dispatch"
-              margin={{ top: 8, right: 18, bottom: 0, left: 4 }}
+              data={prices}
+              syncId={sync}
+              syncMethod="value"
+              margin={margin}
             >
-              <defs>
-                <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#1d5963" stopOpacity=".18" />
-                  <stop offset="100%" stopColor="#1d5963" stopOpacity=".02" />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="#e3ebe9" strokeDasharray="2 4" vertical={false} />
-              <XAxis dataKey="time" hide />
-              <YAxis
-                width={55}
-                tick={{ fontSize: 11, fill: "#607477" }}
-                axisLine={false}
-                tickLine={false}
-                tickMargin={8}
-                tickFormatter={(value) => `€${value}`}
-              />
-              <Tooltip content={<Tip />} cursor={{ stroke: "#9bb2af", strokeDasharray: "3 3" }} />
+              {grid}
+              {xAxis}
+              <YAxis width={60} tick={axis} />
+              {tip}
               <Area
-                dataKey="price_eur_mwh"
-                name={forecastLabel}
+                dataKey="price"
+                name="Forecast €/MWh"
+                type="stepAfter"
                 stroke="#174b56"
-                fill="url(#priceFill)"
-                strokeWidth={2.5}
+                fill="#edf4f3"
                 dot={false}
+                isAnimationActive={false}
               />
-              {selectedTime && <ReferenceLine x={selectedTime} stroke="#087d78" strokeDasharray="3 3" />}
-              {markers.length > 0 && <Scatter
-                  data={markers}
-                  dataKey="price_eur_mwh"
-                  name="Submitted orders"
-                  shape={<OrderMarker selectedOrderId={selectedOrderId} />}
-                  onClick={(point) => {
-                    const marker = point as unknown as { orderId?: string; payload?: { orderId?: string } };
-                    const orderId = marker.orderId ?? marker.payload?.orderId;
-                    if (orderId) onSelectOrder?.(orderId);
-                  }}
-                />}
+              {selectedX !== undefined && (
+                <ReferenceLine x={selectedX} stroke="#087d78" />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
       </div>
-      <div className="plot-card dispatch-plot">
+      <div className="plot-card">
         <div className="plot-heading">
-          <span>
-            <i className="legend-block charge" aria-hidden="true" />
-            Charge <b>−</b>
-            <i className="legend-block discharge" aria-hidden="true" />
-            Discharge <b>+</b>
-            <i className="legend-line soc" aria-hidden="true" />
-            State of Charge
-          </span>
-          <span className="axis-units">
-            <strong>MW</strong>
-            <strong>MWh</strong>
-          </span>
+          <span>Scheduled power · Charge − / Discharge +</span>
+          <strong>MW</strong>
         </div>
         <div
-          className="plot-area large"
+          className="ws-schedule-plot"
           role="img"
-          aria-label={`Battery dispatch in megawatts and state of charge in megawatt-hours. ${summary}`}
+          aria-label="Charging negative and discharging positive power in MW"
         >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
-              data={data}
-              syncId="dispatch"
-              margin={{ top: 9, right: 10, bottom: 2, left: 4 }}
+              data={intervals}
+              syncId={sync}
+              syncMethod="value"
+              margin={margin}
             >
-              <defs>
-                <linearGradient id="socFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#655fb4" stopOpacity=".18" />
-                  <stop offset="100%" stopColor="#655fb4" stopOpacity=".02" />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="#e3ebe9" strokeDasharray="2 4" vertical={false} />
-              <XAxis
-                dataKey="time"
-                interval={Math.max(Math.floor(rows.length / 8), 0)}
-                tick={{ fontSize: 11, fill: "#607477" }}
-                axisLine={{ stroke: "#aebfbc" }}
-                tickLine={false}
-                tickMargin={9}
-                height={34}
-              />
-              <YAxis
-                yAxisId="power"
-                width={58}
-                domain={[-powerAxis, powerAxis]}
-                ticks={powerTicks}
-                tick={{ fontSize: 11, fill: "#607477" }}
-                axisLine={false}
-                tickLine={false}
-                tickMargin={7}
-                tickFormatter={(value) => `${value} MW`}
-              />
-              <YAxis
-                yAxisId="soc"
-                orientation="right"
-                width={62}
-                domain={[0, battery.capacity_mwh]}
-                ticks={socTicks}
-                tick={{ fontSize: 11, fill: "#655fb4" }}
-                axisLine={false}
-                tickLine={false}
-                tickMargin={7}
-                tickFormatter={(value) => `${value} MWh`}
-              />
-              <Tooltip content={<Tip />} cursor={{ fill: "rgba(8, 125, 120, .045)" }} />
-              <ReferenceLine
-                yAxisId="power"
-                y={0}
-                stroke="#81928f"
-                strokeWidth={1.2}
-              />
-              <ReferenceLine
-                yAxisId="soc"
-                y={battery.min_soc_mwh}
-                stroke="#a7a2d5"
-                strokeDasharray="5 4"
-              />
-              <ReferenceLine
-                yAxisId="soc"
-                y={battery.max_soc_mwh}
-                stroke="#a7a2d5"
-                strokeDasharray="5 4"
-              />
+              {grid}
+              {xAxis}
+              <YAxis width={60} tick={axis} />
+              {tip}
+              <ReferenceLine y={0} stroke="#829693" />
               <Bar
-                yAxisId="power"
                 dataKey="charge"
                 name="Charge MW"
                 fill="#1d9c98"
-                radius={[3, 3, 0, 0]}
                 maxBarSize={18}
+                isAnimationActive={false}
               />
               <Bar
-                yAxisId="power"
                 dataKey="discharge"
                 name="Discharge MW"
-                fill="#e67d11"
-                radius={[3, 3, 0, 0]}
+                fill="#db7c13"
                 maxBarSize={18}
-              />
-              <Area
-                yAxisId="soc"
-                dataKey="soc_mwh"
-                name="SoC MWh"
-                stroke="#655fb4"
-                fill="url(#socFill)"
-                strokeWidth={2.5}
-                type="stepAfter"
-                dot={false}
+                isAnimationActive={false}
               />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
       </div>
+      <div className="plot-card">
+        <div className="plot-heading">
+          <span>Stored energy · initial state and interval ends</span>
+          <strong>MWh</strong>
+        </div>
+        <div
+          className="ws-schedule-plot"
+          role="img"
+          aria-label="State of charge in MWh with configured minimum and maximum"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart
+              data={soc}
+              syncId={sync}
+              syncMethod="value"
+              margin={margin}
+            >
+              {grid}
+              {xAxis}
+              <YAxis
+                width={60}
+                domain={[0, battery.capacity_mwh]}
+                tick={axis}
+              />
+              {tip}
+              <ReferenceLine
+                y={battery.min_soc_mwh}
+                stroke="#8980be"
+                strokeDasharray="4 4"
+              />
+              <ReferenceLine
+                y={battery.max_soc_mwh}
+                stroke="#8980be"
+                strokeDasharray="4 4"
+              />
+              <Area
+                dataKey="soc"
+                name="Stored energy MWh"
+                type="linear"
+                stroke="#655fb4"
+                fill="#f0eef8"
+                dot={false}
+                isAnimationActive={false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
       </div>
-      <div className="chart-foot">
-        <span>
-          <i className="bound" aria-hidden="true" />
-          Dashed lines: configured {number(battery.min_soc_mwh)}–
-          {number(battery.max_soc_mwh)} MWh SoC envelope
-        </span>
-        <span>Delivery time · Europe/Zurich · hover for exact values</span>
-      </div>
+      {orderResults && orderResults.length > 0 && (
+        <details className="ws-chart-orders">
+          <summary>Locate an order on the forecast</summary>
+          <div>
+            {orderResults.map((o) => (
+              <button
+                type="button"
+                key={o.submitted_order.client_order_id}
+                aria-pressed={
+                  selectedOrderId === o.submitted_order.client_order_id
+                }
+                onClick={() =>
+                  onSelectOrder?.(o.submitted_order.client_order_id)
+                }
+              >
+                {exact(Date.parse(o.submitted_order.delivery_start_utc), zone)}{" "}
+                · {o.submitted_order.side} ·{" "}
+                {o.execution_status.replaceAll("_", " ").toLowerCase()}
+              </button>
+            ))}
+          </div>
+        </details>
+      )}
+      <figcaption className="chart-foot">
+        Europe/Zurich · Power is interval-average; energy joins boundary states
+        assuming constant interval power. Dashed lines: {battery.min_soc_mwh}–
+        {battery.max_soc_mwh} MWh.
+      </figcaption>
     </figure>
   );
 }
-
-function OrderMarker(props: { cx?: number; cy?: number; payload?: { orderId: string; side: "BUY" | "SELL"; status: string }; selectedOrderId?: string }) {
-  const { cx = 0, cy = 0, payload, selectedOrderId } = props;
-  if (!payload?.side || !payload.status) return <g aria-hidden="true" />;
-  const executed = payload.status === "EXECUTED";
-  const infeasible = payload.status === "PHYSICALLY_INFEASIBLE";
-  const fill = executed ? (payload.side === "BUY" ? "#1d9c98" : "#e67d11") : "#fff";
-  const stroke = infeasible ? "#b54838" : payload.side === "BUY" ? "#1d9c98" : "#e67d11";
-  const selected = payload.orderId === selectedOrderId;
-  return <g role="button" tabIndex={0} aria-label={`${payload.side} order ${payload.status.toLowerCase().replaceAll("_", " ")}`}>
-    {selected && <circle cx={cx} cy={cy} r={9} fill="none" stroke="#087d78" strokeWidth={2} />}
-    <circle cx={cx} cy={cy} r={5} fill={fill} stroke={stroke} strokeWidth={2} />
-  </g>;
-}
-
-function Tip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: Dispatch }>;
-  label?: string;
-}) {
-  if (!active || !payload?.[0]) return null;
-  const row = payload[0].payload;
-  return (
-    <div className="chart-tip">
-      <span className="tip-time">{label} · Europe/Zurich</span>
-      <strong>
-        {title(row.action)} {Math.abs(row.power_mw).toFixed(1)} MW
-      </strong>
-      <dl>
-        <div>
-          <dt>Illustrative DA price forecast</dt>
-          <dd>{euro(row.price_eur_mwh)}/MWh</dd>
-        </div>
-        <div>
-          <dt>State of charge</dt>
-          <dd>{row.soc_mwh.toFixed(1)} MWh</dd>
-        </div>
-        <div>
-          <dt>Interval contribution</dt>
-          <dd>{euro(row.interval_pnl_eur)}</dd>
-        </div>
-      </dl>
-    </div>
-  );
-}
-const euro = (value: number) =>
-  new Intl.NumberFormat("en-CH", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(value);
-const number = (value: number) =>
-  new Intl.NumberFormat("en-CH", { maximumFractionDigits: 1 }).format(value);
-const title = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);

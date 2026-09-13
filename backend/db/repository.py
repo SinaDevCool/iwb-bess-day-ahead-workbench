@@ -52,10 +52,13 @@ def get_simulation(simulation_id: str):
     return json.loads(row[0]) if row else None
 
 
-def list_simulations(limit: int = 30):
+def list_simulations(limit: int = 30, run_type: str | None = None):
     initialize()
     with sqlite3.connect(DB_PATH) as connection:
-        rows = connection.execute("SELECT payload FROM simulations ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        if run_type:
+            rows = connection.execute("SELECT payload FROM simulations WHERE COALESCE(json_extract(payload, '$.run_type'), 'OPTIMIZATION') = ? ORDER BY created_at DESC LIMIT ?", (run_type, limit)).fetchall()
+        else:
+            rows = connection.execute("SELECT payload FROM simulations ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
     return [json.loads(row[0]) for row in rows]
 
 

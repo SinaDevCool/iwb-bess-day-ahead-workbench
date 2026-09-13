@@ -11,15 +11,15 @@ describe("order simulation validation", () => {
     expect(validateBattery({ ...battery, max_soc_mwh: 110 }).max_soc_mwh).toContain("capacity");
     expect(validateBattery({ ...battery, target_soc_mwh: 5 }).target_soc_mwh).toContain("inside");
   });
-  it("validates volume, increments, limit range and opposing sides", () => {
+  it("validates syntax but leaves physical conflicts to simulation", () => {
     const issues = validateOrders([
       { id: "a", interval: 1, side: "BUY", orderType: "LIMIT", volume: "50.05", limit: "5000" },
       { id: "b", interval: 1, side: "SELL", orderType: "MARKET", volume: "60", limit: "" },
     ], market, battery, 24);
     expect(issues["order.a.volume"]).toContain("increments");
     expect(issues["order.a.limit"]).toContain("between");
-    expect(issues["order.b.volume"]).toContain("exceeds");
-    expect(issues["order.a.interval"]).toContain("cannot share");
+    expect(issues["order.b.volume"]).toBeUndefined();
+    expect(issues["order.a.interval"]).toBeUndefined();
   });
   it("uses side-specific inclusive limit conditions", () => {
     expect(priceCondition("BUY", 50, 50).passed).toBe(true);
