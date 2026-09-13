@@ -125,6 +125,11 @@ describe("OrderSimulatorWorkbench", () => {
     expect(screen.queryByRole("link", { name: "Compare Runs" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Edit .* order/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add order" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Simulate orders" }));
+    expect(await screen.findByText(/Add at least one Market or Limit order/)).toBeInTheDocument();
+    expect(
+      vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith("/api/order-simulations")),
+    ).toBe(false);
   });
   function addOrder() {
     fireEvent.click(screen.getByRole("button", { name: "Add order" }));
@@ -250,10 +255,14 @@ describe("OrderSimulatorWorkbench", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Workbench unavailable");
     expect(screen.getByRole("button", { name: "Retry Loading" })).toBeEnabled();
   });
-  it("loads a price-free grid on date changes and supports undo", async () => {
+  it("loads a price-free grid, preserves orders on date changes and supports undo", async () => {
     await ready();
     const fetchMock = vi.fn(async () =>
-      response({ points: points.map(({ timestamp_utc }) => ({ timestamp_utc })) }),
+      response({
+        points: points.map(({ timestamp_utc }) => ({
+          timestamp_utc: new Date(Date.parse(timestamp_utc) + 86_400_000).toISOString(),
+        })),
+      }),
     );
     vi.stubGlobal("fetch", fetchMock);
     fireEvent.change(screen.getByLabelText("Delivery date"), { target: { value: "2026-09-10" } });
@@ -263,7 +272,7 @@ describe("OrderSimulatorWorkbench", () => {
       expect.stringContaining("/api/delivery-grid?"),
       expect.anything(),
     );
-    expect(screen.queryAllByRole("button", { name: /Edit .* order/ })).toHaveLength(0);
+    expect(screen.queryAllByRole("button", { name: /Edit .* order/ })).toHaveLength(4);
     fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
     expect(screen.getByLabelText("Price 00:00")).toHaveValue(null);
     expect(screen.getByRole("button", { name: "Apply prices" })).toBeDisabled();

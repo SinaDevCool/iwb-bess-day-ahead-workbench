@@ -6,6 +6,7 @@ import type { Battery, Market, OrderSimulation } from "@/types/api";
 import type { ActionContext } from "./workspace-action-types";
 import { examples, fromOrders, identity, calculationIdentity } from "./workspace-adapters";
 import { changeResolution } from "./workspace-duration-transition";
+import { ordersForDate } from "./workspace-date-transition";
 import type { Draft, Point } from "./workspace-types";
 type ReplacementActionContext = Pick<
   ActionContext,
@@ -86,7 +87,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
         message:
           value === draft.date
             ? "Change product duration? Hourly inputs are split into quarter-hours at the same MW and price, preserving energy. Quarter-hours can merge only if their prices, orders and availability match. Re-simulate afterwards; you can undo this change."
-            : "Changing date clears the forecast, orders and interval availability. Other battery settings are preserved. Load a compatible forecast afterwards; you can undo this replacement.",
+            : "Move existing orders to the same market delivery times on the new date? Forecast and interval availability will be cleared; other battery settings are preserved. Load a new forecast and re-simulate. You can undo this change.",
         action: () => void changeDate(value, true, minutes),
       });
       return;
@@ -109,6 +110,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
         );
         return;
       }
+      const orders = ordersForDate(draft, next.points);
       setUndo(draft);
       change({
         date: value,
@@ -121,11 +123,14 @@ export function useReplacementActions(context: ReplacementActionContext) {
           version: "pending",
           bidding_zone: draft.market.bidding_zone,
         },
-        orders: [],
+        orders,
         battery: { ...draft.battery, unavailable_intervals: [] },
         sourceProposalId: undefined,
       });
       setSelected("");
+      setNotice(
+        "Delivery date changed. Orders preserved at their market delivery times. Load the new date's forecast and simulate again.",
+      );
     } catch (e) {
       setError(String(e));
     } finally {

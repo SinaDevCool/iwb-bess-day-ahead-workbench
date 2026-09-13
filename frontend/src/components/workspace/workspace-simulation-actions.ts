@@ -31,7 +31,15 @@ export function useSimulationActions(context: SimulationActionContext) {
     validate,
   } = context;
   const simulate = async () => {
-    if (!draft || !validate()) return;
+    if (!draft) return;
+    if (!draft.orders.length) {
+      setError(
+        "Add at least one Market or Limit order before simulating. A forecast alone does not create battery orders.",
+      );
+      navigate("orders");
+      return;
+    }
+    if (!validate()) return;
     const snapshot = draft,
       key = calculationIdentity(snapshot),
       ticket = ++requestId.current;
