@@ -1,6 +1,6 @@
 # IWB BESS Day-Ahead Workbench
 
-Interview prototype for a 100 MWh / 50 MW battery participating in a configurable Day-Ahead auction. Its primary homework workflow simulates trader-entered Market and Limit orders against an entered price forecast and graphs the resulting battery schedule. The existing optimization workbench remains available as an advanced mode that converts a forecast and battery assumptions into a feasible dispatch, scenario comparison, explainable economics, and a validated preview-only order proposal.
+Interview prototype for a 100 MWh / 50 MW battery participating in a configurable Day-Ahead auction. One unified workbench simulates trader-entered Market and Limit orders against an entered price forecast and graphs the resulting battery schedule. Optional optimization generates an explicitly applied order proposal from the same battery and forecast inputs. There is no separate advanced-mode draft or duplicate order-entry page.
 
 ## Homework workflow
 
@@ -9,7 +9,7 @@ Interview prototype for a 100 MWh / 50 MW battery participating in a configurabl
 3. Run the simulation to process orders chronologically through the battery state of charge.
 4. Inspect executed, price-rejected and physically infeasible orders alongside separate, time-aligned price, power and state-of-charge charts, economics and validation findings.
 5. Optionally generate an optimization proposal, review it, and explicitly apply it to the editable orders. Applying is reversible; generating alone never replaces the draft. Re-run the simulation to evaluate the applied orders.
-6. Use Analysis for proposal comparisons and History for restoring complete saved simulation inputs and evidence. The advanced optimizer remains available without duplicating the primary order-entry workflow.
+6. Use Compare Runs for saved order simulations or explicitly scoped optimizer proposals. Saved history restores complete simulation inputs and evidence. Physical Validation inspects the saved executed schedule, including headroom and failed checks.
 
 The entered forecast is deliberately used as the simulated auction clearing and settlement price. Eligible orders in a delivery interval are checked as one all-or-nothing batch; opposing BUY/SELL orders in the same interval are unsupported. The prototype does not model clearing probability, partial fills, price impact, a live market feed or order submission. Interval SoC evidence belongs to the whole batch, not to an invented ordering within that interval.
 
@@ -17,7 +17,7 @@ Inputs and their last result share one session-persisted workspace. Editing inpu
 
 Implementation and verification details are in [docs/WORKSPACE_IMPLEMENTATION.md](docs/WORKSPACE_IMPLEMENTATION.md).
 
-The homework-facing Order Simulator reconstructs dispatch deterministically from the trader's entered orders. The separate Advanced Optimizer solves dispatch as a mixed-integer linear program with SciPy/HiGHS. Both workflows reuse the same domain economics and physical-validation modules.
+Simulate orders reconstructs dispatch deterministically from the trader's entered orders. Generate proposal solves dispatch as a mixed-integer linear program with SciPy/HiGHS. Both operations reuse the same domain economics and physical-validation modules. Optimization settings affect proposal generation only; changing them does not reinterpret an already simulated order portfolio.
 
 ## Decision semantics
 

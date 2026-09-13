@@ -10,91 +10,212 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { Dispatch, Order, Simulation } from "@/types/api";
+import type { Dispatch, Simulation, OrderSimulation } from "@/types/api";
 
-const money = (value: number) => new Intl.NumberFormat("en-CH", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value);
-const moneyExact = (value: number) => new Intl.NumberFormat("en-CH", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-const number = (value: number, digits = 1) => new Intl.NumberFormat("en-CH", { maximumFractionDigits: digits }).format(value);
-const time = (value: string) => new Intl.DateTimeFormat("en-CH", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" }).format(new Date(value));
+const money = (value: number) =>
+  new Intl.NumberFormat("en-CH", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(value);
+const moneyExact = (value: number) =>
+  new Intl.NumberFormat("en-CH", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+const number = (value: number, digits = 1) =>
+  new Intl.NumberFormat("en-CH", { maximumFractionDigits: digits }).format(
+    value,
+  );
+const time = (value: string) =>
+  new Intl.DateTimeFormat("en-CH", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Zurich",
+  }).format(new Date(value));
 const axisMoney = (value: number) => {
   const absolute = Math.abs(value);
-  const compact = absolute >= 1000 ? `${number(absolute / 1000, 1)}k` : number(absolute, 0);
+  const compact =
+    absolute >= 1000 ? `${number(absolute / 1000, 1)}k` : number(absolute, 0);
   return `${value < 0 ? "−" : ""}€${compact}`;
 };
 
-export function EconomicsPanel({ result }: { result: Simulation }) {
-  const ordersByStart = new Map(result.orders.map((order) => [order.delivery_start_utc, order]));
+export function EconomicsPanel({
+  result,
+}: {
+  result: Simulation | OrderSimulation;
+}) {
+  const manual = "run_type" in result;
   const data = result.dispatch.map((row) => ({
     ...row,
     time: time(row.timestamp_utc),
-    contribution: ordersByStart.get(row.timestamp_utc)?.expected_contribution_eur ?? 0,
-    order: ordersByStart.get(row.timestamp_utc),
+    contribution: row.interval_pnl_eur,
   }));
-  const sales = result.summary.proposal_sales_revenue_eur ?? 0;
-  const purchases = Math.abs(result.summary.proposal_purchase_cost_eur ?? 0);
-  const degradation = result.summary.proposal_degradation_cost_eur ?? 0;
-  const fees = result.summary.proposal_transaction_fee_eur ?? 0;
-  const net = result.summary.expected_contribution_eur ?? 0;
-  return <section className="economics-section" aria-labelledby="economics-title">
-    <div className="subsection-heading"><div><span className="chart-kicker">FINANCIAL RESULT</span><h3 id="economics-title">Where the Expected Contribution Comes From</h3><p>Interval values and the daily revenue bridge reconcile to the rounded auction-order proposal.</p></div></div>
-    <div className="economics-grid">
-      <figure className="plot-card economics-chart">
-        <figcaption><div className="chart-caption-main"><strong>Net Contribution by Delivery Interval</strong><span>Forecast value after energy cost, degradation & fees</span></div><div className="chart-legend" aria-hidden="true"><span><i className="legend-block discharge" />Positive</span><span><i className="legend-block charge" />Negative</span><b>€/interval</b></div></figcaption>
-        <div className="plot-area economics-area" role="img" aria-label="Net contribution in euros for every Day-Ahead delivery interval">
-          <ResponsiveContainer width="100%" height="100%"><BarChart data={data} margin={{ top: 12, right: 12, bottom: 2, left: 4 }}>
-            <CartesianGrid stroke="#e3ebe9" strokeDasharray="2 4" vertical={false} />
-            <XAxis dataKey="time" interval={Math.max(Math.floor(data.length / 7), 0)} tick={{ fontSize: 10, fill: "#607477" }} axisLine={{ stroke: "#b7c7c4" }} tickLine={false} tickMargin={9} />
-            <YAxis width={64} tick={{ fontSize: 10, fill: "#607477" }} axisLine={false} tickLine={false} tickMargin={7} tickFormatter={axisMoney} />
-            <ReferenceLine y={0} stroke="#748986" strokeWidth={1.2} />
-            <Tooltip content={<EconomicsTip />} cursor={{ fill: "rgba(8, 125, 120, .045)" }} />
-            <Bar dataKey="contribution" name="Net contribution" radius={[3, 3, 0, 0]} maxBarSize={20}>{data.map((row) => <Cell key={row.interval} fill={row.contribution >= 0 ? "#e67d11" : "#1d9c98"} />)}</Bar>
-          </BarChart></ResponsiveContainer>
+  const sales = manual
+    ? result.summary.sales_revenue_eur
+    : result.summary.proposal_sales_revenue_eur;
+  const purchases = manual
+    ? result.summary.purchase_cost_eur
+    : result.summary.proposal_purchase_cost_eur;
+  const degradation = manual
+    ? result.summary.degradation_cost_eur
+    : result.summary.proposal_degradation_cost_eur;
+  const fees = manual
+    ? result.summary.transaction_fee_eur
+    : result.summary.proposal_transaction_fee_eur;
+  const net = manual
+    ? result.summary.net_contribution_eur
+    : result.summary.expected_contribution_eur;
+  return (
+    <section className="economics-section" aria-labelledby="economics-title">
+      <div className="subsection-heading">
+        <div>
+          <span className="chart-kicker">FINANCIAL RESULT</span>
+          <h3 id="economics-title">Where the Contribution Comes From</h3>
+          <p>Interval values reconcile to this saved schedule.</p>
         </div>
-      </figure>
-      <aside className="economics-bridge" aria-label="Daily economics breakdown">
-        <div><span>Discharge Revenue</span><strong className="positive">+ {moneyExact(sales)}</strong></div>
-        <div><span>Charging Purchases</span><strong>− {moneyExact(purchases)}</strong></div>
-        <div><span>Battery Degradation</span><strong>− {moneyExact(degradation)}</strong></div>
-        <div><span>Transaction Fees</span><strong>− {moneyExact(fees)}</strong></div>
-        <div className="bridge-total"><span>Expected Net Contribution</span><strong>{moneyExact(net)}</strong></div>
-        <small>Forecast-based value after configured exchange and clearing fees; before imbalance costs and taxes.</small>
-      </aside>
-    </div>
-  </section>;
+      </div>
+      <div className="economics-grid">
+        <figure className="plot-card economics-chart">
+          <figcaption>
+            <div className="chart-caption-main">
+              <strong>Net Contribution by Delivery Interval</strong>
+              <span>Forecast value after energy cost, degradation & fees</span>
+            </div>
+            <div className="chart-legend" aria-hidden="true">
+              <span>
+                <i className="legend-block discharge" />
+                Positive
+              </span>
+              <span>
+                <i className="legend-block charge" />
+                Negative
+              </span>
+              <b>€/interval</b>
+            </div>
+          </figcaption>
+          <div
+            className="plot-area economics-area"
+            role="img"
+            aria-label="Net contribution in euros for every Day-Ahead delivery interval"
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={data}
+                margin={{ top: 12, right: 12, bottom: 2, left: 4 }}
+              >
+                <CartesianGrid
+                  stroke="#e3ebe9"
+                  strokeDasharray="2 4"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="time"
+                  interval={Math.max(Math.floor(data.length / 7), 0)}
+                  tick={{ fontSize: 10, fill: "#607477" }}
+                  axisLine={{ stroke: "#b7c7c4" }}
+                  tickLine={false}
+                  tickMargin={9}
+                />
+                <YAxis
+                  width={64}
+                  tick={{ fontSize: 10, fill: "#607477" }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickMargin={7}
+                  tickFormatter={axisMoney}
+                />
+                <ReferenceLine y={0} stroke="#748986" strokeWidth={1.2} />
+                <Tooltip
+                  content={<EconomicsTip />}
+                  cursor={{ fill: "rgba(8, 125, 120, .045)" }}
+                />
+                <Bar
+                  dataKey="contribution"
+                  name="Net contribution"
+                  radius={[3, 3, 0, 0]}
+                  maxBarSize={20}
+                >
+                  {data.map((row) => (
+                    <Cell
+                      key={row.interval}
+                      fill={row.contribution >= 0 ? "#e67d11" : "#1d9c98"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </figure>
+        <aside
+          className="economics-bridge"
+          aria-label="Daily economics breakdown"
+        >
+          <div>
+            <span>Discharge Revenue</span>
+            <strong className={sales >= 0 ? "positive" : "negative"}>
+              {moneyExact(sales)}
+            </strong>
+          </div>
+          <div>
+            <span>Charging Purchases</span>
+            <strong>{moneyExact(-purchases)}</strong>
+          </div>
+          <div>
+            <span>Battery Degradation</span>
+            <strong>− {moneyExact(degradation)}</strong>
+          </div>
+          <div>
+            <span>Transaction Fees</span>
+            <strong>− {moneyExact(fees)}</strong>
+          </div>
+          <div className="bridge-total">
+            <span>Net Contribution</span>
+            <strong>{moneyExact(net)}</strong>
+          </div>
+          <small>
+            Forecast-based value after configured exchange and clearing fees;
+            before imbalance costs and taxes.
+          </small>
+        </aside>
+      </div>
+    </section>
+  );
 }
 
-function EconomicsTip({ active, payload }: { active?: boolean; payload?: Array<{ payload: Dispatch & { time: string; order?: Order } }> }) {
+function EconomicsTip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: Dispatch & { time: string } }>;
+}) {
   if (!active || !payload?.[0]) return null;
   const row = payload[0].payload;
-  const order = row.order;
-  return <div className="chart-tip"><span className="tip-time">{row.time} · Europe/Zurich</span><strong>{money(order?.expected_contribution_eur ?? 0)} order contribution</strong><dl><div><dt>Revenue</dt><dd>{money(order?.sales_revenue_eur ?? 0)}</dd></div><div><dt>Purchases</dt><dd>{money(order?.purchase_cost_eur ?? 0)}</dd></div><div><dt>Degradation</dt><dd>{money(order?.degradation_cost_eur ?? 0)}</dd></div><div><dt>Transaction fees</dt><dd>{money(order?.transaction_fee_eur ?? 0)}</dd></div></dl></div>;
-}
-
-export function OrderTimeline({ orders, selectedId, onSelect }: { orders: Order[]; selectedId?: string; onSelect?: (order: Order) => void }) {
-  if (!orders.length) return null;
-  const data = orders.map((order) => ({ ...order, time: time(order.delivery_start_utc), signedVolume: order.side === "BUY" ? -order.volume_mw : order.volume_mw }));
-  return <figure className="plot-card order-timeline">
-    <figcaption><div className="chart-caption-main"><strong>Day-Ahead Order Timeline</strong><span>Click a bar or table row to review and edit that order</span></div><div className="chart-legend" aria-hidden="true"><span><i className="legend-block discharge" />SELL +</span><span><i className="legend-block charge" />BUY −</span><b>MW</b></div></figcaption>
-    <div className="plot-area order-area interactive-chart" role="img" aria-label="Generated Day-Ahead buy and sell orders by delivery interval. Click a bar to edit its order; the table below provides keyboard access.">
-      <ResponsiveContainer width="100%" height="100%"><BarChart data={data} margin={{ top: 12, right: 12, bottom: 2, left: 4 }}>
-        <CartesianGrid stroke="#e3ebe9" strokeDasharray="2 4" vertical={false} />
-        <XAxis dataKey="time" interval={Math.max(Math.floor(data.length / 8), 0)} tick={{ fontSize: 10, fill: "#607477" }} axisLine={{ stroke: "#b7c7c4" }} tickLine={false} tickMargin={9} />
-        <YAxis width={58} tick={{ fontSize: 10, fill: "#607477" }} axisLine={false} tickLine={false} tickMargin={7} tickFormatter={(v) => `${v}`} />
-        <ReferenceLine y={0} stroke="#748986" strokeWidth={1.2} />
-        <Tooltip content={<OrderTip />} cursor={{ fill: "rgba(8, 125, 120, .045)" }} />
-        <Bar dataKey="signedVolume" name="Order volume" radius={[3, 3, 0, 0]} maxBarSize={28}>{data.map((order) => <Cell key={order.order_id} className="order-chart-bar" cursor="pointer" fill={order.side === "BUY" ? "#1d9c98" : "#e67d11"} stroke={selectedId === order.order_id ? "#073f3d" : "transparent"} strokeWidth={selectedId === order.order_id ? 3 : 0} opacity={selectedId && selectedId !== order.order_id ? .58 : 1} onClick={() => onSelect?.(order)} />)}</Bar>
-      </BarChart></ResponsiveContainer>
+  return (
+    <div className="chart-tip">
+      <span className="tip-time">{row.time} · Europe/Zurich</span>
+      <strong>{money(row.interval_pnl_eur)} interval contribution</strong>
+      <dl>
+        <div>
+          <dt>Revenue</dt>
+          <dd>{money(row.sales_revenue_eur)}</dd>
+        </div>
+        <div>
+          <dt>Purchases</dt>
+          <dd>{money(row.purchase_cost_eur)}</dd>
+        </div>
+        <div>
+          <dt>Degradation</dt>
+          <dd>{money(row.degradation_cost_eur)}</dd>
+        </div>
+        <div>
+          <dt>Transaction fees</dt>
+          <dd>{money(row.transaction_fee_eur)}</dd>
+        </div>
+      </dl>
     </div>
-  </figure>;
-}
-
-function OrderTip({ active, payload }: { active?: boolean; payload?: Array<{ payload: Order & { time: string } }> }) {
-  if (!active || !payload?.[0]) return null;
-  const order = payload[0].payload;
-  return <div className="chart-tip"><span className="tip-time">{order.time} · Europe/Zurich</span><strong>{order.side} {number(order.volume_mw)} MW</strong><dl><div><dt>Limit price</dt><dd>{money(order.limit_price_eur_mwh)}/MWh</dd></div><div><dt>Expected price</dt><dd>{money(order.expected_price_eur_mwh)}/MWh</dd></div><div><dt>Contribution</dt><dd>{money(order.expected_contribution_eur)}</dd></div></dl></div>;
-}
-
-export function ScenarioOutcomeChart({ baseline, current }: { baseline: Simulation; current: Simulation }) {
-  const data = [baseline, ...(baseline.simulation_id === current.simulation_id ? [] : [current])].map((run) => ({ scenario: run.scenario_name, contribution: run.summary.expected_contribution_eur ?? 0, orders: run.summary.order_count ?? 0, cycles: run.summary.equivalent_cycles ?? 0, validation: run.validation.status }));
-  return <figure className="plot-card scenario-chart"><figcaption><div className="chart-caption-main"><strong>Expected Net Contribution</strong><span>Completed optimizer runs under different assumptions</span></div><div className="chart-legend" aria-hidden="true"><span><i className="legend-block scenario" />Forecast contribution</span><b>EUR</b></div></figcaption><div className="plot-area scenario-area" role="img" aria-label="Expected net contribution comparison for completed scenario runs"><ResponsiveContainer width="100%" height="100%"><BarChart data={data} layout="vertical" margin={{ top: 8, right: 24, bottom: 4, left: 12 }}><CartesianGrid stroke="#e3ebe9" strokeDasharray="2 4" horizontal={false} /><XAxis type="number" tickFormatter={axisMoney} tick={{ fontSize: 10, fill: "#607477" }} axisLine={{ stroke: "#b7c7c4" }} tickLine={false} tickMargin={9} /><YAxis type="category" dataKey="scenario" width={124} tick={{ fontSize: 11, fill: "#284b4d", fontWeight: 650 }} axisLine={false} tickLine={false} /><Tooltip cursor={{ fill: "rgba(8, 125, 120, .045)" }} formatter={(value) => money(Number(value))} /><Bar dataKey="contribution" name="Expected net contribution" fill="#16867f" radius={[0, 4, 4, 0]} maxBarSize={28} /></BarChart></ResponsiveContainer></div></figure>;
+  );
 }

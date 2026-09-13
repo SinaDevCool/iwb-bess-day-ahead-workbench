@@ -1,6 +1,8 @@
 "use client";
 import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Columns3, Trash2 } from "lucide-react";
+import { EconomicsPanel } from "@/components/analytics-charts";
+import { IntervalResultsTable } from "@/components/interval-results-table";
 import { DispatchChart } from "@/components/dispatch-chart";
 import {
   priceCondition,
@@ -151,7 +153,11 @@ export function OrderRow({
             step={market.volume_increment_mw}
             aria-label={`Volume for order ${rowIndex + 1}`}
             aria-invalid={Boolean(issues[`${prefix}.volume`])}
-            aria-describedby={issues[`${prefix}.volume`] ? `${order.id}-volume-error` : undefined}
+            aria-describedby={
+              issues[`${prefix}.volume`]
+                ? `${order.id}-volume-error`
+                : undefined
+            }
             value={order.volume}
             onChange={(event) =>
               update(order.id, { volume: event.target.value })
@@ -160,7 +166,9 @@ export function OrderRow({
           <small>MW</small>
         </span>
         {issues[`${prefix}.volume`] && (
-          <small id={`${order.id}-volume-error`} className="field-error">{issues[`${prefix}.volume`]}</small>
+          <small id={`${order.id}-volume-error`} className="field-error">
+            {issues[`${prefix}.volume`]}
+          </small>
         )}
       </label>
       {order.orderType === "LIMIT" ? (
@@ -175,7 +183,11 @@ export function OrderRow({
               autoComplete="off"
               step={market.price_increment_eur_mwh}
               aria-invalid={Boolean(issues[`${prefix}.limit`])}
-              aria-describedby={issues[`${prefix}.limit`] ? `${order.id}-limit-error` : undefined}
+              aria-describedby={
+                issues[`${prefix}.limit`]
+                  ? `${order.id}-limit-error`
+                  : undefined
+              }
               value={order.limit}
               onChange={(event) =>
                 update(order.id, { limit: event.target.value })
@@ -184,13 +196,18 @@ export function OrderRow({
             <small>€/MWh</small>
           </span>
           {issues[`${prefix}.limit`] ? (
-            <small id={`${order.id}-limit-error`} className="field-error">{issues[`${prefix}.limit`]}</small>
+            <small id={`${order.id}-limit-error`} className="field-error">
+              {issues[`${prefix}.limit`]}
+            </small>
           ) : (
             preview && (
               <small
                 className={`condition-preview ${preview.passed ? "passed" : "rejected"}`}
               >
-                {preview.passed ? "Price condition met" : "Price condition not met"} at the entered forecast ·{" "}
+                {preview.passed
+                  ? "Price condition met"
+                  : "Price condition not met"}{" "}
+                at the entered forecast ·{" "}
                 {money(Math.abs(preview.marginEurMwh))}/MWh{" "}
                 {preview.marginEurMwh >= 0 ? "inside" : "outside"}
               </small>
@@ -226,6 +243,7 @@ export function SimulationResults({ result }: { result: OrderSimulation }) {
       ),
     [result],
   );
+  const [detailView, setDetailView] = useState(false);
   const [selectedId, setSelectedId] = useState<string>();
   const [columns, setColumns] = useState<OptionalColumn[]>(DEFAULT_COLUMNS);
   const marketPassed = result.order_results.filter(
@@ -250,6 +268,22 @@ export function SimulationResults({ result }: { result: OrderSimulation }) {
     );
   return (
     <div className="simulation-results">
+      <div className="uw-comparison-switch">
+        <button
+          className="secondary"
+          aria-pressed={!detailView}
+          onClick={() => setDetailView(false)}
+        >
+          Overview
+        </button>
+        <button
+          className="secondary"
+          aria-pressed={detailView}
+          onClick={() => setDetailView(true)}
+        >
+          Interval Detail
+        </button>
+      </div>
       <div
         className={`result-verdict ${result.executed_schedule_feasible ? "passed" : "failed"}`}
       >
@@ -272,163 +306,143 @@ export function SimulationResults({ result }: { result: OrderSimulation }) {
         </div>
       </div>
       <details className="ws-validation-line">
-        <summary>Execution checks · {result.submitted_portfolio_feasible ? "submitted portfolio feasible" : "submitted portfolio needs attention"}</summary>
+        <summary>
+          Execution checks ·{" "}
+          {result.submitted_portfolio_feasible
+            ? "submitted portfolio feasible"
+            : "submitted portfolio needs attention"}
+        </summary>
         <p>
-        Submitted portfolio:{" "}
-        {result.submitted_portfolio_feasible ? "feasible" : "needs attention"} ·{" "}
-        {marketPassed} price-eligible ·{" "}
-        {result.summary.not_executed_order_count} price-rejected ·{" "}
-        {result.summary.infeasible_order_count} physically rejected.
+          Submitted portfolio:{" "}
+          {result.submitted_portfolio_feasible ? "feasible" : "needs attention"}{" "}
+          · {marketPassed} price-eligible ·{" "}
+          {result.summary.not_executed_order_count} price-rejected ·{" "}
+          {result.summary.infeasible_order_count} physically rejected.
         </p>
       </details>
-      <div className="simulation-kpis">
-        <Kpi
-          label="Net contribution"
-          value={new Intl.NumberFormat("en-CH", {
-            style: "currency",
-            currency: "EUR",
-          }).format(result.summary.net_contribution_eur)}
-          detail="SELL revenue − BUY purchases − costs"
-        />
-        <Kpi
-          label="Executed orders"
-          value={`${result.summary.executed_order_count}/${result.summary.submitted_order_count}`}
-          detail="executed / submitted"
-        />
-        <Kpi
-          label="Final SoC"
-          value={`${number(result.summary.final_soc_mwh)} MWh`}
-          detail={`started at ${number(result.summary.initial_soc_mwh)} MWh`}
-        />
-      </div>
-      <div className="simulator-card">
-        <DispatchChart
-          rows={result.dispatch}
-          battery={result.battery}
-          forecast={result.forecast}
-          mode="order-simulation"
-          executedOrderCount={result.summary.executed_order_count}
-          submittedOrderCount={result.summary.submitted_order_count}
-          orderResults={ordered}
-          selectedOrderId={selectedId}
-          onSelectOrder={setSelectedId}
-        />
-      </div>
-      <details className="ws-cash-details">
-        <summary>Cash contribution breakdown</summary>
-        <dl>
-          <dt>Sales revenue</dt>
-          <dd>{money(result.summary.sales_revenue_eur)}</dd>
-          <dt>Purchases</dt>
-          <dd>{money(-result.summary.purchase_cost_eur)}</dd>
-          <dt>Degradation</dt>
-          <dd>{money(-result.summary.degradation_cost_eur)}</dd>
-          <dt>Transaction fees</dt>
-          <dd>{money(-result.summary.transaction_fee_eur)}</dd>
-        </dl>
-        <p>
-          Forecast-valued executed orders only. No continuation value, live
-          clearing, or partial execution is modeled.
-        </p>
-      </details>
-      <div className="simulator-card execution-card">
-        <div className="simulator-card-heading">
-          <div>
-            <span className="step-badge">5</span>
-            <h2>Order Outcomes</h2>
+      {!detailView && (
+        <>
+          <div className="simulator-card">
+            <DispatchChart
+              rows={result.dispatch}
+              battery={result.battery}
+              forecast={result.forecast}
+              mode="order-simulation"
+              executedOrderCount={result.summary.executed_order_count}
+              submittedOrderCount={result.summary.submitted_order_count}
+              orderResults={ordered}
+              selectedOrderId={selectedId}
+              onSelectOrder={setSelectedId}
+            />
           </div>
-          <details className="column-picker">
-            <summary>
-              <Columns3 size={15} aria-hidden="true" /> Columns ·{" "}
-              {6 + columns.length}
-            </summary>
-            <div className="column-menu">
-              <strong>Additional evidence</strong>
-              <span>Choose up to 3 columns.</span>
-              {OPTIONAL_COLUMNS.map((column) => (
-                <label className="column-option" key={column.id}>
-                  <input
-                    type="checkbox"
-                    checked={columns.includes(column.id)}
-                    disabled={
-                      !columns.includes(column.id) && columns.length >= 3
-                    }
-                    onChange={() => toggle(column.id)}
-                  />
-                  <span>{column.label}</span>
-                </label>
-              ))}
+          <EconomicsPanel result={result} />
+        </>
+      )}
+      {detailView && (
+        <>
+          <IntervalResultsTable result={result} />
+          <div className="simulator-card execution-card">
+            <div className="simulator-card-heading">
+              <div>
+                <span className="step-badge">5</span>
+                <h2>Order Outcomes</h2>
+              </div>
+              <details className="column-picker">
+                <summary>
+                  <Columns3 size={15} aria-hidden="true" /> Columns ·{" "}
+                  {6 + columns.length}
+                </summary>
+                <div className="column-menu">
+                  <strong>Additional evidence</strong>
+                  <span>Choose up to 3 columns.</span>
+                  {OPTIONAL_COLUMNS.map((column) => (
+                    <label className="column-option" key={column.id}>
+                      <input
+                        type="checkbox"
+                        checked={columns.includes(column.id)}
+                        disabled={
+                          !columns.includes(column.id) && columns.length >= 3
+                        }
+                        onChange={() => toggle(column.id)}
+                      />
+                      <span>{column.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </details>
             </div>
-          </details>
-        </div>
-        <div className="table-scroll">
-          <table className="execution-table">
-            <caption className="sr-only">
-              Submitted order clearing and physical execution results
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Delivery</th>
-                <th scope="col">Order</th>
-                <th scope="col" className="numeric">
-                  Forecast
-                </th>
-                <th scope="col">Outcome</th>
-                <th scope="col" className="numeric">
-                  Executed
-                </th>
-                <th scope="col" className="numeric">
-                  Interval-end SoC
-                </th>
-                {columns.map((column) => (
-                  <th scope="col" key={column}>
-                    {columnLabel(column)}
-                  </th>
+            <div className="table-scroll">
+              <table className="execution-table">
+                <caption className="sr-only">
+                  Submitted order clearing and physical execution results
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Delivery</th>
+                    <th scope="col">Order</th>
+                    <th scope="col" className="numeric">
+                      Forecast
+                    </th>
+                    <th scope="col">Outcome</th>
+                    <th scope="col" className="numeric">
+                      Executed
+                    </th>
+                    <th scope="col" className="numeric">
+                      Interval-end SoC
+                    </th>
+                    {columns.map((column) => (
+                      <th scope="col" key={column}>
+                        {columnLabel(column)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {!ordered.length && (
+                    <tr>
+                      <td colSpan={6 + columns.length}>
+                        No submitted orders. Add orders in Auction Orders, or
+                        generate and apply a proposal.
+                      </td>
+                    </tr>
+                  )}
+                  {ordered.map((item) => (
+                    <OutcomeRows
+                      key={item.submitted_order.client_order_id}
+                      item={item}
+                      selected={
+                        selectedId === item.submitted_order.client_order_id
+                      }
+                      columns={columns}
+                      zone={result.market.timezone}
+                      select={() =>
+                        setSelectedId((current) =>
+                          current === item.submitted_order.client_order_id
+                            ? undefined
+                            : item.submitted_order.client_order_id,
+                        )
+                      }
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {result.validation.findings.length > 0 && (
+              <div className="validation-findings">
+                <strong>Validation findings</strong>
+                {result.validation.findings.map((finding, index) => (
+                  <p key={`${finding.code}-${index}`}>
+                    {finding.interval != null
+                      ? `${time(result.dispatch[finding.interval].timestamp_utc, result.market.timezone)} · `
+                      : ""}
+                    {finding.message}
+                  </p>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {!ordered.length && (
-                <tr>
-                  <td colSpan={6 + columns.length}>
-                    No submitted orders. Add orders in Inputs, or generate and
-                    apply a proposal.
-                  </td>
-                </tr>
-              )}
-              {ordered.map((item) => (
-                <OutcomeRows
-                  key={item.submitted_order.client_order_id}
-                  item={item}
-                  selected={selectedId === item.submitted_order.client_order_id}
-                  columns={columns}
-                  zone={result.market.timezone}
-                  select={() =>
-                    setSelectedId((current) =>
-                      current === item.submitted_order.client_order_id
-                        ? undefined
-                        : item.submitted_order.client_order_id,
-                    )
-                  }
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {result.validation.findings.length > 0 && (
-          <div className="validation-findings">
-            <strong>Validation findings</strong>
-            {result.validation.findings.map((finding, index) => (
-              <p key={`${finding.code}-${index}`}>
-                {finding.interval != null
-                  ? `${time(result.dispatch[finding.interval].timestamp_utc, result.market.timezone)} · `
-                  : ""}
-                {finding.message}
-              </p>
-            ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }
@@ -454,11 +468,20 @@ function OutcomeRows({
         : "Physically infeasible";
   return (
     <>
-      <tr
-        className={selected ? "selected" : ""}
-        onClick={select}
-      >
-        <td><button className="ws-row-link" aria-expanded={selected} aria-label={`Details for ${time(order.delivery_start_utc, zone)} ${order.side} order`} onClick={event => {event.stopPropagation(); select();}}>{time(order.delivery_start_utc, zone)} {selected ? "−" : "+"}</button></td>
+      <tr className={selected ? "selected" : ""} onClick={select}>
+        <td>
+          <button
+            className="ws-row-link"
+            aria-expanded={selected}
+            aria-label={`Details for ${time(order.delivery_start_utc, zone)} ${order.side} order`}
+            onClick={(event) => {
+              event.stopPropagation();
+              select();
+            }}
+          >
+            {time(order.delivery_start_utc, zone)} {selected ? "−" : "+"}
+          </button>
+        </td>
         <td>
           <strong>
             {order.order_type} {order.side}
@@ -556,21 +579,4 @@ function columnValue(column: OptionalColumn, item: SimulatedOrderResult) {
     return `${item.soc_delta_mwh >= 0 ? "+" : ""}${number(item.soc_delta_mwh)} MWh`;
   if (column === "contribution") return money(item.contribution_eur);
   return item.reason_code.replaceAll("_", " ");
-}
-function Kpi({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <div className="sim-kpi">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{detail}</small>
-    </div>
-  );
 }

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { OrderSimulatorWorkbench } from "./order-simulator-workbench";
+import { UnifiedWorkbench } from "./workspace/order-workspace";
 
 const battery = {
   capacity_mwh: 100,
@@ -109,13 +109,13 @@ describe("OrderSimulatorWorkbench", () => {
     );
   });
   async function ready() {
-    render(<OrderSimulatorWorkbench openOptimizer={() => undefined} />);
+    render(<UnifiedWorkbench />);
     await screen.findByText("24/24 valid");
   }
   it("shows the compact forecast and all four orders, with only one editor", async () => {
     await ready();
     expect(
-      screen.getByRole("heading", { name: "BESS Day-Ahead Simulator" }),
+      screen.getByRole("heading", { name: "BESS Day-Ahead Workbench" }),
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: /Edit .* order/ }),
@@ -141,8 +141,8 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.change(screen.getByLabelText("Volume for order 5"), {
       target: { value: "12.3" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Battery schedule" }));
-    fireEvent.click(screen.getByRole("button", { name: "Inputs" }));
+    fireEvent.click(screen.getByRole("link", { name: "Dispatch & Economics" }));
+    fireEvent.click(screen.getByRole("link", { name: "Auction Orders" }));
     expect(screen.getByLabelText("Volume for order 5")).toHaveValue(12.3);
     cleanup();
     await ready();
@@ -180,7 +180,7 @@ describe("OrderSimulatorWorkbench", () => {
           }),
       ),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Simulate" }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate orders" }));
     fireEvent.click(screen.getByRole("button", { name: "Add order" }));
     resolve(response(result));
     expect(
@@ -237,9 +237,9 @@ describe("OrderSimulatorWorkbench", () => {
         throw Error("Backend offline");
       }),
     );
-    render(<OrderSimulatorWorkbench openOptimizer={() => undefined} />);
+    render(<UnifiedWorkbench />);
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Order simulator unavailable",
+      "Workbench unavailable",
     );
     expect(screen.getByRole("button", { name: "Retry Loading" })).toBeEnabled();
   });
@@ -321,7 +321,7 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.click(screen.getByRole("button", {name: "Apply settings"}));
     const fetchMock = vi.fn(async () => response(result));
     vi.stubGlobal("fetch", fetchMock);
-    fireEvent.click(screen.getByRole("button", {name: "Simulate"}));
+    fireEvent.click(screen.getByRole("button", {name: "Simulate orders"}));
     await screen.findByText("Schedule charts");
     const init = fetchMock.mock.calls[0] as unknown as [unknown, RequestInit];
     expect(JSON.parse(String(init[1].body)).battery.round_trip_efficiency).toBe(0.95);
@@ -358,7 +358,7 @@ describe("OrderSimulatorWorkbench", () => {
       },
     );
     vi.stubGlobal("fetch", fetchMock);
-    fireEvent.click(screen.getByRole("button", { name: "Generate proposal" }));
+    fireEvent.click(screen.getByText("Optimization Settings"));
     fireEvent.change(screen.getByLabelText("End-of-day policy"), {
       target: { value: "terminal_value" },
     });
@@ -368,6 +368,7 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.change(screen.getByLabelText("End-of-day policy"), {
       target: { value: "minimum_reserve" },
     });
+    fireEvent.click(screen.getByRole("button", { name: "Generate proposal" }));
     fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
     await screen.findByRole("button", { name: "Apply proposal" });
     expect(JSON.parse(bodies[0]).terminal_value_eur_per_mwh).toBe(0);
