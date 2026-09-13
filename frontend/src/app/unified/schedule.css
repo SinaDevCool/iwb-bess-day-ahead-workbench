@@ -44,24 +44,61 @@
   width: 236px;
   max-width: calc(100% - 16px);
   box-sizing: border-box;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 8px;
   background: #fff;
-  border: 1px solid #b9cecb;
-  box-shadow: 0 3px 12px #153a4220;
+  border: 1px solid #8aa5aa;
+  border-top: 3px solid #174b56;
+  box-shadow: 0 5px 18px #153a422b;
   color: #183e45;
   font-size: 13px;
   line-height: 1.45;
   font-variant-numeric: tabular-nums;
 }
-.schedule-track-readout strong,
-.schedule-track-readout span {
-  display: block;
+.schedule-track-readout.power {
+  border-top-color: #087d78;
 }
-.schedule-track-readout strong {
-  padding-bottom: 4px;
+.schedule-track-readout.soc {
+  border-top-color: #6d62c4;
+}
+.schedule-track-readout.contribution {
+  border-top-color: #32765b;
+}
+.tooltip-interval {
   font-size: 12px;
-  color: #526b70;
+  font-weight: 600;
+  padding-bottom: 7px;
+  border-bottom: 1px solid #e0e8e6;
+  margin-bottom: 7px;
+}
+.tooltip-label {
+  display: block;
+  color: #52676c;
+  font-size: 13px;
+}
+.tooltip-value {
+  display: block;
+  font-size: 19px;
+  font-weight: 650;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+.schedule-track-readout dl {
+  margin: 6px 0 0;
+}
+.schedule-track-readout dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 3px;
+}
+.schedule-track-readout dt {
+  color: #52676c;
+}
+.schedule-track-readout dd {
+  margin: 0;
+  font-weight: 600;
+  white-space: nowrap;
 }
 .schedule-track-legend {
   display: flex;
@@ -88,10 +125,7 @@
   margin: 0;
   overflow: hidden;
 }
-.ws-schedule figcaption.chart-foot {
-  display: block;
-  margin: 12px 0 0;
-}
+
 .ws-schedule .plot-heading strong {
   font-size: 12px;
   flex-shrink: 0;
@@ -101,12 +135,4 @@
   color: #526b70;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-}
-.result-snapshot {
-  margin-bottom: 12px;
-  font-size: 13px;
-}
-.result-snapshot summary {
-  cursor: pointer;
-  padding: 8px 0;
 }

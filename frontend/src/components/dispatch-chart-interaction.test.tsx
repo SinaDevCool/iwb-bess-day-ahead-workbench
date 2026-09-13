@@ -73,7 +73,7 @@ it("supports keyboard inspection, dismissal and empty data", () => {
   const track = screen.getByRole("img", { name: "Day-Ahead price forecast" });
   fireEvent.keyDown(track, { key: "ArrowRight" });
   expect(selected).not.toHaveBeenCalled();
-  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("Forecast €50.00");
+  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("€50.00/MWh");
   fireEvent.keyDown(track, { key: "ArrowRight" });
   fireEvent.keyDown(track, { key: "Enter" });
   expect(selected).toHaveBeenLastCalledWith("2026-09-09T01:00:00.000Z");
@@ -92,14 +92,14 @@ it("synchronizes all four tooltips including idle values, without committing hov
   plotBounds(track);
   fireEvent.pointerMove(track, { clientX: 210 });
   expect(screen.getAllByRole("tooltip")).toHaveLength(4);
-  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("Forecast €30.00");
+  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("€30.00/MWh");
   expect(screen.getAllByRole("tooltip")[1]).toHaveTextContent("-10.0 MW");
-  expect(screen.getAllByRole("tooltip")[2]).toHaveTextContent("50.00 → 59.49 MWh");
+  expect(screen.getAllByRole("tooltip")[2]).toHaveTextContent("Start50.00 MWhEnd59.49 MWh");
   expect(screen.getAllByRole("tooltip")[3]).toHaveTextContent("-€310.00");
   const position = screen.getAllByRole("tooltip")[0].style.left;
   fireEvent.pointerMove(track, { clientX: 90 });
-  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("Forecast €50.00");
-  expect(screen.getAllByRole("tooltip")[1]).toHaveTextContent("idle 0.0 MW");
+  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("€50.00/MWh");
+  expect(screen.getAllByRole("tooltip")[1]).toHaveTextContent("Idle0.0 MW");
   expect(screen.getAllByRole("tooltip")[0].style.left).not.toBe(position);
   expect(selected).not.toHaveBeenCalled();
   fireEvent.pointerLeave(track);
@@ -110,5 +110,5 @@ it("honours an external selected interval without requiring an order", () => {
   render(
     <DispatchChart rows={rows} battery={battery} selectedInterval="2026-09-09T00:00:00.000Z" />,
   );
-  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("Forecast €50.00");
+  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("€50.00/MWh");
 });

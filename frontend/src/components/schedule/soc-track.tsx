@@ -1,4 +1,4 @@
-import { TrackReadout } from "./track-readout";
+import { TrackReadout, type TrackTooltip } from "./track-readout";
 import type { scheduleChartData } from "@/lib/schedule-chart-data";
 import type { Battery } from "@/types/api";
 import {
@@ -22,7 +22,7 @@ export function SocTrack({
   battery,
   selectedIndex,
 }: {
-  readout?: string;
+  readout?: TrackTooltip;
   trackEvents: ReturnType<typeof useScheduleInspection>["trackEvents"];
   xAxis: React.ReactNode;
   tip: React.ReactNode;

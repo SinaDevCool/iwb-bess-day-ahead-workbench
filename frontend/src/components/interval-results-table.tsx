@@ -102,7 +102,10 @@ export function IntervalResultsTable({
                   <tr
                     className={expanded === row.id ? "selected interval-row" : "interval-row"}
                     onClick={(event) => {
-                      if (!(event.target as Element).closest("button, a, input, select"))
+                      if (
+                        !window.getSelection()?.toString() &&
+                        !(event.target as Element).closest("button, a, input, select")
+                      )
                         toggle(row.id);
                     }}
                   >
@@ -154,7 +157,11 @@ export function IntervalResultsTable({
                   {expanded === row.id && (
                     <tr>
                       <td id={`interval-${row.id}`} colSpan={columns.length + 2}>
-                        <IntervalOrderDetails row={row} onEditOrder={onEditOrder} />
+                        <IntervalOrderDetails
+                          row={row}
+                          onEditOrder={onEditOrder}
+                          onClose={() => toggle(row.id)}
+                        />
                       </td>
                     </tr>
                   )}

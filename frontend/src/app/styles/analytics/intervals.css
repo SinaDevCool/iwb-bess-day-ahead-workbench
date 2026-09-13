@@ -53,14 +53,13 @@
   white-space: normal;
   line-height: 1.25;
 }
-.interval-results-table tbody tr {
+.interval-results-table tbody tr.interval-row {
   content-visibility: auto;
   contain-intrinsic-size: auto 39px;
 }
-.interval-results-table tbody tr:hover {
+.interval-results-table tbody tr.interval-row:hover {
   background: #eaf6f4;
   color: #073f3d;
-  font-weight: 700;
 }
 .interval-results-table .contribution {
   font-weight: 750;

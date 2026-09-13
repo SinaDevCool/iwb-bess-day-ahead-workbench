@@ -1,4 +1,4 @@
-import { TrackReadout } from "./track-readout";
+import { TrackReadout, type TrackTooltip } from "./track-readout";
 import { Area, ComposedChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
 import { axis, grid, margin, Y_AXIS_WIDTH } from "./chart-config";
 import type { useScheduleInspection } from "./use-schedule-inspection";
@@ -10,18 +10,16 @@ export function ForecastTrack({
   tip,
   cursor,
   prices,
-  forecast,
   selectedX,
   selectedLimit,
   dt,
 }: {
-  readout?: string;
+  readout?: TrackTooltip;
   trackEvents: ReturnType<typeof useScheduleInspection>["trackEvents"];
   xAxis: React.ReactNode;
   tip: React.ReactNode;
   cursor: React.ReactNode;
   prices: { x: number; price: number }[];
-  forecast: { source_name: string } | undefined;
   selectedX: number | undefined;
   selectedLimit?: number | null;
   dt: number;
@@ -29,13 +27,12 @@ export function ForecastTrack({
   return (
     <div className="plot-card schedule-forecast">
       <div className="plot-heading">
-        <span>Day-Ahead price forecast · {forecast?.source_name ?? "Saved forecast"}</span>
+        <span>Day-Ahead price forecast</span>
         <strong>€/MWh</strong>
       </div>
       {selectedLimit != null && (
         <p className="schedule-energy-summary">
-          Orange dashed segment: selected order limit €{selectedLimit.toFixed(2)}/MWh (not the
-          forecast).
+          Order limit · €{selectedLimit.toFixed(2)}/MWh · orange dashed line
         </p>
       )}
       <div

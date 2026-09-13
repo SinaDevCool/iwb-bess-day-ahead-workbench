@@ -1,6 +1,7 @@
 "use client";
 export { scheduleChartData } from "@/lib/schedule-chart-data";
 export { ForecastPlot } from "./schedule/forecast-plot";
+import type { TrackTooltip } from "./schedule/track-readout";
 import { TooltipPosition } from "./schedule/tooltip-position";
 import { useChartWidth } from "./schedule/use-chart-width";
 import { scheduleChartData } from "@/lib/schedule-chart-data";
@@ -29,10 +30,7 @@ export function DispatchChart({
   battery,
   market,
   onShowDetails,
-  forecast,
   mode = "optimization",
-  executedOrderCount,
-  submittedOrderCount,
   orderResults,
   selectedOrderId,
   selectedInterval,
@@ -50,8 +48,6 @@ export function DispatchChart({
     version: string;
   };
   mode?: "optimization" | "order-simulation";
-  executedOrderCount?: number;
-  submittedOrderCount?: number;
   orderResults?: SimulatedOrderResult[];
   selectedOrderId?: string;
   selectedInterval?: string;
@@ -104,12 +100,51 @@ export function DispatchChart({
   const activeTime = active
     ? `${exact(Date.parse(active.timestamp_utc), zone)}–${clock(Date.parse(active.timestamp_utc) + dt, zone)}`
     : "";
-  const readouts = active
+  const readouts: Record<string, TrackTooltip> | undefined = active
     ? {
-        price: `${activeTime} · Forecast ${euros(active.price_eur_mwh)}/MWh`,
-        power: `${activeTime} · ${active.action} ${number(active.power_mw, 1)} MW · Energy ${number((Math.abs(active.power_mw) * dt) / 3600000)} MWh`,
-        soc: `${activeTime} · ${number(inspection.activeIndex > 0 ? rows[inspection.activeIndex - 1].soc_mwh : battery.initial_soc_mwh)} → ${number(active.soc_mwh)} MWh`,
-        contribution: `${activeTime} · ${euros(active.interval_pnl_eur)}`,
+        price: {
+          interval: activeTime,
+          label: "DA forecast",
+          value: euros(active.price_eur_mwh) + "/MWh",
+          tone: "price",
+        },
+        power: {
+          interval: activeTime,
+          label:
+            active.action === "idle"
+              ? "Idle"
+              : active.action === "charge"
+                ? "Charging"
+                : "Discharging",
+          value: number(active.power_mw, 1) + " MW",
+          tone: "power",
+          rows: [
+            { label: "Energy", value: number((Math.abs(active.power_mw) * dt) / 3600000) + " MWh" },
+          ],
+        },
+        soc: {
+          interval: activeTime,
+          label: "Stored energy",
+          tone: "soc",
+          rows: [
+            {
+              label: "Start",
+              value:
+                number(
+                  inspection.activeIndex > 0
+                    ? rows[inspection.activeIndex - 1].soc_mwh
+                    : battery.initial_soc_mwh,
+                ) + " MWh",
+            },
+            { label: "End", value: number(active.soc_mwh) + " MWh" },
+          ],
+        },
+        contribution: {
+          interval: activeTime,
+          label: "Interval contribution",
+          value: euros(active.interval_pnl_eur),
+          tone: "contribution",
+        },
       }
     : undefined;
   const cursor = (
@@ -149,29 +184,19 @@ export function DispatchChart({
     <figure className="dispatch-figure ws-schedule">
       <div className="chart-overview">
         <div>
-          <h3>
-            {mode === "order-simulation"
-              ? "Schedule from entered orders"
-              : "Day-Ahead battery dispatch"}
-          </h3>
-          <p>
-            {mode === "order-simulation"
-              ? (executedOrderCount ?? 0) +
-                " of " +
-                (submittedOrderCount ?? 0) +
-                " orders executed under the entered forecast."
-              : "Forecast, scheduled power and stored energy share the delivery timeline."}
-          </p>
+          <h3>{mode === "order-simulation" ? "Battery schedule" : "Day-Ahead battery dispatch"}</h3>
         </div>
       </div>
       {rows.length === 0 && (
         <p>No delivery intervals to display. Enter a forecast and simulate orders.</p>
       )}
       <TooltipPosition.Provider
-        value={
-          (Y_AXIS_WIDTH + inspection.fraction * (width - Y_AXIS_WIDTH - margin.right)) /
-          Math.max(1, width)
-        }
+        value={{
+          fraction:
+            (Y_AXIS_WIDTH + inspection.fraction * (width - Y_AXIS_WIDTH - margin.right)) /
+            Math.max(1, width),
+          width,
+        }}
       >
         <div ref={ref} className="schedule-tracks" hidden={rows.length === 0}>
           <ForecastTrack
@@ -181,7 +206,6 @@ export function DispatchChart({
             tip={tip}
             cursor={cursor}
             prices={prices}
-            forecast={forecast}
             selectedX={selectedX}
             selectedLimit={
               selected?.submitted_order.order_type === "LIMIT"
@@ -225,14 +249,9 @@ export function DispatchChart({
           )}
         </div>
       </TooltipPosition.Provider>
-      <figcaption className="chart-foot">
-        Hover or focus a chart and use arrow keys to inspect. Click or press Enter for interval
-        details. Escape dismisses tooltips. {dt / 60000}-minute intervals · Power is
-        interval-average; energy joins boundary states assuming constant interval power. Dashed
-        lines: {battery.min_soc_mwh}–{battery.max_soc_mwh} MWh. End reserve:{" "}
-        {battery.target_soc_mwh} MWh (end marker only). Vertical dashed line: inspected interval,
-        shared by all charts. Shaded intervals: unavailable. Power dashed lines: charge/discharge
-        limits.
+      <figcaption className="sr-only">
+        Inspect charts with arrow keys; Enter opens interval details and Escape dismisses tooltips.
+        Power is interval-average. Stored energy connects interval boundaries.
       </figcaption>
     </figure>
   );

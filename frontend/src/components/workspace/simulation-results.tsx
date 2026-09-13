@@ -1,9 +1,9 @@
 "use client";
-import { ForecastSnapshot } from "./forecast-snapshot";
+
 import { DispatchChart } from "@/components/dispatch-chart";
 import { IntervalResultsTable } from "@/components/interval-results-table";
 import type { OrderSimulation } from "@/types/api";
-import { SimulationVerdict, SimulationAssumptions } from "./simulation-verdict";
+import { SimulationVerdict } from "./simulation-verdict";
 import { simulationPresentation } from "@/lib/simulation-presentation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -49,9 +49,6 @@ export function SimulationResults({
   const selectedInterval =
     selection?.simulationId === result.simulation_id ? selection.timestamp : undefined;
   const setSelectedInterval = (value: string) => onSelection?.(value);
-  const marketPassed = result.order_results.filter(
-    (o) => o.submitted_order.order_type === "MARKET" || o.price_condition_passed === true,
-  ).length;
   return (
     <div className="simulation-results">
       {stale && onRestore && (
@@ -71,29 +68,11 @@ export function SimulationResults({
           Interval Detail
         </button>
       </div>
-      <SimulationVerdict result={result} stale={stale} />
-      <details className="ws-validation-line">
-        <summary>
-          Execution checks & assumptions ·{" "}
-          {result.submitted_portfolio_feasible
-            ? "submitted portfolio feasible"
-            : "submitted portfolio needs attention"}
-        </summary>
-        <p>
-          Submitted portfolio:{" "}
-          {result.submitted_portfolio_feasible ? "feasible" : "needs attention"} · {marketPassed}{" "}
-          price-eligible · {result.summary.not_executed_order_count} price-rejected ·{" "}
-          {result.summary.infeasible_order_count} would violate battery constraints.
-        </p>
-        <SimulationAssumptions result={result} />
-      </details>
+      <SimulationVerdict result={result} stale={stale} compact />
+
       {!detailView && (
         <>
           <div className="simulator-card">
-            <details className="result-snapshot">
-              <summary>Forecast used by this result</summary>
-              <ForecastSnapshot forecast={result.forecast} />
-            </details>
             <DispatchChart
               key={result.simulation_id}
               market={result.market}
@@ -102,8 +81,6 @@ export function SimulationResults({
               battery={result.battery}
               forecast={result.forecast}
               mode="order-simulation"
-              executedOrderCount={result.summary.executed_order_count}
-              submittedOrderCount={result.summary.submitted_order_count}
               orderResults={ordered}
               selectedOrderId={
                 selection?.simulationId === result.simulation_id ? selection.orderId : undefined

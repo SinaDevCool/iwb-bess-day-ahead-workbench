@@ -1,4 +1,4 @@
-import { TrackReadout } from "./track-readout";
+import { TrackReadout, type TrackTooltip } from "./track-readout";
 import type { Dispatch } from "@/types/api";
 import { Bar, Cell, ComposedChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
 import { axis, grid, margin, Y_AXIS_WIDTH } from "./chart-config";
@@ -15,7 +15,7 @@ export function ContributionTrack({
   barSize,
   label = "Net contribution",
 }: {
-  readout?: string;
+  readout?: TrackTooltip;
   trackEvents: ReturnType<typeof useScheduleInspection>["trackEvents"];
   xAxis: React.ReactNode;
   tip: React.ReactNode;

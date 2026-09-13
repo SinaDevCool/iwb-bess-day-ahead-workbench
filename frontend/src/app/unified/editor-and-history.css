@@ -195,18 +195,6 @@
   margin: 0;
   color: #50686b;
 }
-.interval-order-details {
-  padding: 14px;
-  background: #f6faf9;
-  white-space: normal;
-}
-.interval-order-details article {
-  border-top: 1px solid #dce6e4;
-  padding: 12px 0;
-}
-.interval-order-details p {
-  margin: 6px 0;
-}
 .interval-results-table {
   font-size: 14px;
   font-variant-numeric: tabular-nums;

@@ -15,6 +15,7 @@ const result = {
       price_eur_mwh: 40,
       action: "charge",
       power_mw: -10,
+      grid_energy_mwh: -10,
       soc_mwh: 59,
       interval_pnl_eur: -420,
     },
@@ -43,9 +44,12 @@ it("shows one schedule row with separate expandable execution evidence", () => {
   expect(screen.getAllByRole("table")).toHaveLength(1);
   expect(screen.getAllByRole("columnheader")).toHaveLength(7);
   fireEvent.click(screen.getByRole("button", { name: /BUY MARKET/ }));
-  expect(screen.getByText(/Interval SoC: 50.00 → 59.00/)).toBeInTheDocument();
+  expect(screen.getByText(/50.00 → 59.00 MWh/)).toBeInTheDocument();
   expect(screen.getByText(/No price limit/)).toBeInTheDocument();
   expect(select).toHaveBeenCalledWith("2026-09-09T00:00:00.000Z");
+  expect(screen.getByText("Energy charged")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Close details" }));
+  expect(screen.queryByText("Energy charged")).not.toBeInTheDocument();
 });
 it("restores column choices without increasing the table width budget", async () => {
   sessionStorage.setItem(

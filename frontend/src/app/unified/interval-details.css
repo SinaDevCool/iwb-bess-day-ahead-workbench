@@ -1,0 +1,78 @@
+/* Structured interval evidence; shared values appear once above per-order outcomes. */
+.simulation-results > .interval-results {
+  min-width: 0;
+}
+.interval-order-details {
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid #d6e3e0;
+  border-radius: 8px;
+  white-space: normal;
+  font-weight: 400;
+}
+.interval-order-details header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.interval-order-details h4 {
+  margin: 0;
+  font-size: 15px;
+}
+.interval-order-details h4 span {
+  margin-left: 12px;
+  font-size: 13px;
+  color: #52676c;
+  font-weight: 400;
+}
+.interval-order-details article {
+  border-top: 1px solid #dce6e4;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+.interval-order-details p {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: #52676c;
+}
+.interval-order-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+}
+.interval-detail-values {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 14px 0 0;
+}
+.interval-detail-values dt {
+  color: #52676c;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+.interval-detail-values dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.interval-order-details > .interval-detail-values {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 560px;
+}
+.interval-order-details .interval-order-reason {
+  color: #8e3d2f;
+}
+@media (max-width: 700px) {
+  .interval-detail-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .interval-order-details {
+    padding: 14px;
+  }
+}
