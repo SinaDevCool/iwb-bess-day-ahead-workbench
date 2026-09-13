@@ -108,24 +108,10 @@ describe("OrderSimulatorWorkbench", () => {
       ),
     );
   });
-  async function ready(withExamples = true) {
+  async function ready() {
     render(<UnifiedWorkbench />);
     await screen.findByRole("button", { name: "Replace forecast" });
-    if (withExamples) {
-      fireEvent.click(screen.getByRole("button", { name: "Load example inputs" }));
-      fireEvent.click(screen.getByRole("button", { name: "Confirm replacement" }));
-      await screen.findByRole("button", { name: /Edit 05:00–06:00 BUY order/ });
-    }
   }
-  it("starts with no orders and exposes only the manual simulation journey", async () => {
-    await ready(false);
-    expect(screen.queryByRole("button", { name: "Generate proposal" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Proposal settings")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Physical Validation" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Compare Runs" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Edit .* order/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add order" })).toBeEnabled();
-  });
   function addOrder() {
     fireEvent.click(screen.getByRole("button", { name: "Add order" }));
     const dialog = within(screen.getByRole("dialog", { name: "Add order" }));
@@ -170,7 +156,7 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.click(screen.getByRole("link", { name: "Auction Orders" }));
     expect(screen.getByLabelText("Volume for order 5")).toHaveValue(12.3);
     cleanup();
-    await ready(false);
+    await ready();
     expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(5);
   });
   it("opens the single editor from a non-time cell and keeps timezone out of calculations", async () => {
@@ -204,7 +190,24 @@ describe("OrderSimulatorWorkbench", () => {
     expect(screen.getByText("Enter a positive volume.")).toBeInTheDocument();
     expect(screen.queryByText("Enter a positive volume in MW")).not.toBeInTheDocument();
   });
-
+  it("explains the invalid terminal setting without sending a proposal request", async () => {
+    await ready();
+    fireEvent.click(screen.getByText("Proposal settings"));
+    fireEvent.change(screen.getByLabelText("End-of-day policy"), {
+      target: { value: "terminal_value" },
+    });
+    fireEvent.change(screen.getByLabelText("Terminal value €/MWh"), { target: { value: "-1" } });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    fireEvent.click(screen.getByRole("button", { name: "Generate proposal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
+    expect(
+      within(screen.getByRole("dialog")).getByText(
+        /Terminal value must be a finite number of zero or more/,
+      ),
+    ).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it("does not apply blank forecast cells or treat them as zero", async () => {
     await ready();
     fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
@@ -238,7 +241,42 @@ describe("OrderSimulatorWorkbench", () => {
     expect(await screen.findByText(/Previous simulation—inputs changed/)).toBeInTheDocument();
     expect(screen.getByText("Schedule charts")).toBeInTheDocument();
   });
-
+  it("requires explicit proposal application and supports undo", async () => {
+    await ready();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        response({
+          proposal: {
+            simulation_id: "proposal-1",
+            summary: {
+              expected_contribution_eur: 100,
+              proposal_terminal_soc_mwh: 50,
+            },
+          },
+          orders: [
+            {
+              client_order_id: "new",
+              delivery_start_utc: points[0].timestamp_utc,
+              side: "BUY",
+              order_type: "LIMIT",
+              volume_mw: 10,
+              limit_price_eur_mwh: 30,
+            },
+          ],
+          pricing_policy: "Forecast-derived",
+        }),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Generate proposal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
+    await screen.findByRole("button", { name: "Replace orders with proposal" });
+    expect(screen.getAllByRole("button", { name: /Edit .* order/, hidden: true })).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: "Replace orders with proposal" }));
+    expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(4);
+  });
   it("shows a recoverable backend failure", async () => {
     vi.stubGlobal(
       "fetch",
@@ -349,5 +387,38 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Discard edits" }));
     fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
     expect(screen.getByLabelText("Price 00:00")).toHaveValue(30);
+  });
+  it("ignores a hidden terminal value when switching to minimum reserve", async () => {
+    await ready();
+    const bodies: string[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      bodies.push(String(init?.body));
+      return response({
+        proposal: {
+          simulation_id: "p",
+          summary: {
+            expected_contribution_eur: 0,
+            proposal_terminal_soc_mwh: 50,
+          },
+        },
+        orders: [],
+        pricing_policy: "Forecast-derived",
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    fireEvent.click(screen.getByText("Proposal settings"));
+    fireEvent.change(screen.getByLabelText("End-of-day policy"), {
+      target: { value: "terminal_value" },
+    });
+    fireEvent.change(screen.getByLabelText("Terminal value €/MWh"), {
+      target: { value: "-1" },
+    });
+    fireEvent.change(screen.getByLabelText("End-of-day policy"), {
+      target: { value: "minimum_reserve" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Generate proposal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
+    await screen.findByRole("button", { name: "Replace orders with proposal" });
+    expect(JSON.parse(bodies[0]).terminal_value_eur_per_mwh).toBe(0);
   });
 });

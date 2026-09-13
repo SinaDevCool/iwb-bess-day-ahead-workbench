@@ -22,7 +22,18 @@ export function useWorkspaceSession(
     setResultKey,
     setView,
     setModal,
+    risk,
+    setRisk,
+    horizon,
+    setHorizon,
+    terminal,
+    setTerminal,
+    weights,
+    setWeights,
+    lookahead,
+    setLookahead,
     setConfigurationOpen,
+    setComparisonKind,
     setScheduleSelection,
   } = context;
   useEffect(() => {
@@ -40,6 +51,15 @@ export function useWorkspaceSession(
             }
           : undefined,
       );
+      setComparisonKind(
+        params.get("comparison") === "simulations"
+          ? "simulations"
+          : params.get("comparison") === "proposals" ||
+              params.has("runs") ||
+              params.get("workspace") === "analysis"
+            ? "proposals"
+            : "simulations",
+      );
       if (params.get("workspace") === "history") setModal("history");
     };
     addEventListener("popstate", restoreView);
@@ -52,6 +72,13 @@ export function useWorkspaceSession(
           draft?: import("./workspace-types").Draft;
           result?: typeof result;
           resultKey?: string;
+          policy?: {
+            risk?: string;
+            horizon?: string;
+            terminal?: string;
+            weights?: string[];
+            lookahead?: string;
+          };
         } | null;
         if (
           saved?.draft?.battery &&
@@ -65,6 +92,13 @@ export function useWorkspaceSession(
           setDraft(saved.draft);
           setResult(saved.result);
           setResultKey(restoredResultKey(saved.resultKey ?? ""));
+          if (saved.policy) {
+            setRisk(saved.policy.risk ?? "expected_value");
+            setHorizon(saved.policy.horizon ?? "minimum_reserve");
+            setTerminal(saved.policy.terminal ?? "55");
+            setWeights(saved.policy.weights ?? ["20", "60", "20"]);
+            setLookahead(saved.policy.lookahead ?? "4");
+          }
           restored = true;
         }
       } catch {
@@ -87,12 +121,13 @@ export function useWorkspaceSession(
           draft,
           result,
           resultKey,
+          policy: { risk, horizon, terminal, weights, lookahead },
         });
       } catch {
         /* Storage can be unavailable; in-memory workspace remains usable. */
       }
     }
-  }, [draft, result, resultKey]);
+  }, [draft, result, resultKey, risk, horizon, terminal, weights, lookahead]);
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (dirty) e.preventDefault();

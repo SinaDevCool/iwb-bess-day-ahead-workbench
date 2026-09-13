@@ -9,6 +9,7 @@
 @import "./styles/simulator-legacy.css";
 @import "./styles/usability-overrides.css";
 @import "./styles/analytics.css";
+@import "./styles/comparison.css";
 @import "./workspace.css";
 @import "./unified.css";
 @import "./styles/motion.css";

@@ -71,7 +71,8 @@ export function WorkspaceHistory({
         )}
       </div>
       <p className="ws-help">
-        Simulations restore exact inputs and results. Saved proposal details remain available here.
+        Simulations restore exact inputs and results. Proposals open in analysis without replacing
+        orders.
       </p>
       {error && <p role="alert">{error}</p>}
       {detailLoading && <p role="status">Loading saved record…</p>}
@@ -135,15 +136,13 @@ export function WorkspaceHistory({
                     </td>
                     <td>{r.validation_status.replaceAll("_", " ")}</td>
                     <td>
-                      {r.run_type === "ORDER_SIMULATION" && (
-                        <button
-                          disabled={busy || detailLoading}
-                          className="ws-row-link"
-                          onClick={() => void restore(r.simulation_id, r.run_type)}
-                        >
-                          Restore simulation
-                        </button>
-                      )}
+                      <button
+                        disabled={busy || detailLoading}
+                        className="ws-row-link"
+                        onClick={() => void restore(r.simulation_id, r.run_type)}
+                      >
+                        {r.run_type === "ORDER_SIMULATION" ? "Restore simulation" : "Open proposal"}
+                      </button>
                       <small title={r.source_proposal_id}>Reference: {r.simulation_id}</small>
                     </td>
                   </tr>

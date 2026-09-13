@@ -59,7 +59,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
         ...configuration,
         points: forecast.points,
         prices: forecast.points.map((p) => String(p.price_eur_mwh)),
-        orders: [],
+        orders: examples(),
         forecast: {
           source_type: "illustrative",
           source_name: "Illustrative Day-Ahead example",

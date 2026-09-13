@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ForecastSnapshot } from "./forecast-snapshot";
 import { calculationIdentity, identity, restoredResultKey } from "./workspace-adapters";
 import { patchDraft } from "./workspace-draft";
+import { proposalKey } from "./proposal-key";
 import { TimePreference, TimezoneSelector } from "./time-preference";
 import type { Draft } from "./workspace-types";
 afterEach(cleanup);
@@ -34,6 +35,14 @@ it("keeps numerical freshness independent from timestamp provenance", () => {
     calculationIdentity({ ...draft, prices: ["0"] }),
   );
   expect(restoredResultKey(identity(draft))).toBe(calculationIdentity(draft));
+  const policy = {
+    risk: "balanced",
+    horizon: "minimum_reserve",
+    terminal: "50",
+    weights: ["20", "60", "20"],
+    lookahead: "4",
+  };
+  expect(proposalKey(draft, policy)).toBe(proposalKey(other, policy));
 });
 it("records real edits but not a numerically unchanged Apply", () => {
   expect(patchDraft(draft, { prices: ["40.00"] })?.forecast).toBe(draft.forecast);

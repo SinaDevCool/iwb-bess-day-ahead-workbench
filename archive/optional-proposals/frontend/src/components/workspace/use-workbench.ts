@@ -7,6 +7,7 @@ import { patchDraft } from "./workspace-draft";
 
 import { useWorkspaceNavigation } from "./use-workspace-navigation";
 import { calculationIdentity, requestBody } from "./workspace-adapters";
+import { useProposalActions } from "./workspace-proposal-actions";
 import { useReplacementActions } from "./workspace-replacement-actions";
 import { useWorkspaceSession } from "./workspace-session";
 import { useSimulationActions } from "./workspace-simulation-actions";
@@ -80,6 +81,7 @@ export function useWorkbench() {
   const context = { ...state, dirty, navigate, change, validate };
   const replacements = useReplacementActions(context);
   const simulation = useSimulationActions(context);
+  const proposals = useProposalActions(context);
   useWorkspaceSession(state, replacements.load, dirty);
   return {
     ...state,
@@ -87,6 +89,7 @@ export function useWorkbench() {
     editResultOrder,
     ...replacements,
     ...simulation,
+    ...proposals,
     navigate,
     dirty,
     change,

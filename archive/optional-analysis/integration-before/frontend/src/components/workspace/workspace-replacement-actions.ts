@@ -1,7 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
-import type { Battery, Market, OrderSimulation } from "@/types/api";
+import type { Battery, Market, OrderSimulation, Simulation } from "@/types/api";
 
 import type { ActionContext } from "./workspace-action-types";
 import { examples, fromOrders, identity, calculationIdentity } from "./workspace-adapters";
@@ -22,6 +22,7 @@ type ReplacementActionContext = Pick<
   | "setUndo"
   | "setConfirmation"
   | "draftRef"
+  | "setComparisonKind"
   | "dirty"
   | "navigate"
   | "change"
@@ -42,6 +43,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
     setUndo,
     setConfirmation,
     draftRef,
+    setComparisonKind,
     dirty,
     navigate,
     change,
@@ -59,7 +61,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
         ...configuration,
         points: forecast.points,
         prices: forecast.points.map((p) => String(p.price_eur_mwh)),
-        orders: [],
+        orders: examples(),
         forecast: {
           source_type: "illustrative",
           source_name: "Illustrative Day-Ahead example",
@@ -169,9 +171,18 @@ export function useReplacementActions(context: ReplacementActionContext) {
         setModal(null);
         navigate("schedule");
       } else {
-        setNotice(
-          "Proposal analysis is archived. Saved proposal details remain available in History.",
-        );
+        const p = await api<Simulation>(`/api/simulations/${runId}`);
+        // Comparison's URL is its one selection owner; do not attach this run to the draft.
+        const url = new URL(location.href);
+        url.searchParams.set("runs", p.simulation_id);
+        url.searchParams.set("reference", p.simulation_id);
+        url.searchParams.set("focus", p.simulation_id);
+        url.searchParams.set("comparison", "proposals");
+        history.replaceState({}, "", url);
+        setModal(null);
+        setComparisonKind("proposals");
+        navigate("compare");
+        window.dispatchEvent(new PopStateEvent("popstate"));
       }
     } catch (e) {
       setError(String(e));

@@ -1,6 +1,6 @@
 # IWB BESS Day-Ahead Workbench
 
-Interview prototype for a 100 MWh / 50 MW battery participating in a configurable Day-Ahead auction. One unified workbench simulates trader-entered Market and Limit orders against an entered price forecast and graphs the resulting battery schedule. Optional optimization generates an explicitly applied order proposal from the same battery and forecast inputs. There is no separate advanced-mode draft or duplicate order-entry page.
+Interview prototype for a 100 MWh / 50 MW battery participating in a configurable Day-Ahead auction. One unified workbench simulates trader-entered Market and Limit orders against an entered price forecast and graphs the resulting battery schedule. The active UI focuses on manual order entry and simulation; optional optimizer and comparison pages are archived for future reuse.
 
 ## Homework workflow
 
@@ -8,8 +8,8 @@ Interview prototype for a 100 MWh / 50 MW battery participating in a configurabl
 2. Click **Add order** to open a staged ticket. Choose any delivery interval, BUY/SELL, Market/Limit and volume; enter a price for Limit orders. Nothing is inserted until **Add order** confirms the ticket. Cancel leaves the case unchanged. Select an existing row to edit it; changes update the draft and require re-simulation. Market orders have no limit-price condition. Price-accepted orders remain subject to physical feasibility.
 3. Run the simulation to process orders chronologically through the battery state of charge.
 4. Inspect aligned price, power, state-of-charge and contribution tracks with synchronized floating tooltips (hover or arrow keys). Click or press Enter to open interval details, including idle periods. The order editor's **View battery schedule** opens the selected order's current result. Interval Detail combines schedule and order outcomes in one table; the Columns menu limits the table to five selectable values plus Delivery and Orders.
-5. Optionally generate an optimization proposal, review it, and explicitly apply it to the editable orders. Applying is reversible; generating alone never replaces the draft. Re-run the simulation to evaluate the applied orders.
-6. Use Compare Runs for saved order simulations or explicitly scoped optimizer proposals. Saved history restores complete simulation inputs and evidence. Physical Validation inspects the saved executed schedule, including headroom and failed checks.
+5. Revise entered orders or forecast prices and re-simulate to evaluate changes. Fresh sessions start without orders; saved drafts are restored and demo inputs require an explicit action.
+6. Saved history restores complete simulation inputs and evidence. The dedicated comparison and validation pages are archived; battery safety checks still run during simulation and issues remain visible in order outcomes.
 
 The entered forecast is deliberately used as the simulated auction clearing and settlement price. Eligible orders in a delivery interval are checked as one all-or-nothing batch; opposing BUY/SELL orders in the same interval are unsupported. The prototype does not model clearing probability, partial fills, price impact, a live market feed or order submission. Interval SoC evidence belongs to the whole batch, not to an invented ordering within that interval.
 

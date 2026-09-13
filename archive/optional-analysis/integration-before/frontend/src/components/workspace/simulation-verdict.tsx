@@ -23,7 +23,7 @@ export function SimulationVerdict({
           <strong>{view.title}</strong>
           <small>
             {compact && !stale && result.summary.infeasible_order_count > 0
-              ? `${result.summary.infeasible_order_count} orders excluded from the displayed schedule. ${result.executed_schedule_feasible ? "Review the order outcomes." : "The remaining schedule also needs correction. Review the order outcomes."}`
+              ? `${result.summary.infeasible_order_count} orders excluded from the displayed schedule. ${result.executed_schedule_feasible ? "Review Physical Validation." : "The remaining schedule also needs correction. Review Physical Validation."}`
               : view.detail}
           </small>
         </span>

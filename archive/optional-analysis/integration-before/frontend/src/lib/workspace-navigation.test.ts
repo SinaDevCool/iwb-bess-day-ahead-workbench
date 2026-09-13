@@ -7,10 +7,10 @@ describe("unified navigation", () => {
     ["mode=optimize", "orders"],
     ["workspace=inputs", "orders"],
     ["workspace=schedule", "schedule"],
-    ["workspace=analysis", "orders"],
-    ["workspace=history", "orders"],
-    ["tab=proof", "schedule"],
-    ["tab=compare", "orders"],
+    ["workspace=analysis", "compare"],
+    ["workspace=history", "compare"],
+    ["tab=proof", "proof"],
+    ["tab=compare", "compare"],
   ])("maps %s to %s", (query, expected) => {
     expect(workspaceView(new URLSearchParams(query))).toBe(expected);
   });

@@ -17,4 +17,4 @@ export type Preview = {
   orders: SubmittedOrder[];
   pricing_policy: string;
 };
-export type View = "orders" | "schedule";
+export type View = "orders" | "schedule" | "proof" | "compare";

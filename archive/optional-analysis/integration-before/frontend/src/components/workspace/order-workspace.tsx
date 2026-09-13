@@ -3,7 +3,9 @@ import { simulationPresentation } from "@/lib/simulation-presentation";
 
 import { LoaderCircle } from "lucide-react";
 import { SimulationResults } from "./simulation-results";
+import { SimulationValidation } from "./simulation-validation";
 
+import { ComparisonView } from "./comparison-view";
 import { ConfigurationPanel } from "./configuration-panel";
 import { OrdersView } from "./orders-view";
 import { useWorkbench } from "./use-workbench";
@@ -65,7 +67,7 @@ function WorkbenchContent() {
           <span className="logo">IWB</span>
           <div>
             <h1>BESS Day-Ahead Workbench</h1>
-            <small>Day-Ahead orders · battery simulation</small>
+            <small>Day-Ahead orders · simulation & optimization</small>
           </div>
         </div>
         <div className="ws-actions">
@@ -105,7 +107,7 @@ function WorkbenchContent() {
               )}
             </button>
           </div>
-          {result && (
+          {result && view !== "compare" && (
             <section aria-label="Working case result">
               <p className={dirty ? "stale-notice" : "ws-help"} role="status">
                 {dirty ? "Previous simulation—inputs changed" : "Current working-case simulation"} ·{" "}
@@ -121,7 +123,7 @@ function WorkbenchContent() {
                   <small>
                     {result.submitted_portfolio_feasible
                       ? "Sales − purchases − costs"
-                      : "Portfolio needs attention · review order outcomes"}
+                      : "Portfolio needs attention · see validation"}
                   </small>
                 </div>
                 <div>
@@ -149,6 +151,8 @@ function WorkbenchContent() {
               [
                 ["orders", "Auction Orders"],
                 ["schedule", "Dispatch & Economics"],
+                ["proof", "Physical Validation"],
+                ["compare", "Compare Runs"],
               ] as const
             ).map(([key, label]) => (
               <a
@@ -222,6 +226,16 @@ function WorkbenchContent() {
                   </button>
                 </section>
               ))}
+            {view === "proof" &&
+              (result ? (
+                <SimulationValidation result={result} stale={dirty} />
+              ) : (
+                <section className="ws-card ws-empty">
+                  <h2>Physical Validation</h2>
+                  <p>Simulate the entered orders to inspect the resulting battery constraints.</p>
+                </section>
+              ))}
+            <ComparisonView context={ready} />
           </main>
         </div>
       </div>

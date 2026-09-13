@@ -20,6 +20,8 @@ export function OrdersView({
     | "selected"
     | "setSelected"
     | "busy"
+    | "setModal"
+    | "setPreview"
     | "setUndo"
     | "setConfirmation"
     | "dirty"
@@ -36,6 +38,8 @@ export function OrdersView({
     selected,
     setSelected,
     busy,
+    setModal,
+    setPreview,
     setUndo,
     setConfirmation,
     dirty,
@@ -116,6 +120,16 @@ export function OrdersView({
                 <Plus size={14} aria-hidden="true" />
                 Add order
               </button>
+              <button
+                className="ws-text-button"
+                disabled={Boolean(busy)}
+                onClick={() => {
+                  setPreview(undefined);
+                  setModal("proposal");
+                }}
+              >
+                Generate proposal
+              </button>
             </div>
           </div>
           <p className="orders-caption">Entered orders · simulated outcomes</p>
@@ -137,7 +151,7 @@ export function OrdersView({
             {wide && ticket}
           </div>
           <p className="ws-help">
-            Enter Market or Limit orders, then simulate their battery schedule.
+            Generate proposes orders. Simulate evaluates the orders currently entered.
           </p>
           <SimulationAssumptions />
         </section>

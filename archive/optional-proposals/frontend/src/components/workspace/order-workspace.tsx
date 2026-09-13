@@ -65,7 +65,7 @@ function WorkbenchContent() {
           <span className="logo">IWB</span>
           <div>
             <h1>BESS Day-Ahead Workbench</h1>
-            <small>Day-Ahead orders · battery simulation</small>
+            <small>Day-Ahead orders · simulation & optimization</small>
           </div>
         </div>
         <div className="ws-actions">
