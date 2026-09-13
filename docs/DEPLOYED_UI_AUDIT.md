@@ -29,6 +29,21 @@ Commit `68b62e0` was pushed to main and confirmed Live in Render before this aud
 - Battery field label remains stable while its error description changes.
 - Switching from invalid configured terminal value to minimum reserve does not block proposal generation.
 
+## Live follow-up on release `9165af4`
+
+The fresh browser session recovered after deployment. The following additional interactions passed:
+
+- Application confirmation cancellation and staged battery-reset cancellation.
+- Proposal preview, explicit application and simulation: eight of eight orders executed, final reserve 50 MWh, net contribution EUR 6,201.25.
+- Hidden invalid terminal value no longer prevents a minimum-reserve proposal. Downside-protected and next-day opportunity-proxy generation also completed.
+- Sensitivity calculation and lever selection; comparison of two saved runs across all four metrics; full configuration, reference switching and run renaming.
+- Advanced optimizer navigation, physical-validation filters, calculation evidence, exact values and solver details.
+- Trader limit adjustment with rationale, full revalidation, demo approval and enabled CSV export. Export was clicked; downloaded file contents were not independently inspected in this browser pass.
+- Return to the primary order simulator preserved its separate eight-order draft.
+- Primary input layout had no document-level horizontal overflow at 390, 1366 and 1920 pixel viewport widths. The temporary viewport override was reset. No warning/error console entries were returned for the current session.
+
+Validation completed with 115 backend tests, 20 frontend tests, lint, TypeScript and the production build passing.
+
 ## Audit limits
 
-The browser automation stalled after invoking a native confirmation; subsequent clicks on other tabs did not reliably execute. Proposal generation/application, sensitivities and advanced optimizer controls were therefore not all rechecked interactively during this audit. Prior tests and backend regression coverage remain useful but do not substitute for that outstanding live interaction check. No live exchange submission exists or was attempted.
+This is a representative interaction and boundary audit, not proof of every possible combination. Native date-input automation did not reliably commit the entered date, so the live daylight-saving date-change confirmation remains unverified; delivery-grid regression tests cover DST logic. Legacy advanced configuration was sampled rather than every field combination being repeated. No live exchange submission exists or was attempted.
