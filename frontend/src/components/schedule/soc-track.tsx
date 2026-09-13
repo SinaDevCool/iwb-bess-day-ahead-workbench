@@ -1,3 +1,4 @@
+import { TrackReadout } from "./track-readout";
 import type { scheduleChartData } from "@/lib/schedule-chart-data";
 import type { Battery } from "@/types/api";
 import {
@@ -13,6 +14,7 @@ import type { useScheduleInspection } from "./use-schedule-inspection";
 /** Render one track; time and selection are supplied by the parent. */
 export function SocTrack({
   trackEvents,
+  readout,
   xAxis,
   tip,
   cursor,
@@ -20,6 +22,7 @@ export function SocTrack({
   battery,
   selectedIndex,
 }: {
+  readout?: string;
   trackEvents: ReturnType<typeof useScheduleInspection>["trackEvents"];
   xAxis: React.ReactNode;
   tip: React.ReactNode;
@@ -44,6 +47,7 @@ export function SocTrack({
         aria-label="State of charge in MWh with configured minimum and maximum"
         {...trackEvents}
       >
+        <TrackReadout value={readout} />
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={soc} margin={margin}>
             {grid}
@@ -103,6 +107,7 @@ export function SocTrack({
               strokeWidth={2}
               fill="#f0eef8"
               dot={false}
+              activeDot={false}
               isAnimationActive={false}
             />
           </ComposedChart>

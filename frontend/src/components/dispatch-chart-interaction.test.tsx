@@ -96,7 +96,7 @@ it("does not commit hover and lets an external interval override inspection", ()
       onSelectInterval={selected}
     />,
   );
-  expect(screen.getByRole("group")).toHaveTextContent("DA €50.00");
+  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("Forecast €50.00");
 });
 it("commits a pinned interval and allows detail navigation", () => {
   const selected = vi.fn(),
@@ -116,4 +116,26 @@ it("commits a pinned interval and allows detail navigation", () => {
   expect(selected).toHaveBeenLastCalledWith("2026-09-09T01:00:00.000Z");
   fireEvent.click(screen.getByRole("button", { name: "Interval details" }));
   expect(details).toHaveBeenCalledOnce();
+});
+it("shows all four hover values without expanding the inspector or committing selection", () => {
+  vi.stubGlobal("PointerEvent", MouseEvent);
+  const selected = vi.fn();
+  render(
+    <DispatchChart rows={rows} battery={battery} showContribution onSelectInterval={selected} />,
+  );
+  const track = screen.getByRole("img", { name: "Day-Ahead price forecast" });
+  vi.spyOn(track, "getBoundingClientRect").mockReturnValue({ left: 0, width: 284 } as DOMRect);
+  const before = screen.getByRole("group").textContent;
+  fireEvent.pointerMove(track, { clientX: 210 });
+  expect(screen.getAllByRole("tooltip")).toHaveLength(4);
+  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("Forecast €30.00");
+  expect(screen.getAllByRole("tooltip")[1]).toHaveTextContent("-10.0 MW");
+  expect(screen.getAllByRole("tooltip")[2]).toHaveTextContent("50.00 → 59.49 MWh");
+  expect(screen.getAllByRole("tooltip")[3]).toHaveTextContent("-€310.00");
+  expect(screen.getByRole("group").textContent).toBe(before);
+  expect(selected).not.toHaveBeenCalled();
+  fireEvent.pointerMove(track, { clientX: 90 });
+  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("Forecast €50.00");
+  expect(screen.getByRole("group").textContent).toBe(before);
+  vi.unstubAllGlobals();
 });

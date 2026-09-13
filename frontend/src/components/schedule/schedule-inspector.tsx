@@ -39,7 +39,7 @@ export function ScheduleInspector({
       aria-label="Interval inspector. Use left and right arrow keys to navigate, Escape to unpin."
       onKeyDown={inspection.onKeyDown}
     >
-      {active ? (
+      {active && pinned ? (
         <>
           <div className="schedule-inspector-heading">
             <strong aria-live={pinned ? "polite" : "off"}>
@@ -113,10 +113,28 @@ export function ScheduleInspector({
           )}
         </>
       ) : (
-        <span>
-          Hover any track or focus here and use arrow keys to inspect an interval. Click a track to
-          pin.
-        </span>
+        <div className="schedule-inspector-idle">
+          <span>
+            Move across any chart to see synchronized values. Click to pin and inspect orders.
+          </span>
+          <button
+            type="button"
+            className="ws-text-button"
+            aria-pressed={false}
+            disabled={!active}
+            onClick={() => {
+              inspection.inspect(activeIndex);
+              setPinned(true);
+            }}
+          >
+            Pin interval
+          </button>
+          {onShowDetails && (
+            <button type="button" className="ws-text-button" onClick={onShowDetails}>
+              Interval details
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

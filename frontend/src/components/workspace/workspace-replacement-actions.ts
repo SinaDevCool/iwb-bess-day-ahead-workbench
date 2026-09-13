@@ -5,6 +5,7 @@ import type { Battery, Market, OrderSimulation, Simulation } from "@/types/api";
 
 import type { ActionContext } from "./workspace-action-types";
 import { examples, fromOrders, identity } from "./workspace-adapters";
+import { changeResolution } from "./workspace-duration-transition";
 import type { Draft, Point } from "./workspace-types";
 type ReplacementActionContext = Pick<
   ActionContext,
@@ -84,7 +85,9 @@ export function useReplacementActions(context: ReplacementActionContext) {
     if (!confirmed) {
       setConfirmation({
         message:
-          "Changing date or duration clears the forecast, orders and interval availability. Other battery settings are preserved. Load a compatible forecast afterwards; you can undo this replacement.",
+          value === draft.date
+            ? "Change product duration? Hourly inputs are split into quarter-hours at the same MW and price, preserving energy. Quarter-hours can merge only if their prices, orders and availability match. Re-simulate afterwards; you can undo this change."
+            : "Changing date clears the forecast, orders and interval availability. Other battery settings are preserved. Load a compatible forecast afterwards; you can undo this replacement.",
         action: () => void changeDate(value, true, minutes),
       });
       return;
@@ -97,6 +100,16 @@ export function useReplacementActions(context: ReplacementActionContext) {
       );
       if (!draftRef.current || identity(draftRef.current) !== originalKey)
         throw new Error("Inputs changed while loading. Change the date again to retry.");
+      if (value === draft.date) {
+        const replacement = changeResolution(draft, next.points, minutes);
+        setUndo(draft);
+        change(replacement);
+        setSelected("");
+        setNotice(
+          "Product duration changed. Orders and forecast preserved; re-simulate to update the schedule.",
+        );
+        return;
+      }
       setUndo(draft);
       change({
         date: value,
@@ -197,7 +210,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
           version: "illustrative-v1",
           bidding_zone: draft.market.bidding_zone,
         },
-        orders: draft.market.product_minutes === 60 ? examples() : draft.orders,
+        orders: examples(draft.market.product_minutes),
         sourceProposalId: undefined,
       });
       setSelected("");

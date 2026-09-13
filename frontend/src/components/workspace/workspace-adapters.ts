@@ -15,20 +15,22 @@ export const fromOrders = (orders: SubmittedOrder[], points: Point[]): DraftOrde
     volume: String(o.volume_mw),
     limit: o.limit_price_eur_mwh == null ? "" : String(o.limit_price_eur_mwh),
   }));
-export function examples(): DraftOrderInput[] {
+export function examples(minutes: 15 | 60 = 60): DraftOrderInput[] {
   return [
     [5, "BUY", "MARKET", 20, ""],
     [6, "BUY", "LIMIT", 20, "40"],
     [18, "SELL", "MARKET", 15, ""],
     [19, "SELL", "LIMIT", 15, "100"],
-  ].map(([interval, side, orderType, volume, limit]) => ({
-    id: id(),
-    interval: Number(interval),
-    side: side as "BUY" | "SELL",
-    orderType: orderType as "MARKET" | "LIMIT",
-    volume: String(volume),
-    limit: String(limit),
-  }));
+  ].flatMap(([interval, side, orderType, volume, limit]) =>
+    Array.from({ length: 60 / minutes }, (_, quarter) => ({
+      id: id(),
+      interval: Number(interval) * (60 / minutes) + quarter,
+      side: side as "BUY" | "SELL",
+      orderType: orderType as "MARKET" | "LIMIT",
+      volume: String(volume),
+      limit: String(limit),
+    })),
+  );
 }
 
 /** Serialize only the submitted draft, never the currently displayed saved result. */

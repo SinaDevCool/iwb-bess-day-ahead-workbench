@@ -29,10 +29,10 @@ it("groups mixed outcomes without losing a physical rejection", () => {
       onSelect={select}
     />,
   );
-  const marker = screen.getByRole("button");
-  expect(marker).toHaveTextContent("△2");
+  const marker = screen.getByRole("button", { name: /Physical constraint/ });
+  expect(screen.getAllByRole("button")).toHaveLength(2);
   fireEvent.click(marker);
-  expect(select).toHaveBeenCalledWith(0, "a");
+  expect(select).toHaveBeenCalledWith(0, "b");
 });
 it("explains price rejection and retains negative limit prices", () => {
   const edit = vi.fn();

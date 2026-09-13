@@ -1,3 +1,4 @@
+import { TrackReadout } from "./track-readout";
 import type { scheduleChartData } from "@/lib/schedule-chart-data";
 import type { Battery } from "@/types/api";
 import { Bar, Cell, ComposedChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
@@ -6,6 +7,7 @@ import type { useScheduleInspection } from "./use-schedule-inspection";
 /** Render one track; time and selection are supplied by the parent. */
 export function PowerTrack({
   trackEvents,
+  readout,
   xAxis,
   tip,
   cursor,
@@ -13,6 +15,7 @@ export function PowerTrack({
   battery,
   barSize,
 }: {
+  readout?: string;
   trackEvents: ReturnType<typeof useScheduleInspection>["trackEvents"];
   xAxis: React.ReactNode;
   tip: React.ReactNode;
@@ -43,6 +46,7 @@ export function PowerTrack({
         aria-label="Charging negative and discharging positive power in MW"
         {...trackEvents}
       >
+        <TrackReadout value={readout} />
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={intervals} margin={margin}>
             {grid}
@@ -66,6 +70,12 @@ export function PowerTrack({
                 )
               }
               stroke="#7d9295"
+              label={{
+                value: "Charge limit",
+                position: "insideBottomLeft",
+                fill: "#526b70",
+                fontSize: 11,
+              }}
               strokeDasharray="3 4"
             />
             <ReferenceLine
@@ -74,6 +84,12 @@ export function PowerTrack({
                 battery.grid_limit_mw ?? battery.max_discharge_power_mw,
               )}
               stroke="#7d9295"
+              label={{
+                value: "Discharge limit",
+                position: "insideTopLeft",
+                fill: "#526b70",
+                fontSize: 11,
+              }}
               strokeDasharray="3 4"
             />
             {/* One signed series keeps buy and sell centred on the same interval. */}

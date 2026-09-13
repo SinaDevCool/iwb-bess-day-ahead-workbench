@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { fromOrders, identity, requestBody } from "./workspace-adapters";
+import { examples, fromOrders, identity, requestBody } from "./workspace-adapters";
 import type { Draft } from "./workspace-types";
 
 describe("workspace adapters", () => {
+  it("loads quarter-hour example orders with the same total energy", () => {
+    expect(examples(15)).toHaveLength(16);
+    expect(examples(15).reduce((sum, o) => sum + Number(o.volume) * 0.25, 0)).toBe(70);
+    expect(examples(15).every((o) => o.interval >= 0 && o.interval < 96)).toBe(true);
+  });
   it("maps saved orders by timestamp, preserving a zero limit", () => {
     const points = [{ timestamp_utc: "2026-09-09T00:00:00Z", price_eur_mwh: 50 }];
     expect(

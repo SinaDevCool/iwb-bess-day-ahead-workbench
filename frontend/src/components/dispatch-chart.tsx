@@ -5,8 +5,17 @@ import { OrderOutcomeStrip } from "./schedule/order-outcome-strip";
 import { useChartWidth } from "./schedule/use-chart-width";
 import { scheduleChartData } from "@/lib/schedule-chart-data";
 import type { Battery, Dispatch, Market, SimulatedOrderResult } from "@/types/api";
-import { ReferenceArea, ReferenceLine, Tooltip, XAxis } from "recharts";
-import { axis, clock, timeTicks, Y_AXIS_WIDTH, margin } from "./schedule/chart-config";
+import { ReferenceArea, ReferenceLine, XAxis } from "recharts";
+import {
+  axis,
+  clock,
+  exact,
+  euros,
+  number,
+  timeTicks,
+  Y_AXIS_WIDTH,
+  margin,
+} from "./schedule/chart-config";
 import { ContributionTrack } from "./schedule/contribution-track";
 import { ForecastTrack } from "./schedule/forecast-track";
 import { PowerTrack } from "./schedule/power-track";
@@ -93,7 +102,18 @@ export function DispatchChart({
     onSelectInterval,
   );
   const { active, inspect, setPinned, trackEvents } = inspection;
-  const tip = <Tooltip content={() => null} cursor={false} />;
+  const tip = null;
+  const activeTime = active
+    ? `${exact(Date.parse(active.timestamp_utc), zone)}–${clock(Date.parse(active.timestamp_utc) + dt, zone)}`
+    : "";
+  const readouts = active
+    ? {
+        price: `${activeTime} · Forecast ${euros(active.price_eur_mwh)}/MWh`,
+        power: `${activeTime} · ${active.action} ${number(active.power_mw, 1)} MW`,
+        soc: `${activeTime} · ${number(inspection.activeIndex > 0 ? rows[inspection.activeIndex - 1].soc_mwh : battery.initial_soc_mwh)} → ${number(active.soc_mwh)} MWh`,
+        contribution: `${activeTime} · ${euros(active.interval_pnl_eur)}`,
+      }
+    : undefined;
   const cursor = (
     <>
       {(battery.unavailable_intervals ?? []).map(
@@ -125,12 +145,7 @@ export function DispatchChart({
       ) : null}
     </>
   );
-  const selected = orderResults?.find(
-    (o) =>
-      o.submitted_order.client_order_id === selectedOrderId &&
-      o.submitted_order.delivery_start_utc &&
-      Date.parse(o.submitted_order.delivery_start_utc) === Date.parse(active?.timestamp_utc ?? ""),
-  );
+  const selected = orderResults?.find((o) => o.submitted_order.client_order_id === selectedOrderId);
   const selectedX = selected ? Date.parse(selected.submitted_order.delivery_start_utc) : undefined;
   return (
     <figure className="dispatch-figure ws-schedule">
@@ -168,6 +183,7 @@ export function DispatchChart({
       )}
       <div ref={ref} className="schedule-tracks" hidden={rows.length === 0}>
         <ForecastTrack
+          readout={readouts?.price}
           trackEvents={trackEvents}
           xAxis={xAxis(false)}
           tip={tip}
@@ -196,6 +212,7 @@ export function DispatchChart({
           />
         )}
         <PowerTrack
+          readout={readouts?.power}
           trackEvents={trackEvents}
           xAxis={xAxis(false)}
           tip={tip}
@@ -205,6 +222,7 @@ export function DispatchChart({
           battery={battery}
         />
         <SocTrack
+          readout={readouts?.soc}
           trackEvents={trackEvents}
           xAxis={xAxis(!showContribution)}
           tip={tip}
@@ -215,6 +233,7 @@ export function DispatchChart({
         />
         {showContribution && (
           <ContributionTrack
+            readout={readouts?.contribution}
             label={contributionLabel}
             trackEvents={trackEvents}
             xAxis={xAxis(true)}
@@ -230,7 +249,8 @@ export function DispatchChart({
         {zone} · {dt / 60000}-minute intervals · Power is interval-average; energy joins boundary
         states assuming constant interval power. Dashed lines: {battery.min_soc_mwh}–
         {battery.max_soc_mwh} MWh. End reserve: {battery.target_soc_mwh} MWh (end marker only).
-        Shaded intervals: unavailable. Power dashed lines: effective limits.
+        Vertical dashed line: inspected interval, shared by all charts. Shaded intervals:
+        unavailable. Power dashed lines: charge/discharge limits.
       </figcaption>
     </figure>
   );

@@ -1,3 +1,4 @@
+import { TrackReadout } from "./track-readout";
 import type { Dispatch } from "@/types/api";
 import { Bar, Cell, ComposedChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
 import { axis, grid, margin, Y_AXIS_WIDTH } from "./chart-config";
@@ -5,6 +6,7 @@ import type { useScheduleInspection } from "./use-schedule-inspection";
 /** Render one track; time and selection are supplied by the parent. */
 export function ContributionTrack({
   trackEvents,
+  readout,
   xAxis,
   tip,
   cursor,
@@ -13,6 +15,7 @@ export function ContributionTrack({
   barSize,
   label = "Net contribution",
 }: {
+  readout?: string;
   trackEvents: ReturnType<typeof useScheduleInspection>["trackEvents"];
   xAxis: React.ReactNode;
   tip: React.ReactNode;
@@ -44,6 +47,7 @@ export function ContributionTrack({
         aria-label={`${label} by interval, sharing the battery timeline`}
         {...trackEvents}
       >
+        <TrackReadout value={readout} />
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={rows.map((r) => ({

@@ -1,9 +1,11 @@
+import { TrackReadout } from "./track-readout";
 import { Area, ComposedChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
 import { axis, grid, margin, Y_AXIS_WIDTH } from "./chart-config";
 import type { useScheduleInspection } from "./use-schedule-inspection";
 /** Render one track; time and selection are supplied by the parent. */
 export function ForecastTrack({
   trackEvents,
+  readout,
   xAxis,
   tip,
   cursor,
@@ -13,6 +15,7 @@ export function ForecastTrack({
   selectedLimit,
   dt,
 }: {
+  readout?: string;
   trackEvents: ReturnType<typeof useScheduleInspection>["trackEvents"];
   xAxis: React.ReactNode;
   tip: React.ReactNode;
@@ -29,12 +32,19 @@ export function ForecastTrack({
         <span>Day-Ahead price forecast · {forecast?.source_name ?? "Saved forecast"}</span>
         <strong>€/MWh</strong>
       </div>
+      {selectedLimit != null && (
+        <p className="schedule-energy-summary">
+          Orange dashed segment: selected order limit €{selectedLimit.toFixed(2)}/MWh (not the
+          forecast).
+        </p>
+      )}
       <div
         className="ws-schedule-plot"
         role="img"
         aria-label="Day-Ahead price forecast"
         {...trackEvents}
       >
+        <TrackReadout value={readout} />
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={prices} margin={margin}>
             {grid}
@@ -57,6 +67,7 @@ export function ForecastTrack({
               strokeWidth={2}
               fill="#edf4f3"
               dot={false}
+              activeDot={false}
               isAnimationActive={false}
             />
             {selectedX !== undefined && selectedLimit != null && (
