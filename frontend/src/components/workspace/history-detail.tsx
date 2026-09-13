@@ -1,6 +1,8 @@
 "use client";
 import type { HistoryDetail as Detail } from "@/types/history";
 import type { RefObject } from "react";
+import { useDisplayTimezone } from "./time-preference";
+import { dateTimeText } from "@/lib/time-presentation";
 export type HistoryTab = "Summary" | "Inputs" | "Activity";
 /** Read-only evidence; restoring a snapshot remains an explicit action in the list. */
 export function HistoryDetailView({
@@ -16,6 +18,7 @@ export function HistoryDetailView({
   detailHeading: RefObject<HTMLHeadingElement | null>;
   onBack: () => void;
 }) {
+  const zone = useDisplayTimezone();
   return (
     <section className="history-detail">
       <div className="ws-section-head">
@@ -57,8 +60,7 @@ export function HistoryDetailView({
             <div>
               <dt>Delivery</dt>
               <dd>
-                {detail.run.delivery_date} · {detail.run.market.product_minutes} minutes ·{" "}
-                {detail.run.market.timezone}
+                {detail.run.delivery_date} · {detail.run.market.product_minutes} minutes
               </dd>
             </div>
             <div>
@@ -121,8 +123,7 @@ export function HistoryDetailView({
           {detail.events.map((event) => (
             <details key={event.event_id}>
               <summary>
-                {new Date(event.created_at).toLocaleString("en-GB")} ·{" "}
-                {event.event_type.replaceAll("_", " ")}
+                {dateTimeText(event.created_at, zone)} · {event.event_type.replaceAll("_", " ")}
               </summary>
               <pre>{JSON.stringify(event.payload, null, 2)}</pre>
             </details>

@@ -124,9 +124,7 @@ export function OrdersView({
               </button>
             </div>
           </div>
-          <p className="orders-caption">
-            Entered orders · simulated outcomes · {draft.market.timezone}
-          </p>
+          <p className="orders-caption">Entered orders · simulated outcomes</p>
           <div ref={layoutRef} className="orders-layout" data-docked={Boolean(wide && current)}>
             <OrdersTable
               draft={draft}

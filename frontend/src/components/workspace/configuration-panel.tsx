@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 
 import type { ReadyWorkbench } from "./use-workbench";
 import { num } from "./workspace-format";
+import { MarketDeadline } from "./time-preference";
 /** Presentation only: all shared state remains in the workbench controller. */
 export function ConfigurationPanel({
   context,
@@ -112,7 +113,7 @@ export function ConfigurationPanel({
           </select>
         </label>
         <p className="ws-help">
-          {draft.market.bidding_zone} · {draft.market.timezone} · {draft.points.length} intervals
+          {draft.market.bidding_zone} · {draft.points.length} intervals
         </p>
         <div className="uw-input-summary" aria-label="Current Day-Ahead forecast">
           <strong>Day-Ahead price forecast</strong>
@@ -149,8 +150,7 @@ export function ConfigurationPanel({
         <details className="uw-market-details">
           <summary>Market assumptions</summary>
           <p className="ws-help">
-            Case gate closure {draft.market.gate_closure_local} · {draft.market.timezone}. No live
-            order submission.
+            Case gate closure <MarketDeadline draft={draft} />. No live order submission.
           </p>
         </details>
       </details>

@@ -1,14 +1,14 @@
 "use client";
+import { useRef, useState } from "react";
 import { useForecastEditor } from "./use-forecast-editor";
-
 import { ForecastPlot } from "@/components/dispatch-chart";
 import { parseForecast } from "@/lib/forecast-parser";
-import { DialogActions } from "./dialog";
-
-import { clock } from "./workspace-format";
+import { DialogActions, useDialogCloseGuard } from "./dialog";
+import { useDisplayTimezone } from "./time-preference";
+import { ForecastPriceTable } from "./forecast-price-table";
 import type { Draft } from "./workspace-types";
 
-/** Temporary interval edits are only committed after server validation. */
+/** One editing session; Apply retains the existing validation and draft-update path. */
 export function ForecastEditor({
   draft,
   apply,
@@ -18,38 +18,125 @@ export function ForecastEditor({
   apply: (prices: string[]) => void;
   cancel: () => void;
 }) {
-  const { prices, setPrices, validating, paste, setPaste, error, setError, invalid, submit } =
-    useForecastEditor(draft, apply);
-  const baseline = draft.forecast?.original_price_values ?? draft.prices;
-  const changed = (i: number) =>
-    prices[i]?.trim() && String(baseline[i]).trim()
-      ? Number(prices[i]) !== Number(baseline[i])
-      : prices[i] !== String(baseline[i]);
+  const editor = useForecastEditor(draft, apply);
+  const {
+    prices,
+    setPrices,
+    opening,
+    baseline,
+    hasSource,
+    changed,
+    pending,
+    valid,
+    validating,
+    paste,
+    setPaste,
+    error,
+    setError,
+    invalid,
+    submit,
+  } = editor;
+  const zone = useDisplayTimezone();
+  const [onlyChanged, setOnlyChanged] = useState(false);
+  const [selected, setSelected] = useState<string>();
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+  const inputs = useRef<Record<string, HTMLInputElement | null>>({});
+  const count = prices.filter((_, index) => changed(index)).length;
+  useDialogCloseGuard(() => {
+    if (pending) {
+      setConfirmClose(true);
+      return false;
+    }
+    return true;
+  });
+  const pick = (timestamp: string) => {
+    setOnlyChanged(false);
+    setSelected(timestamp);
+    requestAnimationFrame(() => {
+      inputs.current[timestamp]?.focus({ preventScroll: true });
+      inputs.current[timestamp]?.scrollIntoView({ block: "nearest" });
+    });
+  };
   return (
-    <>
-      <p>
-        Day-Ahead forecast · €/MWh · {draft.market.timezone}. Changes are staged until you apply
-        them.
+    <div className="forecast-editor">
+      <p className="ws-help">
+        {draft.date} · {draft.market.product_minutes}-minute intervals · Prices in €/MWh. Changes
+        remain staged until Apply.
       </p>
       <ForecastPlot
-        points={draft.points.map((p, i) => ({
-          ...p,
-          price_eur_mwh:
-            prices[i]?.trim() && Number.isFinite(Number(prices[i])) ? Number(prices[i]) : null,
+        points={draft.points.map((point, i) => ({
+          ...point,
+          price_eur_mwh: valid(prices[i]) ? Number(prices[i]) : null,
         }))}
-        zone={draft.market.timezone}
+        baseline={baseline.map((value) =>
+          value.trim() && Number.isFinite(Number(value)) ? Number(value) : null,
+        )}
+        baselineLabel={hasSource ? "Original" : "Before editing"}
+        zone={zone}
+        selected={selected}
+        onSelect={pick}
       />
-      <details>
+      <div className="forecast-edit-toolbar">
+        <div>
+          <button
+            className="secondary small"
+            aria-pressed={!onlyChanged}
+            onClick={() => setOnlyChanged(false)}
+          >
+            All intervals
+          </button>{" "}
+          <button
+            className="secondary small"
+            aria-pressed={onlyChanged}
+            onClick={() => setOnlyChanged(true)}
+          >
+            Changed · {count}
+          </button>
+        </div>
+        <button
+          className="ws-text-button"
+          disabled={!pending || validating}
+          onClick={() => setPrices([...opening])}
+        >
+          Undo session edits
+        </button>
+        {hasSource && (
+          <button
+            className="ws-text-button"
+            disabled={validating || !count}
+            onClick={() => setConfirmReset(true)}
+          >
+            Restore source forecast
+          </button>
+        )}
+      </div>
+      {confirmReset && (
+        <div className="ws-notice">
+          Restore all recorded source prices? This remains staged until Apply.{" "}
+          <button
+            onClick={() => {
+              setPrices([...baseline]);
+              setConfirmReset(false);
+            }}
+          >
+            Restore
+          </button>{" "}
+          <button onClick={() => setConfirmReset(false)}>Keep edits</button>
+        </div>
+      )}
+      <details className="forecast-paste-panel">
         <summary>Adjust prices by pasting</summary>
         <p>
-          One price per line, or HH:mm;price. For repeated DST hours use ISO timestamps with
-          offsets.
+          One price per line, or HH:mm;price in the selected time zone. For repeated hours use
+          offset-aware ISO timestamps.
         </p>
         <label>
           Paste prices
           <textarea
             name="manual-forecast-paste"
             disabled={validating}
+            spellCheck={false}
             value={paste}
             onChange={(e) => setPaste(e.target.value)}
             placeholder="00:00;55…"
@@ -65,9 +152,9 @@ export function ForecastEditor({
               draft.market.min_price_eur_mwh,
               draft.market.max_price_eur_mwh,
               draft.points,
-              draft.market.timezone,
+              zone,
             );
-            if (parsed.errors.length) setError(parsed.errors.map((e) => e.message).join(" "));
+            if (parsed.errors.length) setError(parsed.errors.map((item) => item.message).join(" "));
             else {
               setPrices(parsed.values.map(String));
               setError("");
@@ -77,125 +164,38 @@ export function ForecastEditor({
           Use pasted prices
         </button>
       </details>
-      <button
-        className="secondary small"
-        disabled={validating}
-        onClick={() => setPrices(baseline.map(String))}
-      >
-        Reset all adjustments
-      </button>
-      <p className="ws-help">
-        {draft.forecast?.original_price_values
-          ? "Reset restores the recorded original forecast."
-          : "Reset restores values present when this editor opened."}{" "}
-        Changes remain staged until Apply.
-      </p>
-      <div className="ws-price-grid">
-        {draft.points.map((p, i) => (
-          <div key={p.timestamp_utc}>
-            <label htmlFor={`forecast-price-${i}`}>
-              {clock(p.timestamp_utc, draft.market.timezone)}{" "}
-              <small
-                className={
-                  draft.points.filter(
-                    (point) =>
-                      clock(point.timestamp_utc, draft.market.timezone) ===
-                      clock(p.timestamp_utc, draft.market.timezone),
-                  ).length > 1
-                    ? "ws-time-evidence"
-                    : "sr-only"
-                }
-              >
-                {new Date(p.timestamp_utc).toISOString().slice(11, 16)} UTC
-              </small>
-            </label>
-            <input
-              id={`forecast-price-${i}`}
-              aria-label={`Price ${p.timestamp_utc}`}
-              name={`price-${i}`}
-              disabled={validating}
-              autoComplete="off"
-              inputMode="decimal"
-              aria-invalid={
-                !prices[i]?.trim() ||
-                !Number.isFinite(Number(prices[i])) ||
-                Number(prices[i]) < draft.market.min_price_eur_mwh ||
-                Number(prices[i]) > draft.market.max_price_eur_mwh
-              }
-              aria-describedby={`price-bounds-${i}`}
-              type="number"
-              step="any"
-              value={prices[i]}
-              onChange={(e) => setPrices((x) => x.map((v, j) => (i === j ? e.target.value : v)))}
-            />
-            {changed(i) && (
-              <span className="ws-help">
-                Adjusted · Original {baseline[i] === "" ? "blank" : baseline[i]}{" "}
-                <button
-                  type="button"
-                  className="ws-text-button"
-                  disabled={validating}
-                  onClick={() => {
-                    setPrices((values) =>
-                      values.map((value, index) => (index === i ? String(baseline[i]) : value)),
-                    );
-                    document.getElementById(`forecast-price-${i}`)?.focus();
-                  }}
-                >
-                  Reset interval {clock(p.timestamp_utc, draft.market.timezone)}
-                </button>
-              </span>
-            )}
-            <small
-              id={`price-bounds-${i}`}
-              className={
-                !prices[i]?.trim() ||
-                !Number.isFinite(Number(prices[i])) ||
-                Number(prices[i]) < draft.market.min_price_eur_mwh ||
-                Number(prices[i]) > draft.market.max_price_eur_mwh
-                  ? "field-error"
-                  : "sr-only"
-              }
-            >
-              Required: {draft.market.min_price_eur_mwh} to {draft.market.max_price_eur_mwh} €/MWh
-            </small>
-          </div>
-        ))}
-      </div>
-      {invalid && (
-        <p className="field-error">
-          Enter every price within configured bounds; blank is not zero.
-        </p>
-      )}
+      <ForecastPriceTable
+        draft={draft}
+        editor={editor}
+        zone={zone}
+        onlyChanged={onlyChanged}
+        selected={selected}
+        select={setSelected}
+        inputs={inputs}
+      />
       <DialogActions>
         <span role="status">
-          {
-            prices.filter(
-              (p) =>
-                p.trim() &&
-                Number.isFinite(Number(p)) &&
-                Number(p) >= draft.market.min_price_eur_mwh &&
-                Number(p) <= draft.market.max_price_eur_mwh,
-            ).length
-          }
-          /{draft.points.length} valid
+          {prices.filter(valid).length}/{draft.points.length} valid · {count} adjusted
         </span>
         {error && (
           <span role="alert" className="field-error">
             {error}
           </span>
         )}
-        <button className="secondary" onClick={cancel}>
+        {confirmClose && (
+          <span>
+            Discard this session? <button onClick={cancel}>Discard edits</button>
+            <button onClick={() => setConfirmClose(false)}>Keep editing</button>
+          </span>
+        )}
+        <button className="secondary" onClick={() => (pending ? setConfirmClose(true) : cancel())}>
           Cancel
         </button>
         {invalid && (
           <button
             className="ws-text-button"
-            onClick={(event) =>
-              event.currentTarget
-                .closest("dialog")
-                ?.querySelector<HTMLInputElement>('[aria-invalid="true"]')
-                ?.focus()
+            onClick={() =>
+              pick(draft.points[prices.findIndex((value) => !valid(value))].timestamp_utc)
             }
           >
             Review invalid prices
@@ -205,6 +205,6 @@ export function ForecastEditor({
           {validating ? "Validating…" : "Apply prices"}
         </button>
       </DialogActions>
-    </>
+    </div>
   );
 }

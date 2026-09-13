@@ -1,4 +1,13 @@
 /* Sole owner of the unified order table/ticket layout. Values remain in shared draft state. */
+.ws-orders tbody tr:not(.order-ticket-row) {
+  cursor: pointer;
+}
+.ws-orders tbody tr:not(.order-ticket-row):hover {
+  background: #f0f7f5;
+}
+.ws-orders tbody tr.selected {
+  background: #e3f2ee;
+}
 .orders-caption {
   margin: -4px 0 16px;
   font-size: 13px;

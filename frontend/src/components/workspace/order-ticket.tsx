@@ -4,6 +4,7 @@ import type { SimulatedOrderResult } from "@/types/api";
 import { OrderRow } from "./order-entry-row";
 import { OrderPriceEvidence } from "./order-price-evidence";
 import { OrderStatus, deliveryLabel } from "./order-presentation";
+import { useDisplayTimezone } from "./time-preference";
 
 type Props = ComponentProps<typeof OrderRow> & {
   outcome?: SimulatedOrderResult;
@@ -14,6 +15,7 @@ type Props = ComponentProps<typeof OrderRow> & {
 
 /** One ticket is mounted: docked on wide layouts, inline beside its selected row otherwise. */
 export function OrderTicket({ outcome, stale, close, locate, ...fields }: Props) {
+  const zone = useDisplayTimezone();
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
@@ -31,11 +33,9 @@ export function OrderTicket({ outcome, stale, close, locate, ...fields }: Props)
         </button>
       </div>
       <p className="order-ticket-context">
-        {start
-          ? deliveryLabel(start, fields.market.product_minutes, fields.market.timezone, true)
-          : "Select delivery"}
+        {start ? deliveryLabel(start, fields.market.product_minutes, zone) : "Select delivery"}
         <br />
-        {fields.market.timezone} · Ref {fields.order.id.slice(-8)}
+        Ref {fields.order.id.slice(-8)}
       </p>
       <OrderRow {...fields} />
       <OrderPriceEvidence order={fields.order} prices={fields.prices} />

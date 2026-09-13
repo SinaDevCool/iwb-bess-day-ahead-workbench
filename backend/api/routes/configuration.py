@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
+from backend.services.forecast_import_errors import ForecastImportError
 
 from backend.config.defaults import DEFAULT_BATTERY, DEFAULT_MARKET
 from backend.domain.delivery_grid import delivery_grid
@@ -99,6 +101,9 @@ async def import_forecast(request: Request, delivery_date: str, product_minutes:
             {**DEFAULT_MARKET.model_dump(), "product_minutes": product_minutes}
         )
         return import_csv(bytes(raw), delivery_date, market)
+    except ForecastImportError as error:
+        # Keep detail as a string for existing clients; richer clients render row issues.
+        return JSONResponse(status_code=422, content={"detail": str(error), "issues": error.issues})
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
 

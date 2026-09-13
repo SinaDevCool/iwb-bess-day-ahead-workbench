@@ -64,12 +64,8 @@
 .ws-dialog .ws-time-evidence {
   font-size: 12px;
 }
-.ws-dialog .ws-fields small,
-.ws-dialog .ws-price-grid small {
+.ws-dialog .ws-fields small {
   font-size: 12px;
-}
-.ws-dialog .ws-price-grid .sr-only {
-  position: absolute;
 }
 .order-workspace h1,
 .order-workspace h2,

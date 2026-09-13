@@ -138,6 +138,30 @@ describe("OrderSimulatorWorkbench", () => {
     await ready();
     expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(5);
   });
+  it("opens the single editor from a non-time cell and keeps timezone out of calculations", async () => {
+    await ready();
+    const row = screen.getByRole("button", { name: /Edit 05:00–06:00 BUY order/ }).closest("tr")!;
+    fireEvent.click(within(row).getByRole("cell", { name: /^Market$/ }));
+    expect(screen.getAllByRole("complementary", { name: "Selected order editor" })).toHaveLength(1);
+    fireEvent.change(screen.getByRole("combobox", { name: "Time zone" }), {
+      target: { value: "UTC" },
+    });
+    expect(screen.getByRole("button", { name: /Edit 03:00–04:00 BUY order/ })).toBeInTheDocument();
+    expect(screen.getByLabelText("Volume for order 1")).toHaveValue(20);
+    fireEvent.click(screen.getByRole("button", { name: "Simulate orders" }));
+    await screen.findByText("No orders entered — idle schedule");
+    const call = vi
+      .mocked(fetch)
+      .mock.calls.find(
+        ([url, options]) =>
+          String(url).endsWith("/api/order-simulations") && options?.method === "POST",
+      );
+    const submitted = JSON.parse(String(call?.[1]?.body));
+    expect(submitted.market.timezone).toBe("Europe/Zurich");
+    expect(submitted.price_values).toEqual(points.map((point) => point.price_eur_mwh));
+    expect(submitted.orders[0].delivery_start_utc).toBe(points[5].timestamp_utc);
+    expect(submitted).not.toHaveProperty("display_timezone");
+  });
   it("shows one actionable volume error instead of duplicate helper text", async () => {
     await ready();
     fireEvent.click(screen.getByRole("button", { name: /Edit 05:00–06:00 BUY order/ }));
@@ -166,16 +190,16 @@ describe("OrderSimulatorWorkbench", () => {
   it("does not apply blank forecast cells or treat them as zero", async () => {
     await ready();
     fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
-    fireEvent.change(screen.getByLabelText("Price " + points[0].timestamp_utc), {
+    fireEvent.change(screen.getByLabelText("Price 00:00"), {
       target: { value: "" },
     });
     expect(screen.getByRole("button", { name: "Apply prices" })).toBeDisabled();
-    fireEvent.change(screen.getByLabelText("Price " + points[0].timestamp_utc), {
+    fireEvent.change(screen.getByLabelText("Price 00:00"), {
       target: { value: "-20" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Apply prices" }));
     fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
-    expect(screen.getByLabelText("Price " + points[0].timestamp_utc)).toHaveValue(-20);
+    expect(screen.getByLabelText("Price 00:00")).toHaveValue(-20);
   });
   it("marks a pending simulation result stale when inputs changed during the request", async () => {
     await ready();
@@ -257,7 +281,7 @@ describe("OrderSimulatorWorkbench", () => {
     );
     expect(screen.queryAllByRole("button", { name: /Edit .* order/ })).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
-    expect(screen.getByLabelText("Price " + points[0].timestamp_utc)).toHaveValue(null);
+    expect(screen.getByLabelText("Price 00:00")).toHaveValue(null);
     expect(screen.getByRole("button", { name: "Apply prices" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
@@ -328,7 +352,7 @@ describe("OrderSimulatorWorkbench", () => {
   it("keeps forecast actions in the shared footer and discards cancelled edits", async () => {
     await ready();
     fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
-    const field = screen.getByLabelText("Price " + points[0].timestamp_utc);
+    const field = screen.getByLabelText("Price 00:00");
     fireEvent.change(field, { target: { value: "" } });
     expect(field).toHaveAttribute("aria-invalid", "true");
     expect(field).toHaveAccessibleDescription(/Required/);
@@ -336,8 +360,9 @@ describe("OrderSimulatorWorkbench", () => {
       screen.getByRole("button", { name: "Apply prices" }).closest(".ws-dialog-footer-slot"),
     ).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard edits" }));
     fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
-    expect(screen.getByLabelText("Price " + points[0].timestamp_utc)).toHaveValue(30);
+    expect(screen.getByLabelText("Price 00:00")).toHaveValue(30);
   });
   it("ignores a hidden terminal value when switching to minimum reserve", async () => {
     await ready();

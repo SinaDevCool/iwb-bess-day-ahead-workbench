@@ -4,6 +4,8 @@ import { runDisplayName } from "@/lib/comparison";
 import type { HistoryDetail as Detail, HistoryEntry as Entry } from "@/types/history";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HistoryDetailView } from "./history-detail";
+import { useDisplayTimezone } from "./time-preference";
+import { dateTimeText } from "@/lib/time-presentation";
 export function WorkspaceHistory({
   restore,
   busy = false,
@@ -12,6 +14,7 @@ export function WorkspaceHistory({
   busy?: boolean;
 }) {
   const [items, setItems] = useState<Entry[]>([]);
+  const zone = useDisplayTimezone();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
@@ -117,7 +120,7 @@ export function WorkspaceHistory({
                       >
                         {runDisplayName(r)} · View details
                       </button>
-                      <small>{new Date(r.created_at_utc).toLocaleString("en-GB")}</small>
+                      <small>{dateTimeText(r.created_at_utc, zone)}</small>
                     </td>
                     <td>
                       {r.run_type === "ORDER_SIMULATION"

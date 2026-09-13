@@ -1,4 +1,13 @@
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+export type ApiIssue = { code: string; field: string; message: string; row?: number | null };
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public issues: ApiIssue[] = [],
+  ) {
+    super(message);
+  }
+}
 
 /** T documents the response contract; it is not a runtime JSON validator.
  * Pydantic validates requests on the backend. Untrusted form edits stay strings
@@ -23,7 +32,7 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
               )
               .join("; ")
           : `Request failed: ${response.status}`;
-    throw new Error(message);
+    throw new ApiError(message, Array.isArray(body.issues) ? body.issues : []);
   }
   return response.json();
 }

@@ -1,4 +1,5 @@
 "use client";
+import { useDisplayTimezone } from "../workspace/time-preference";
 import { api } from "@/lib/api";
 import {
   configurationDiff,
@@ -27,6 +28,7 @@ export function RunInspector({
   setShowUnchanged: (value: boolean) => void;
   onRenamed: (run: Simulation) => void;
 }) {
+  const zone = useDisplayTimezone();
   const differences = configurationDiff(reference, run);
   const groups = ["Market", "Strategy", "Battery", "Availability"] as const;
   const [editing, setEditing] = useState(false);
@@ -112,7 +114,7 @@ export function RunInspector({
           )}
           <p>
             {formatForecastLabel(run.scenario_name)} · {run.market.product_minutes} min ·{" "}
-            {formatRunTime(run.created_at_utc)} ·{" "}
+            {formatRunTime(run.created_at_utc, zone)} ·{" "}
             <span translate="no">{shortId(run.simulation_id)}</span>
           </p>
           <p>

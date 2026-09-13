@@ -11,8 +11,16 @@ import { OrdersView } from "./orders-view";
 import { useWorkbench } from "./use-workbench";
 import { WorkspaceDialogs } from "./workspace-dialogs";
 import { euro, num } from "./workspace-format";
+import { TimePreference, TimezoneSelector } from "./time-preference";
 /** Application composition; business actions and editable state live in useWorkbench. */
 export function UnifiedWorkbench() {
+  return (
+    <TimePreference>
+      <WorkbenchContent />
+    </TimePreference>
+  );
+}
+function WorkbenchContent() {
   const context = useWorkbench();
   const {
     draft,
@@ -63,6 +71,7 @@ export function UnifiedWorkbench() {
           </div>
         </div>
         <div className="ws-actions">
+          <TimezoneSelector />
           <button className="ws-text-button" onClick={() => setModal("history")}>
             History
           </button>

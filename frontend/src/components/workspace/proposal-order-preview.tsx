@@ -1,5 +1,6 @@
 import type { Market, SubmittedOrder } from "@/types/api";
 import { clock, num, euro } from "./workspace-format";
+import { useDisplayTimezone } from "./time-preference";
 
 /** Read-only staging view of the existing preview response; no second editable order list. */
 export function ProposalOrderPreview({
@@ -9,6 +10,7 @@ export function ProposalOrderPreview({
   orders: SubmittedOrder[];
   market: Market;
 }) {
+  const zone = useDisplayTimezone();
   return (
     <details>
       <summary>Inspect {orders.length} proposed orders</summary>
@@ -28,7 +30,7 @@ export function ProposalOrderPreview({
           <tbody>
             {orders.map((order) => (
               <tr key={order.client_order_id}>
-                <td>{clock(order.delivery_start_utc, market.timezone)}</td>
+                <td>{clock(order.delivery_start_utc, zone)}</td>
                 <td>{order.side}</td>
                 <td>{order.order_type}</td>
                 <td>{num(order.volume_mw)}</td>

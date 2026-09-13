@@ -67,6 +67,9 @@
 .ws-dialog::backdrop {
   background: #17383e66;
 }
+.ws-dialog.ws-dialog-wide {
+  width: min(1040px, calc(100vw - 32px));
+}
 .ws-dialog p {
   font-size: 13px;
   line-height: 1.6;
@@ -85,7 +88,6 @@
   margin: 18px 0;
 }
 .ws-fields label,
-.ws-price-grid label,
 .ws-dialog > label {
   display: block;
   font-size: 13px;
@@ -119,19 +121,6 @@
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-}
-.ws-price-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin: 18px 0;
-  padding: 2px;
-}
-.ws-price-grid small {
-  font-size: 10px;
-  display: block;
-  color: #647b80;
-  font-weight: 400;
 }
 .ws-availability {
   display: grid;

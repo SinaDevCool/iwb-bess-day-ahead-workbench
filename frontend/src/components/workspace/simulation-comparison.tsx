@@ -170,8 +170,7 @@ export function SimulationComparison() {
             <div>
               <dt>Delivery</dt>
               <dd>
-                {detail.delivery_date} · {detail.market.product_minutes} min ·{" "}
-                {detail.market.timezone}
+                {detail.delivery_date} · {detail.market.product_minutes} min
               </dd>
             </div>
             <div>

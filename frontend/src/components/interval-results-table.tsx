@@ -6,6 +6,7 @@ import { Fragment, useState } from "react";
 import { choices, clock, defaults, n, type Column } from "./interval-table/columns";
 import { IntervalOrderDetails } from "./interval-table/order-details";
 import { useColumns } from "./interval-table/use-columns";
+import { useDisplayTimezone } from "./workspace/time-preference";
 
 export function IntervalResultsTable({
   result,
@@ -19,6 +20,7 @@ export function IntervalResultsTable({
   onEditOrder?: (id: string) => void;
 }) {
   const { columns, update } = useColumns();
+  const zone = useDisplayTimezone();
   const [expanded, setExpanded] = useState<string>();
   const rows = intervalEvidence(result);
   const leading = columns.filter((c) => c === "forecast" || c === "action");
@@ -92,7 +94,7 @@ export function IntervalResultsTable({
                   <tr className={selectedId === row.id ? "selected" : ""}>
                     <td>
                       <button className="ws-row-link" onClick={() => onSelect?.(row.id)}>
-                        {clock(row.timestamp_utc, result.market.timezone)}
+                        {clock(row.timestamp_utc, zone)}
                       </button>
                     </td>
                     {leading.map((c) => (
@@ -145,7 +147,7 @@ export function IntervalResultsTable({
         </table>
       </div>
       <p className="interval-table-note">
-        {result.market.timezone} · quantities and contribution reconcile to this saved result.
+        Quantities and contribution reconcile to this saved result.
       </p>
     </section>
   );

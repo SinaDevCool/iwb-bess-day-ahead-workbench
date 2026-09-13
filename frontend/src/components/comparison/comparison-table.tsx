@@ -1,4 +1,4 @@
-"use client";
+import { useDisplayTimezone } from "../workspace/time-preference";
 import {
   comparisonKey,
   configurationSignature,
@@ -30,6 +30,7 @@ export function ComparisonTable({
   focusedId?: string;
   onFocus: (id: string) => void;
 }) {
+  const zone = useDisplayTimezone();
   const reference = runs.find((run) => run.simulation_id === referenceId) ?? runs[0];
   return (
     <div className="table-scroll comparison-results-table">
@@ -85,8 +86,8 @@ export function ComparisonTable({
                     {run.simulation_id === referenceId && <b>Reference</b>}
                   </div>
                   <small>
-                    {formatForecastLabel(run.scenario_name)} · {formatRunTime(run.created_at_utc)} ·{" "}
-                    {shortId(run.simulation_id)}
+                    {formatForecastLabel(run.scenario_name)} ·{" "}
+                    {formatRunTime(run.created_at_utc, zone)} · {shortId(run.simulation_id)}
                   </small>
                   <small>{configurationSignature(reference, run)}</small>
                   {metric === "contribution" && <small>{probabilityLabel(run)}</small>}

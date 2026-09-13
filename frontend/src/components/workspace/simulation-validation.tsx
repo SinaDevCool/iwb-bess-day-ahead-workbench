@@ -3,6 +3,8 @@ import { simulationChecks, type Check } from "@/lib/simulation-evidence";
 import type { OrderSimulation } from "@/types/api";
 import { Fragment, useState } from "react";
 import { SimulationVerdict, SimulationAssumptions } from "./simulation-verdict";
+import { useDisplayTimezone } from "./time-preference";
+import { intervalTime } from "@/lib/time-presentation";
 const fmt = (value: number) =>
   new Intl.NumberFormat("en-CH", { maximumFractionDigits: 3 }).format(value);
 
@@ -14,6 +16,7 @@ export function SimulationValidation({
   stale?: boolean;
 }) {
   const [filter, setFilter] = useState("All");
+  const zone = useDisplayTimezone();
   const [selected, setSelected] = useState("");
   const checks = simulationChecks(result);
   const value = (c: Check) =>
@@ -103,12 +106,7 @@ export function SimulationValidation({
           {result.validation.findings.map((f, i) => (
             <p key={i}>
               {f.interval != null && result.dispatch[f.interval]
-                ? new Intl.DateTimeFormat("en-CH", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    timeZone: result.market.timezone,
-                    timeZoneName: "shortOffset",
-                  }).format(new Date(result.dispatch[f.interval].timestamp_utc)) + " · "
+                ? intervalTime(result.dispatch[f.interval].timestamp_utc, zone) + " · "
                 : f.interval != null
                   ? "Interval " + (f.interval + 1) + " · "
                   : ""}

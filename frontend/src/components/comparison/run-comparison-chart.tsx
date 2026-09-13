@@ -1,4 +1,5 @@
 "use client";
+import { useDisplayTimezone } from "../workspace/time-preference";
 import {
   comparisonKey,
   configurationSignature,
@@ -42,12 +43,13 @@ export function RunComparisonChart({
   focusedId?: string;
   onFocus: (id: string) => void;
 }) {
+  const zone = useDisplayTimezone();
   const reference = runs.find((run) => run.simulation_id === referenceId) ?? runs[0];
   const data = runs.map((run) => ({
     runId: run.simulation_id,
     name: `${comparisonKey(runs.indexOf(run))} · ${runDisplayName(run)}`,
     forecast: formatForecastLabel(run.scenario_name),
-    metadata: `${run.market.product_minutes} min · ${formatRunTime(run.created_at_utc)} · ${shortId(run.simulation_id)}`,
+    metadata: `${run.market.product_minutes} min · ${formatRunTime(run.created_at_utc, zone)} · ${shortId(run.simulation_id)}`,
     signature: configurationSignature(reference, run),
     lowerPrice:
       metric === "contribution" ? outcomeValue(run, "Downside") : metricValue(run, metric),

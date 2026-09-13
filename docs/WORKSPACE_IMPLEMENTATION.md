@@ -16,6 +16,14 @@ The primary workflow is forecast input + explicit Market/Limit order input -> de
 - `backend/domain/delivery_grid.py` is the canonical DST-aware delivery grid reused by validation and forecast generation.
 - Existing simulation, optimizer, economics, physical validation and repository services remain authoritative. No second optimizer or economic calculation engine was introduced.
 
+## Forecast editing and time presentation
+
+- The header's time-zone preference changes display and clock-only manual-entry interpretation, never the market calendar or request identity. `time-preference.tsx` owns that preference; `lib/time-presentation.ts` owns formatting. Zurich uses seasonal CET/CEST; UTC is the alternative. Repeated autumn times have first/second labels and date boundaries remain visible. Machine-readable CSVs retain explicit offsets.
+- `use-forecast-loader.ts` stages upload/demo previews; Apply is still the only shared-draft mutation. Blank templates require prices; the separate illustrative example CSV is upload-ready. `forecast-csv.ts` owns both serializers. The existing backend import endpoint returns its compatible `detail` message plus structured row issues, presented by `forecast-issues.tsx`. Empty lines are ignored, but missing prices are not zero. Old requests cannot overwrite a newer preview.
+- `use-forecast-editor.ts` owns opening, source and staged values. `forecast-price-table.tsx` renders their differences; the existing `ForecastPlot` renders edited/source lines and adjusted-interval bands. Undo returns to the session opening; Restore source is separately confirmed; Cancel/X/Escape protect pending edits. Server validation precedes Apply. An unchanged Apply does not invalidate the result.
+- Resolution conversion resamples the recorded original prices on the same UTC overlaps as entered prices. Splitting preserves prices; merging uses the mean source price. Stale content hashes are removed and adjustment counts are recomputed. An incompatible old baseline is not plotted against a new grid.
+- Order-row cells delegate selection to the existing row button/opener. The same `OrderTicket` is used at every width; keyboard focus and the existing draft update path remain unchanged. A market order has no price-limit input; the forecast is context, not a second order-entry chart.
+
 ## Evidence and API boundaries
 
 `POST /api/proposal-preview` creates a saved optimization proposal and returns editable Limit orders; it does not apply them. `GET /api/workspace-history` combines typed run summaries. `POST /api/simulations/{id}/sensitivities` evaluates the saved proposal without inserting another history run. Optimization mutation endpoints reject order-simulation IDs.

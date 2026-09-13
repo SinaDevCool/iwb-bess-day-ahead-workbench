@@ -6,9 +6,4 @@ export const euro = (n: number) =>
     currency: "EUR",
     maximumFractionDigits: 2,
   }).format(n);
-export const clock = (timestamp: string, zone = "Europe/Zurich") =>
-  new Intl.DateTimeFormat("en-GB", {
-    timeZone: zone,
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
+export { intervalTime as clock } from "@/lib/time-presentation";

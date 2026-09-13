@@ -1,4 +1,160 @@
 /* unified: editor-and-history. Ordered by the parent manifest. */
+.forecast-downloads,
+.forecast-edit-toolbar,
+.forecast-chart-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.forecast-downloads {
+  margin-bottom: 12px;
+}
+.forecast-filename {
+  overflow-wrap: anywhere;
+}
+.forecast-issues {
+  border: 1px solid #d9ada0;
+  background: #fff8f4;
+  border-radius: 8px;
+  padding: 16px;
+  color: #863a27;
+}
+.forecast-issues ul {
+  max-height: 180px;
+  overflow-y: auto;
+  padding-left: 22px;
+  font-size: 13px;
+}
+.forecast-issues li {
+  padding: 4px 0;
+}
+.forecast-edit-toolbar {
+  justify-content: space-between;
+  padding: 12px 0;
+}
+.forecast-editor .forecast-edit-toolbar button {
+  margin: 0;
+}
+.forecast-editor .forecast-paste-panel {
+  padding: 10px 0;
+}
+.forecast-price-scroll {
+  max-height: 38dvh;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overscroll-behavior: contain;
+}
+.forecast-price-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.forecast-price-table th,
+.forecast-price-table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+.forecast-price-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f1f6f5;
+  z-index: 1;
+  font-size: 12px;
+}
+.forecast-price-table th:first-child {
+  text-align: left;
+}
+.forecast-price-table tbody th {
+  position: static;
+  background: inherit;
+  text-transform: none;
+  font-size: 13px;
+}
+.forecast-price-table th small {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 11px;
+}
+.forecast-price-table input {
+  min-width: 85px;
+  max-width: 150px;
+  text-align: right;
+  margin: 0;
+  font: inherit;
+}
+.forecast-price-table tr[data-adjusted="true"] {
+  background: #fff9ec;
+}
+.forecast-price-table tr.selected {
+  outline: 2px solid #087d78;
+  outline-offset: -2px;
+}
+.forecast-price-table tr {
+  scroll-margin-top: 40px;
+}
+.forecast-price-table .field-error {
+  display: block;
+  max-width: 190px;
+}
+.forecast-chart-legend {
+  padding: 10px 0;
+  font-size: 12px;
+  color: #354f55;
+}
+.forecast-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.forecast-chart-legend i {
+  display: inline-block;
+  width: 18px;
+  height: 3px;
+}
+.forecast-chart-legend .forecast-chart-unit {
+  margin-left: auto;
+}
+.forecast-edited-key {
+  background: #087d78;
+}
+.forecast-original-key {
+  background: #7d8b91;
+}
+.forecast-chart-legend .forecast-adjusted-key {
+  height: 12px;
+  background: #f8e5bf;
+  border: 1px solid #b77b17;
+}
+.forecast-tooltip {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+  min-width: 210px;
+  box-shadow: 0 4px 18px #153a4214;
+}
+.forecast-tooltip div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 600px) {
+  .forecast-price-table th,
+  .forecast-price-table td {
+    padding: 8px;
+  }
+  .forecast-price-scroll {
+    max-height: 42dvh;
+  }
+}
 .forecast-upload {
   border: 1px dashed #a5c8c3;
   border-radius: 10px;

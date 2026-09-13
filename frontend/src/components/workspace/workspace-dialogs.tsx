@@ -83,12 +83,13 @@ export function WorkspaceDialogs({
         </Dialog>
       )}
       {modal === "forecast" && (
-        <Dialog title="Edit Day-Ahead prices" close={() => setModal(null)}>
+        <Dialog wide title="Edit Day-Ahead prices" close={() => setModal(null)}>
           <ForecastEditor
             draft={draft}
             cancel={() => setModal(null)}
             apply={(prices) => {
-              change({ prices });
+              if (prices.some((price, index) => Number(price) !== Number(draft.prices[index])))
+                change({ prices });
               setModal(null);
             }}
           />
@@ -97,6 +98,7 @@ export function WorkspaceDialogs({
       {modal === "load-forecast" && (
         <Dialog title="Load Day-Ahead price forecast" close={() => setModal(null)}>
           <ForecastLoader
+            key={`${draft.date}-${draft.market.product_minutes}`}
             date={draft.date}
             minutes={draft.market.product_minutes}
             points={draft.points}

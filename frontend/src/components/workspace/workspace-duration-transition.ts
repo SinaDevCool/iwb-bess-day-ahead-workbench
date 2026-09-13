@@ -9,6 +9,9 @@ export function changeResolution(draft: Draft, points: Point[], minutes: 15 | 60
   const newMs = minutes * 60_000;
   const orders: Draft["orders"] = [];
   const prices: string[] = [];
+  const source = draft.forecast?.original_price_values;
+  const baseline = source?.length === draft.points.length ? source : undefined;
+  const originals: number[] = [];
   const unavailable: number[] = [];
   const signature = (index: number) =>
     JSON.stringify(
@@ -39,6 +42,10 @@ export function changeResolution(draft: Draft, points: Point[], minutes: 15 | 60
       );
     }
     prices.push(draft.prices[first] ?? "");
+    // Resample provenance on the same UTC overlaps as the editable values.
+    // Equal-duration constituent prices average when returning to hourly data.
+    if (baseline)
+      originals.push(overlaps.reduce((sum, i) => sum + baseline[i], 0) / overlaps.length);
     if (draft.battery.unavailable_intervals.includes(first)) unavailable.push(index);
     draft.orders
       .filter((order) => order.interval === first)
@@ -57,6 +64,12 @@ export function changeResolution(draft: Draft, points: Point[], minutes: 15 | 60
       source_type: "manual",
       source_name: `${(draft.forecast?.source_name ?? "Entered forecast").replace(/(?: · resampled)+$/, "")} · resampled`,
       version: `resampled-${minutes}`,
+      content_hash: undefined,
+      original_content_hash: undefined,
+      original_price_values: baseline ? originals : undefined,
+      adjusted_intervals: baseline
+        ? prices.filter((price, i) => Number(price) !== originals[i]).length
+        : 0,
       bidding_zone: draft.market.bidding_zone,
     },
     sourceProposalId: undefined,

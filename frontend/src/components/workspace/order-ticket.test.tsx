@@ -96,10 +96,10 @@ it("announces invalid fields and preserves blank draft input", () => {
 });
 
 it("distinguishes the two local autumn delivery hours", () => {
-  const a = deliveryLabel("2026-10-25T00:00:00Z", 15, "Europe/Zurich", true);
-  const b = deliveryLabel("2026-10-25T01:00:00Z", 15, "Europe/Zurich", true);
-  expect(a).toContain("02:00 GMT+2");
-  expect(b).toContain("02:00 GMT+1");
+  const a = deliveryLabel("2026-10-25T00:00:00Z", 15, "Europe/Zurich");
+  const b = deliveryLabel("2026-10-25T01:00:00Z", 15, "Europe/Zurich");
+  expect(a).toContain("02:00 · first");
+  expect(b).toContain("02:00 · second");
   expect(a).not.toBe(b);
 });
 

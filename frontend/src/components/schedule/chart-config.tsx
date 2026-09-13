@@ -2,19 +2,7 @@ import { CartesianGrid } from "recharts";
 /** Geometry is shared by all tracks and pointer hit-testing. */
 export const Y_AXIS_WIDTH = 60;
 export const margin = { top: 12, right: 24, bottom: 0, left: 0 };
-export const clock = (v: number, zone: string) =>
-  new Intl.DateTimeFormat("en-GB", {
-    timeZone: zone,
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(v));
-export const exact = (v: number, zone: string) =>
-  new Intl.DateTimeFormat("en-GB", {
-    timeZone: zone,
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZoneName: "shortOffset",
-  }).format(new Date(v));
+export { timeText as clock, intervalTime as exact } from "@/lib/time-presentation";
 export const axis = { fontSize: 12, fill: "#526b70" };
 export const number = (value: number, digits = 2) =>
   new Intl.NumberFormat("en-CH", {

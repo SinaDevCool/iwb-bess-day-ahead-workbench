@@ -1,5 +1,7 @@
 "use client";
 import { simulationPresentation } from "@/lib/simulation-presentation";
+import { useDisplayTimezone } from "./workspace/time-preference";
+import { intervalTime } from "@/lib/time-presentation";
 import type { Dispatch, OrderSimulation, Simulation } from "@/types/api";
 import {
   Bar,
@@ -28,12 +30,6 @@ const moneyExact = (value: number) =>
   }).format(value);
 const number = (value: number, digits = 1) =>
   new Intl.NumberFormat("en-CH", { maximumFractionDigits: digits }).format(value);
-const time = (value: string) =>
-  new Intl.DateTimeFormat("en-CH", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Zurich",
-  }).format(new Date(value));
 const axisMoney = (value: number) => {
   const absolute = Math.abs(value);
   const compact = absolute >= 1000 ? `${number(absolute / 1000, 1)}k` : number(absolute, 0);
@@ -48,9 +44,10 @@ export function EconomicsPanel({
   breakdownOnly?: boolean;
 }) {
   const manual = "run_type" in result;
+  const zone = useDisplayTimezone();
   const data = result.dispatch.map((row) => ({
     ...row,
-    time: time(row.timestamp_utc),
+    time: intervalTime(row.timestamp_utc, zone),
     contribution: row.interval_pnl_eur,
   }));
   const sales = manual
@@ -192,7 +189,7 @@ function EconomicsTip({
   const row = payload[0].payload;
   return (
     <div className="chart-tip">
-      <span className="tip-time">{row.time} · Europe/Zurich</span>
+      <span className="tip-time">{row.time}</span>
       <strong>{money(row.interval_pnl_eur)} interval contribution</strong>
       <dl>
         <div>

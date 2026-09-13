@@ -3,6 +3,7 @@ import { ForecastPlot } from "@/components/dispatch-chart";
 import type { Point as ForecastPoint } from "./workspace-types";
 import { DialogActions } from "./dialog";
 import { useForecastLoader, type ForecastPreview } from "./use-forecast-loader";
+import { ForecastIssues } from "./forecast-issues";
 type Point = ForecastPoint;
 type Preview = ForecastPreview;
 
@@ -19,8 +20,19 @@ export function ForecastLoader({
   apply: (preview: Preview) => void;
   cancel: () => void;
 }) {
-  const { preview, error, busy, filename, pasted, setPasted, providers, upload, template, demo } =
-    useForecastLoader(date, minutes, points);
+  const {
+    preview,
+    error,
+    issues,
+    busy,
+    filename,
+    pasted,
+    setPasted,
+    providers,
+    upload,
+    template,
+    demo,
+  } = useForecastLoader(date, minutes, points);
   return (
     <div className="forecast-loader">
       <p>
@@ -46,9 +58,20 @@ export function ForecastLoader({
             }}
           />
         </label>
-        <button className="secondary" onClick={template}>
-          Download blank template
-        </button>
+        <p className="ws-help">
+          Fill every price before uploading the blank template. Zero and negative prices are valid
+          numbers.
+        </p>
+        <div className="forecast-downloads">
+          <button className="secondary" disabled={busy} onClick={template}>
+            Download blank template
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => void demo(true)}>
+            Download example CSV
+          </button>
+        </div>
+        <small>The example contains illustrative prices for this delivery day.</small>
+        {filename && <p className="forecast-filename">Selected: {filename}</p>}
       </section>
       <details>
         <summary>Paste CSV data</summary>
@@ -93,11 +116,7 @@ export function ForecastLoader({
           ))}
       </details>
       {busy && <p role="status">Validating forecast…</p>}
-      {error && (
-        <p role="alert" className="field-error">
-          {error}
-        </p>
-      )}
+      <ForecastIssues message={error} issues={issues} />
       {preview && (
         <section>
           <h3>{filename}</h3>

@@ -17,10 +17,4 @@ export const n = (value: number, digits = 2) =>
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(value);
-export const clock = (value: string, zone: string) =>
-  new Intl.DateTimeFormat("en-GB", {
-    timeZone: zone,
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZoneName: "shortOffset",
-  }).format(new Date(value));
+export { intervalTime as clock } from "@/lib/time-presentation";

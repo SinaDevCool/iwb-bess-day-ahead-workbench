@@ -1,18 +1,18 @@
 import type { Point as ForecastPoint } from "./workspace-types";
 import type { Dispatch, SetStateAction } from "react";
-import { clock } from "./workspace-format";
+import { intervalTime } from "@/lib/time-presentation";
+import { useDisplayTimezone } from "./time-preference";
 /** These indices refer to the case's UTC delivery grid, including repeated DST hours. */
 export function AvailabilityEditor({
   points,
-  zone,
   unavailable,
   setUnavailable,
 }: {
   points: ForecastPoint[];
-  zone: string;
   unavailable: number[];
   setUnavailable: Dispatch<SetStateAction<number[]>>;
 }) {
+  const zone = useDisplayTimezone();
   return (
     <details>
       <summary>Availability</summary>
@@ -27,7 +27,7 @@ export function AvailabilityEditor({
                 setUnavailable((x) => (x.includes(i) ? x.filter((n) => n !== i) : [...x, i]))
               }
             />
-            {clock(p.timestamp_utc, zone)} <small>{p.timestamp_utc.slice(11, 16)} UTC</small>
+            {intervalTime(p.timestamp_utc, zone)}
           </label>
         ))}
       </div>

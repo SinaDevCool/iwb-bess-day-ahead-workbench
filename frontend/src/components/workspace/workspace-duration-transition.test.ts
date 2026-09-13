@@ -51,3 +51,22 @@ it("preserves missing prices and supports the 25-hour DST day", () => {
   expect(next.prices).toEqual(Array(100).fill(""));
   expect(next.points).toHaveLength(100);
 });
+it("resamples original forecast prices and adjustment counts with the same grid", () => {
+  const old = draft();
+  old.forecast = {
+    source_type: "file",
+    source_name: "CSV",
+    version: "1",
+    bidding_zone: "CH",
+    original_price_values: Array(24).fill(-5),
+    content_hash: "old",
+  };
+  old.prices[9] = "-10";
+  const next = changeResolution(old, grid(15, 96), 15);
+  expect(next.forecast?.original_price_values).toEqual(Array(96).fill(-5));
+  expect(next.forecast?.adjusted_intervals).toBe(4);
+  expect(next.forecast?.content_hash).toBeUndefined();
+  const back = changeResolution({ ...old, ...next }, old.points, 60);
+  expect(back.forecast?.original_price_values).toEqual(Array(24).fill(-5));
+  expect(back.forecast?.adjusted_intervals).toBe(1);
+});

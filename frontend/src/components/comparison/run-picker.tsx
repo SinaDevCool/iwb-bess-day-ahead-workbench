@@ -1,3 +1,4 @@
+import { useDisplayTimezone } from "../workspace/time-preference";
 import { formatForecastLabel } from "@/lib/comparison";
 import { ChevronDown, Plus, Search } from "lucide-react";
 import { formatRunTime, MAX_RUNS, money, shortId } from "./comparison-format";
@@ -26,6 +27,7 @@ export function RunPicker({
   addOrRemove,
   filtered,
 }: Props) {
+  const zone = useDisplayTimezone();
   return (
     <details className="run-picker">
       <summary aria-label="Add or remove simulation runs">
@@ -89,8 +91,8 @@ export function RunPicker({
                 <span>
                   <strong>{run.display_name}</strong>
                   <small>
-                    {formatForecastLabel(run.scenario_name)} · {formatRunTime(run.created_at_utc)} ·{" "}
-                    {run.product_minutes} min ·{" "}
+                    {formatForecastLabel(run.scenario_name)} ·{" "}
+                    {formatRunTime(run.created_at_utc, zone)} · {run.product_minutes} min ·{" "}
                     <span translate="no">{shortId(run.simulation_id)}</span>
                   </small>
                 </span>

@@ -107,7 +107,6 @@ export function BatteryEditor({
       ))}
       <AvailabilityEditor
         points={draft.points}
-        zone={draft.market.timezone}
         unavailable={unavailable}
         setUnavailable={setUnavailable}
       />

@@ -44,13 +44,6 @@ export const formatMetric = (value: number, metric: ComparisonMetric) =>
     : `${number(value, metric === "cycles" ? 2 : 1)}${metric === "throughput" ? " MWh" : metric === "cycles" ? " EFC" : ""}`;
 export const signedMetric = (value: number, metric: ComparisonMetric) =>
   Math.abs(value) < 1e-9 ? "–" : `${value > 0 ? "+" : "−"}${formatMetric(Math.abs(value), metric)}`;
-export const formatRunTime = (value: string) =>
-  new Intl.DateTimeFormat("en-CH", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Zurich",
-  }).format(new Date(value));
+export { dateTimeText as formatRunTime } from "@/lib/time-presentation";
 export const axisMoney = (value: number) =>
   `${value < 0 ? "−" : ""}€${Math.abs(value) >= 1000 ? `${number(Math.abs(value) / 1000, 1)}k` : number(Math.abs(value), 0)}`;

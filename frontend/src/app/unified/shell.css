@@ -1,5 +1,19 @@
 /* unified: shell. Ordered by the parent manifest. */
 /* One workbench: advanced visual shell, shared simulator state and editors. */
+.timezone-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.timezone-selector select {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  padding: 8px;
+  border-radius: 6px;
+}
 .order-workspace {
   max-width: 1920px;
   padding: 0 24px 32px;

@@ -1,5 +1,6 @@
 import { CheckCircle2, Circle, AlertCircle, MinusCircle } from "lucide-react";
 import type { SimulatedOrderResult } from "@/types/api";
+import { deliveryTime } from "@/lib/time-presentation";
 
 /** Labels never re-evaluate execution: saved outcomes come from the backend. */
 export function orderStatus(outcome?: SimulatedOrderResult, stale = false, invalid = false) {
@@ -39,14 +40,4 @@ export const orderNumber = (value: string, price = false) =>
       }).format(Number(value))
     : "—";
 
-/** Offset disambiguates the repeated delivery hour on autumn clock changes. */
-export function deliveryLabel(start: string, minutes: number, zone: string, offset = false) {
-  const format = new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: zone,
-    ...(offset ? { timeZoneName: "shortOffset" as const } : {}),
-  });
-  const end = new Date(Date.parse(start) + minutes * 60000);
-  return `${format.format(new Date(start))}–${format.format(end)}`;
-}
+export const deliveryLabel = deliveryTime;

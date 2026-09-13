@@ -4,7 +4,7 @@ Interview prototype for a 100 MWh / 50 MW battery participating in a configurabl
 
 ## Homework workflow
 
-1. Use **Load forecast** to upload a complete Day-Ahead price forecast (CSV), paste CSV data, or preview the illustrative demo. Review and apply the validated preview. **Edit intervals** makes targeted adjustments afterwards.
+1. Use **Load forecast** (or **Replace forecast**) to upload a complete Day-Ahead price forecast (CSV), paste CSV data, or preview the illustrative demo. Review and apply the validated preview. **Edit prices** makes targeted adjustments afterwards, showing the original forecast, edited prices and interval differences.
 2. Enter BUY/SELL orders and choose `Market` or `Limit` for every order. Market orders have no limit-price condition; Limit orders pass the price condition only when the entered forecast crosses their side-specific limit. Every price-accepted order remains subject to physical feasibility.
 3. Run the simulation to process orders chronologically through the battery state of charge.
 4. Inspect the aligned price, power, state-of-charge and contribution tracks using the shared interval inspector (hover, click to pin, or arrow keys). Interval Detail combines the schedule and order outcomes in one table; expand Orders for individual execution reasons. The Columns menu limits the table to five selectable values plus Delivery and Orders.
@@ -22,7 +22,7 @@ For a file-by-file reading path, module ownership and mathematical conventions, 
 
 ### Forecast import and History
 
-CSV imports are validated by `POST /api/forecast/import`, not just parsed in the browser. Files use UTF-8, a decimal point and the exact header `delivery_start,price_eur_mwh`. Timestamps must include a UTC offset. All selected-day intervals must occur exactly once, chronologically, including daylight-saving 23/25-hour days. The maximum file size is 256 KB. Download the date-specific blank template in Load forecast; a filled mock example is `tests/fixtures/da-forecast-2026-09-09.csv`. Manual changes also pass backend validation before applying.
+CSV imports are validated by `POST /api/forecast/import`, not just parsed in the browser. Files use UTF-8, a decimal point and the exact header `delivery_start,price_eur_mwh`. Timestamps must include a UTC offset. All selected-day intervals must occur exactly once, chronologically, including daylight-saving 23/25-hour days. The maximum file size is 256 KB. Load forecast offers a date-specific blank template and a separate upload-ready illustrative example CSV; fill every price before uploading the blank template. Errors identify the affected rows without replacing the current forecast. A filled mock fixture is also available at `tests/fixtures/da-forecast-2026-09-09.csv`. Manual changes pass backend validation before applying.
 
 Snapshots retain forecast source/version, content hash and import/edit provenance. Loading or editing never changes a previously saved result: re-simulate to update the evidence. The provider catalogue identifies the demo as available and Volue/Montel as **not connected**. Live provider adapters and credentials are not included; commercial data may currently be imported as CSV. No disconnected provider silently falls back to demo prices.
 
@@ -51,7 +51,7 @@ Simulate orders reconstructs dispatch deterministically from the trader's entere
 
 - Demonstration and simulation only; no live exchange submission.
 - Swiss market details such as product duration, bidding zone, gate closure, and increments are configuration assumptions and must be confirmed with IWB.
-- Internal timestamps are UTC and trader-facing timestamps use `Europe/Zurich`.
+- Internal timestamps are UTC. The single header selector displays Zurich (CET/CEST) or UTC consistently; it does not change the market delivery calendar, order instants or financial calculations.
 
 ## Run locally
 

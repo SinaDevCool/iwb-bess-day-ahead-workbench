@@ -22,6 +22,8 @@ import { PowerTrack } from "./schedule/power-track";
 import { ScheduleInspector } from "./schedule/schedule-inspector";
 import { SocTrack } from "./schedule/soc-track";
 import { useScheduleInspection } from "./schedule/use-schedule-inspection";
+import { useDisplayTimezone } from "./workspace/time-preference";
+import { axisTime } from "@/lib/time-presentation";
 /** Compose tracks on one time axis; no chart computes battery economics. */
 export function DispatchChart({
   rows,
@@ -67,7 +69,7 @@ export function DispatchChart({
     battery,
     market?.product_minutes,
   );
-  const zone = market?.timezone ?? "Europe/Zurich";
+  const zone = useDisplayTimezone();
   const { ref, width } = useChartWidth();
   const barSize = Math.max(
     1,
@@ -86,7 +88,7 @@ export function DispatchChart({
       ticks={timeTicks(start, end).filter(
         (_, i, a) => width > 650 || i % 2 === 0 || i === a.length - 1,
       )}
-      tickFormatter={(v) => (v === end && clock(v, zone) === "00:00" ? "24:00" : clock(v, zone))}
+      tickFormatter={(v) => axisTime(v, start, zone)}
       tick={labels ? axis : false}
       height={labels ? 26 : 8}
       axisLine={false}
@@ -246,11 +248,11 @@ export function DispatchChart({
         )}
       </div>
       <figcaption className="chart-foot">
-        {zone} · {dt / 60000}-minute intervals · Power is interval-average; energy joins boundary
-        states assuming constant interval power. Dashed lines: {battery.min_soc_mwh}–
-        {battery.max_soc_mwh} MWh. End reserve: {battery.target_soc_mwh} MWh (end marker only).
-        Vertical dashed line: inspected interval, shared by all charts. Shaded intervals:
-        unavailable. Power dashed lines: charge/discharge limits.
+        {dt / 60000}-minute intervals · Power is interval-average; energy joins boundary states
+        assuming constant interval power. Dashed lines: {battery.min_soc_mwh}–{battery.max_soc_mwh}{" "}
+        MWh. End reserve: {battery.target_soc_mwh} MWh (end marker only). Vertical dashed line:
+        inspected interval, shared by all charts. Shaded intervals: unavailable. Power dashed lines:
+        charge/discharge limits.
       </figcaption>
     </figure>
   );

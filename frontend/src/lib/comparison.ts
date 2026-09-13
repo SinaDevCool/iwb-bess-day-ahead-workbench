@@ -20,17 +20,6 @@ export const formatForecastLabel = (value: string) =>
     "Peak compression": "Compressed-peak DA forecast",
   })[value] ?? value;
 
-export function runLabel(run: Simulation) {
-  const time = new Intl.DateTimeFormat("en-CH", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Zurich",
-  }).format(new Date(run.created_at_utc));
-  return `${formatForecastLabel(run.scenario_name)} · ${run.market.product_minutes} min · ${time}`;
-}
-
 export const runDisplayName = (run: Pick<Simulation, "simulation_id" | "display_name">) =>
   run.display_name?.trim() || `Saved run ${run.simulation_id.replace("sim-", "").slice(0, 8)}`;
 

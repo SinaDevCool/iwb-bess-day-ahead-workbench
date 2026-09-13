@@ -3,6 +3,7 @@ import type { DraftOrderInput } from "@/lib/order-simulation-validation";
 import type { Market, SubmittedOrderType } from "@/types/api";
 import { Trash2 } from "lucide-react";
 import { deliveryLabel } from "./order-presentation";
+import { useDisplayTimezone } from "./time-preference";
 
 /** Controlled fields only. Price and saved-execution evidence live outside the form grid. */
 export function OrderRow({
@@ -25,6 +26,7 @@ export function OrderRow({
   remove: (order: DraftOrderInput) => void;
 }) {
   const prefix = `order.${order.id}`;
+  const zone = useDisplayTimezone();
   return (
     <div className="order-ticket-fields">
       <label className="order-delivery">
@@ -39,7 +41,7 @@ export function OrderRow({
         >
           {points.map((point, index) => (
             <option key={point.timestamp_utc} value={index}>
-              {deliveryLabel(point.timestamp_utc, market.product_minutes, market.timezone, true)}
+              {deliveryLabel(point.timestamp_utc, market.product_minutes, zone)}
             </option>
           ))}
         </select>

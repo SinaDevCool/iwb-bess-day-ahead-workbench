@@ -1,5 +1,6 @@
 "use client";
-import { api } from "@/lib/api";
+import { api, type ApiIssue } from "@/lib/api";
+import { forecastCsv, downloadForecastCsv } from "@/lib/forecast-csv";
 import type { ForecastMetadata, ForecastPoint } from "@/types/forecast";
 import { useEffect, useRef, useState } from "react";
 export type ForecastPreview = { points: ForecastPoint[]; forecast: ForecastMetadata };
@@ -12,14 +13,17 @@ export function useForecastLoader(
   points: { timestamp_utc: string }[],
 ) {
   const mounted = useRef(true);
+  const request = useRef(0);
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      request.current += 1;
     };
   }, []);
   const [preview, setPreview] = useState<Preview>();
   const [error, setError] = useState("");
+  const [issues, setIssues] = useState<ApiIssue[]>([]);
   const [busy, setBusy] = useState(false);
   const [filename, setFilename] = useState("");
   const [pasted, setPasted] = useState("");
@@ -43,8 +47,11 @@ export function useForecastLoader(
     if (!file) return;
     setPreview(undefined);
     setError("");
+    setIssues([]);
+    const current = ++request.current;
     setFilename(file.name);
     if (!file.name.toLowerCase().endsWith(".csv") || file.size > 256000) {
+      setBusy(false);
       setError("Choose a UTF-8 CSV file smaller than 256 KB.");
       return;
     }
@@ -58,33 +65,36 @@ export function useForecastLoader(
           body: file,
         },
       );
-      if (mounted.current) setPreview(next);
+      if (mounted.current && current === request.current) setPreview(next);
     } catch (e) {
-      if (mounted.current) setError(String(e));
+      if (mounted.current && current === request.current) {
+        setError(e instanceof Error ? e.message : String(e));
+        setIssues((e as { issues?: ApiIssue[] }).issues ?? []);
+      }
     } finally {
-      if (mounted.current) setBusy(false);
+      if (mounted.current && current === request.current) setBusy(false);
     }
   }
   function template() {
-    const text =
-      "delivery_start,price_eur_mwh\n" + points.map((p) => `${p.timestamp_utc},`).join("\n");
-    const url = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `DA-forecast-${date}-${minutes}min.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadForecastCsv(forecastCsv(points, true), `DA-forecast-${date}-${minutes}min-blank.csv`);
   }
-  async function demo() {
+  async function demo(download = false) {
+    const current = ++request.current;
     setBusy(true);
     setError("");
-    setPreview(undefined);
-    setFilename("Illustrative demo");
+    setIssues([]);
+    if (!download) {
+      setPreview(undefined);
+      setFilename("Illustrative demo");
+    }
     try {
       const r = await api<{ points: Point[] }>(
         `/api/forecast?delivery_date=${date}&product_minutes=${minutes}`,
       );
-      if (mounted.current)
+      if (!mounted.current || current !== request.current) return;
+      if (download)
+        downloadForecastCsv(forecastCsv(r.points), `DA-forecast-${date}-${minutes}min-example.csv`);
+      else
         setPreview({
           points: r.points,
           forecast: {
@@ -95,10 +105,23 @@ export function useForecastLoader(
           },
         });
     } catch (e) {
-      if (mounted.current) setError(String(e));
+      if (mounted.current && current === request.current)
+        setError(e instanceof Error ? e.message : String(e));
     } finally {
-      if (mounted.current) setBusy(false);
+      if (mounted.current && current === request.current) setBusy(false);
     }
   }
-  return { preview, error, busy, filename, pasted, setPasted, providers, upload, template, demo };
+  return {
+    preview,
+    error,
+    issues,
+    busy,
+    filename,
+    pasted,
+    setPasted,
+    providers,
+    upload,
+    template,
+    demo,
+  };
 }

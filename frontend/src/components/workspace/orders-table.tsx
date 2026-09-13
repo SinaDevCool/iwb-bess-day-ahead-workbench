@@ -2,6 +2,7 @@ import { Fragment, type ReactNode, type RefObject } from "react";
 import type { OrderSimulation } from "@/types/api";
 import type { Draft } from "./workspace-types";
 import { OrderStatus, orderNumber, deliveryLabel } from "./order-presentation";
+import { useDisplayTimezone } from "./time-preference";
 
 type Props = {
   draft: Draft;
@@ -26,12 +27,11 @@ export function OrdersTable({
   rowRefs,
   select,
 }: Props) {
+  const zone = useDisplayTimezone();
   return (
     <div className="table-scroll">
       <table className="ws-orders">
-        <caption className="sr-only">
-          Entered orders · simulated outcomes · {draft.market.timezone}
-        </caption>
+        <caption className="sr-only">Entered orders · simulated outcomes</caption>
         <thead>
           <tr>
             <th scope="col">Delivery</th>
@@ -54,11 +54,22 @@ export function OrdersTable({
               );
               const start = draft.points[order.interval]?.timestamp_utc;
               const delivery = start
-                ? deliveryLabel(start, draft.market.product_minutes, draft.market.timezone)
+                ? deliveryLabel(start, draft.market.product_minutes, zone)
                 : "Select delivery";
               return (
                 <Fragment key={order.id}>
-                  <tr className={selected === order.id ? "selected" : ""}>
+                  <tr
+                    className={selected === order.id ? "selected" : ""}
+                    onClick={(event) => {
+                      if (
+                        (event.target as HTMLElement).closest("button, a, input, select") ||
+                        window.getSelection()?.toString()
+                      )
+                        return;
+                      const opener = rowRefs.current[order.id];
+                      if (opener) select(order.id, opener);
+                    }}
+                  >
                     <td>
                       <button
                         className="ws-row-link"
