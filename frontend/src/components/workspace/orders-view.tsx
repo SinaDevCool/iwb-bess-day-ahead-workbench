@@ -1,12 +1,12 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Plus, RotateCcw } from "lucide-react";
 import { SimulationAssumptions } from "./simulation-verdict";
 import { OrderTicket } from "./order-ticket";
 import { OrdersTable } from "./orders-table";
 import { useOrderLayout } from "./use-order-layout";
 import type { ReadyWorkbench } from "./use-workbench";
-import { id } from "./workspace-adapters";
+import { AddOrderDialog } from "./add-order-dialog";
 
 /** Orchestrates selection only; every edit updates the existing shared case draft. */
 export function OrdersView({
@@ -49,6 +49,7 @@ export function OrdersView({
     showOrderOnSchedule,
   } = context;
   const openerRef = useRef<HTMLElement | null>(null);
+  const [adding, setAdding] = useState(false);
   const addOrderRef = useRef<HTMLButtonElement | null>(null);
   const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const { layoutRef, wide } = useOrderLayout(view);
@@ -86,6 +87,21 @@ export function OrdersView({
   return (
     view === "orders" && (
       <>
+        {adding && (
+          <AddOrderDialog
+            points={draft.points}
+            prices={draft.prices}
+            market={draft.market}
+            battery={draft.battery}
+            close={() => setAdding(false)}
+            add={(order) => {
+              setUndo(draft);
+              change({ orders: [...draft.orders, order] });
+              setAdding(false);
+              setSelected(order.id);
+            }}
+          />
+        )}
         <section className="ws-card orders-card">
           <div className="ws-section-head">
             <h2>
@@ -95,18 +111,10 @@ export function OrdersView({
               <button
                 ref={addOrderRef}
                 className="secondary small"
+                disabled={Boolean(busy)}
                 onClick={(event) => {
                   openerRef.current = event.currentTarget;
-                  const order = {
-                    id: id(),
-                    interval: 0,
-                    side: "BUY" as const,
-                    orderType: "LIMIT" as const,
-                    volume: "10",
-                    limit: draft.prices[0] ?? "",
-                  };
-                  change({ orders: [...draft.orders, order] });
-                  setSelected(order.id);
+                  setAdding(true);
                 }}
               >
                 <Plus size={14} aria-hidden="true" />

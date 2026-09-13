@@ -18,11 +18,11 @@ export function ForecastSnapshot({
     value && Number.isFinite(Date.parse(value)) ? dateTimeText(value, zone) : "Not recorded";
   return (
     <div className={`forecast-snapshot${compact ? " compact" : ""}`}>
-      <strong>{forecast?.source_name ?? "Entered forecast"}</strong>
+      {!compact && <strong>{forecast?.source_name ?? "Entered forecast"}</strong>}
       <span>
         {preview
           ? "Preview — not applied"
-          : `Updated in this case: ${time(forecast?.updated_at_utc)}`}
+          : `${compact ? "Updated" : "Updated in this case"}: ${time(forecast?.updated_at_utc)}`}
       </span>
       {!compact && (
         <details>

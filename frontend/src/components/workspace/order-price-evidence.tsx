@@ -18,13 +18,12 @@ export function OrderPriceEvidence({
       : undefined;
   return (
     <section className="order-evidence" aria-label="Current price condition" aria-live="polite">
-      <h4>Current price condition</h4>
+      <h4>Price eligibility</h4>
       {!valid ? (
         <p>Enter a valid forecast for this interval.</p>
       ) : order.orderType === "MARKET" ? (
         <>
           <p>No price limit · forecast €{orderNumber(price, true)}/MWh</p>
-          <small>Market orders have no price condition. Battery constraints still apply.</small>
         </>
       ) : !preview ? (
         <p>Enter a valid limit price.</p>
@@ -37,17 +36,12 @@ export function OrderPriceEvidence({
           </p>
           <small>
             {preview.atLimit
-              ? "At the limit: full allocation is assumed in this simulation."
+              ? "At the limit · eligible"
               : preview.passed
-                ? "Price condition met. Physical feasibility is checked by simulation."
-                : "Price condition not met under the current forecast."}
+                ? "Price condition met"
+                : "Price condition not met"}
           </small>
         </>
-      )}
-      {valid && (
-        <small>
-          If executed, simulated settlement uses the forecast price—not the order limit.
-        </small>
       )}
     </section>
   );

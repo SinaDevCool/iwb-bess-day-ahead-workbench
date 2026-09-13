@@ -110,7 +110,15 @@ describe("OrderSimulatorWorkbench", () => {
   });
   async function ready() {
     render(<UnifiedWorkbench />);
-    await screen.findByText("24/24 valid");
+    await screen.findByRole("button", { name: "Replace forecast" });
+  }
+  function addOrder() {
+    fireEvent.click(screen.getByRole("button", { name: "Add order" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Add order" }));
+    fireEvent.change(dialog.getByLabelText("Delivery for order 1"), { target: { value: "0" } });
+    fireEvent.change(dialog.getByLabelText("Volume for order 1"), { target: { value: "10" } });
+    fireEvent.change(dialog.getByLabelText("Limit price for order 1"), { target: { value: "30" } });
+    fireEvent.click(dialog.getByRole("button", { name: "Add order" }));
   }
   it("shows the compact forecast and all four orders, with only one editor", async () => {
     await ready();
@@ -125,9 +133,22 @@ describe("OrderSimulatorWorkbench", () => {
     });
     expect(screen.getByLabelText("Limit price for order 1")).toBeEnabled();
   });
+  it("re-adds the first interval after deleting every order", async () => {
+    await ready();
+    while (screen.queryAllByRole("button", { name: /Edit .* order/ }).length) {
+      fireEvent.click(screen.getAllByRole("button", { name: /Edit .* order/ })[0]);
+      fireEvent.click(screen.getByRole("button", { name: /^Remove order / }));
+    }
+    expect(screen.queryAllByRole("button", { name: /Edit .* order/ })).toHaveLength(0);
+    addOrder();
+    expect(screen.getAllByRole("button", { name: /Edit 00:00–01:00 BUY order/ })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /^Remove order / }));
+    addOrder();
+    expect(screen.getAllByRole("button", { name: /Edit 00:00–01:00 BUY order/ })).toHaveLength(1);
+  });
   it("preserves edits across views and remounts", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Add order" }));
+    addOrder();
     fireEvent.change(screen.getByLabelText("Volume for order 5"), {
       target: { value: "12.3" },
     });
@@ -203,6 +224,7 @@ describe("OrderSimulatorWorkbench", () => {
   });
   it("marks a pending simulation result stale when inputs changed during the request", async () => {
     await ready();
+    fireEvent.click(screen.getByRole("button", { name: /Edit 05:00–06:00 BUY order/ }));
     let resolve!: (r: Response) => void;
     vi.stubGlobal(
       "fetch",
@@ -214,7 +236,7 @@ describe("OrderSimulatorWorkbench", () => {
       ),
     );
     fireEvent.click(screen.getByRole("button", { name: "Simulate orders" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add order" }));
+    fireEvent.change(screen.getByLabelText("Volume for order 1"), { target: { value: "21" } });
     resolve(response(result));
     expect(await screen.findByText(/Previous simulation—inputs changed/)).toBeInTheDocument();
     expect(screen.getByText("Schedule charts")).toBeInTheDocument();
@@ -274,7 +296,7 @@ describe("OrderSimulatorWorkbench", () => {
     vi.stubGlobal("fetch", fetchMock);
     fireEvent.change(screen.getByLabelText("Delivery date"), { target: { value: "2026-09-10" } });
     fireEvent.click(screen.getByRole("button", { name: "Confirm replacement" }));
-    await screen.findByText(/Forecast required/);
+    await screen.findByText("No forecast loaded");
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/delivery-grid?"),
       expect.anything(),
@@ -290,7 +312,7 @@ describe("OrderSimulatorWorkbench", () => {
   });
   it("confirms and cancels example replacement without a blocking browser dialog", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Add order" }));
+    addOrder();
     fireEvent.click(screen.getByRole("button", { name: "Load example inputs" }));
     expect(screen.getByRole("dialog", { name: "Confirm input replacement" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancel replacement" }));
@@ -303,6 +325,7 @@ describe("OrderSimulatorWorkbench", () => {
   });
   it("does not overwrite newer input edits with a delayed example response", async () => {
     await ready();
+    fireEvent.click(screen.getByRole("button", { name: /Edit 05:00–06:00 BUY order/ }));
     let resolve!: (r: Response) => void;
     vi.stubGlobal(
       "fetch",
@@ -315,10 +338,11 @@ describe("OrderSimulatorWorkbench", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Load example inputs" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm replacement" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add order" }));
+    fireEvent.change(screen.getByLabelText("Volume for order 1"), { target: { value: "21" } });
     resolve(response({ points }));
     await screen.findByText(/Inputs changed while loading/);
-    expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(5);
+    expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(4);
+    expect(screen.getByLabelText("Volume for order 1")).toHaveValue(21);
   });
   it("keeps battery labels stable and associates validation descriptions", async () => {
     await ready();

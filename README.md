@@ -5,9 +5,9 @@ Interview prototype for a 100 MWh / 50 MW battery participating in a configurabl
 ## Homework workflow
 
 1. Use **Load forecast** (or **Replace forecast**) to upload a complete Day-Ahead price forecast (CSV), paste CSV data, or preview the illustrative demo. Review and apply the validated preview. **Edit prices** makes targeted adjustments afterwards, showing the original forecast, edited prices and interval differences.
-2. Enter BUY/SELL orders and choose `Market` or `Limit` for every order. Market orders have no limit-price condition; Limit orders pass the price condition only when the entered forecast crosses their side-specific limit. Every price-accepted order remains subject to physical feasibility.
+2. Click **Add order** to open a staged ticket. Choose any delivery interval, BUY/SELL, Market/Limit and volume; enter a price for Limit orders. Nothing is inserted until **Add order** confirms the ticket. Cancel leaves the case unchanged. Select an existing row to edit it; changes update the draft and require re-simulation. Market orders have no limit-price condition. Price-accepted orders remain subject to physical feasibility.
 3. Run the simulation to process orders chronologically through the battery state of charge.
-4. Inspect the aligned price, power, state-of-charge and contribution tracks using the shared interval inspector (hover, click to pin, or arrow keys). Interval Detail combines the schedule and order outcomes in one table; expand Orders for individual execution reasons. The Columns menu limits the table to five selectable values plus Delivery and Orders.
+4. Inspect aligned price, power, state-of-charge and contribution tracks with synchronized floating tooltips (hover or arrow keys). Click or press Enter to open interval details, including idle periods. The order editor's **View battery schedule** opens the selected order's current result. Interval Detail combines schedule and order outcomes in one table; the Columns menu limits the table to five selectable values plus Delivery and Orders.
 5. Optionally generate an optimization proposal, review it, and explicitly apply it to the editable orders. Applying is reversible; generating alone never replaces the draft. Re-run the simulation to evaluate the applied orders.
 6. Use Compare Runs for saved order simulations or explicitly scoped optimizer proposals. Saved history restores complete simulation inputs and evidence. Physical Validation inspects the saved executed schedule, including headroom and failed checks.
 
@@ -51,7 +51,7 @@ Simulate orders reconstructs dispatch deterministically from the trader's entere
 
 - Demonstration and simulation only; no live exchange submission.
 - Swiss market details such as product duration, bidding zone, gate closure, and increments are configuration assumptions and must be confirmed with IWB.
-- Internal timestamps are UTC. The single header selector displays Zurich (CET/CEST) or UTC consistently; it does not change the market delivery calendar, order instants or financial calculations.
+- Internal timestamps are UTC. The single header selector displays CET/CEST or UTC consistently; it does not change the market delivery calendar, order instants or financial calculations.
 
 ## Run locally
 

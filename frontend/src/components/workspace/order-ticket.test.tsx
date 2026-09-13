@@ -38,17 +38,17 @@ const rejected = {
 it("separates equal-limit eligibility from a physical rejection", () => {
   render(<OrderTicket {...fields} outcome={rejected} />);
   expect(screen.getByText(/2.5 MWh for this interval/)).toBeInTheDocument();
-  expect(screen.getByText(/At the limit: full allocation/)).toBeInTheDocument();
+  expect(screen.getByText(/At the limit · eligible/)).toBeInTheDocument();
   expect(screen.getByText("Physical constraint")).toBeInTheDocument();
   expect(screen.getByText(rejected.reason)).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "View on schedule" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "View battery schedule" })).toBeEnabled();
 });
 
 it("does not present old physical evidence as a result of current edits", () => {
   render(<OrderTicket {...fields} outcome={rejected} stale />);
   expect(screen.getByText("Outdated")).toBeInTheDocument();
   expect(screen.queryByText(rejected.reason)).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "View on schedule" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "View battery schedule" })).toBeDisabled();
 });
 
 it("updates the existing draft callbacks, with no separate saved ticket", () => {
@@ -70,13 +70,13 @@ it("market orders show no limit input and retain the forecast settlement explana
   expect(
     screen.queryByRole("spinbutton", { name: "Limit price for order 1" }),
   ).not.toBeInTheDocument();
-  expect(screen.getByText(/Market orders have no price condition/)).toBeInTheDocument();
+  expect(screen.getByText(/No price limit · forecast/)).toBeInTheDocument();
 });
 
 it("uses the sell price direction without presenting it as execution", () => {
   render(<OrderTicket {...fields} order={{ ...fields.order, side: "SELL", limit: "0" }} />);
   expect(screen.getByText("Minimum sell price")).toBeInTheDocument();
-  expect(screen.getByText(/Price condition not met under/)).toBeInTheDocument();
+  expect(screen.getByText("Price condition not met")).toBeInTheDocument();
   expect(screen.getByText("Not simulated")).toBeInTheDocument();
 });
 

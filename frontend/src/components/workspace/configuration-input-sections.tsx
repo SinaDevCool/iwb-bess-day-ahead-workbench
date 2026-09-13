@@ -43,10 +43,18 @@ export function ConfigurationMarket({
       </p>
       <div className="uw-input-summary" aria-label="Current Day-Ahead forecast">
         <strong>Day-Ahead price forecast</strong>
-        <span>
-          {priceIssues.filter((x) => !x).length}/{draft.points.length} valid
-        </span>
-        <ForecastSnapshot forecast={draft.forecast} compact />
+        {!draft.prices.some((price) => price.trim()) ? (
+          <span>No forecast loaded</span>
+        ) : (
+          <>
+            {priceIssues.some(Boolean) && (
+              <span className="field-error">
+                {priceIssues.filter(Boolean).length} prices need attention
+              </span>
+            )}
+            <ForecastSnapshot forecast={draft.forecast} compact />
+          </>
+        )}
       </div>
       <div className="uw-forecast-actions">
         <button
@@ -64,7 +72,6 @@ export function ConfigurationMarket({
           {priceIssues.some(Boolean) ? "Review prices" : "Edit prices"}
         </button>
       </div>
-      <p className="ws-help">Used as the assumed auction clearing price.</p>
       <button className="ws-text-button" onClick={() => setModal("costs")}>
         Transaction costs
       </button>

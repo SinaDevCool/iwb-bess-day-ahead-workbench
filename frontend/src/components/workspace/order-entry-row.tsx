@@ -1,7 +1,6 @@
 "use client";
 import type { DraftOrderInput } from "@/lib/order-simulation-validation";
 import type { Market, SubmittedOrderType } from "@/types/api";
-import { Trash2 } from "lucide-react";
 import { deliveryLabel } from "./order-presentation";
 import { useDisplayTimezone } from "./time-preference";
 
@@ -10,20 +9,16 @@ export function OrderRow({
   order,
   rowIndex,
   points,
-  prices,
   market,
   issues,
   update,
-  remove,
 }: {
   order: DraftOrderInput;
   rowIndex: number;
   points: { timestamp_utc: string }[];
-  prices: string[];
   market: Market;
   issues: Record<string, string>;
   update: (id: string, patch: Partial<DraftOrderInput>) => void;
-  remove: (order: DraftOrderInput) => void;
 }) {
   const prefix = `order.${order.id}`;
   const zone = useDisplayTimezone();
@@ -39,6 +34,9 @@ export function OrderRow({
           value={order.interval}
           onChange={(e) => update(order.id, { interval: Number(e.target.value) })}
         >
+          <option value={-1} disabled>
+            Select interval
+          </option>
           {points.map((point, index) => (
             <option key={point.timestamp_utc} value={index}>
               {deliveryLabel(point.timestamp_utc, market.product_minutes, zone)}
@@ -72,7 +70,7 @@ export function OrderRow({
           onChange={(e) =>
             update(order.id, {
               orderType: e.target.value as SubmittedOrderType,
-              limit: e.target.value === "MARKET" ? "" : order.limit || prices[order.interval] || "",
+              limit: e.target.value === "MARKET" ? "" : order.limit,
             })
           }
         >
@@ -139,15 +137,6 @@ export function OrderRow({
           <strong>No limit</strong>
         </div>
       )}
-      <button
-        type="button"
-        className="ws-text-button order-remove"
-        aria-label={`Remove order ${rowIndex + 1}`}
-        onClick={() => remove(order)}
-      >
-        <Trash2 size={14} aria-hidden="true" />
-        Remove order
-      </button>
     </div>
   );
 }

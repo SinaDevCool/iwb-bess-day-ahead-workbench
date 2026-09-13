@@ -47,6 +47,22 @@ The primary workflow is forecast input + explicit Market/Limit order input -> de
 
 ## Evidence and API boundaries
 
+### Staged order entry and compact editing
+
+- `add-order-dialog.tsx` owns only an uncommitted new ticket. It reuses `OrderRow`
+  and `validateOrders`; Add inserts once through the existing case controller,
+  while Cancel, Escape and close leave the case untouched.
+- Delivery options come from the full UTC forecast grid, never the existing
+  orders. Deleted intervals remain available; duplicate interval orders are valid.
+  Initial volume and limit are blank; Market removes the limit without inventing
+  a new bid price when switching back to Limit.
+- Existing tickets remain live edits. Price eligibility and saved simulation status
+  stay distinct. Calculation details collapse explanations and identifiers; the
+  full-width schedule action is unavailable for missing or outdated results.
+- The forecast sidebar shows its update timestamp and actions, not a success
+  fraction or source description. Missing/invalid prices remain actionable;
+  provenance remains in forecast dialogs. No backend or optimization logic changed.
+
 `POST /api/proposal-preview` creates a saved optimization proposal and returns editable Limit orders; it does not apply them. `GET /api/workspace-history` combines typed run summaries. `POST /api/simulations/{id}/sensitivities` evaluates the saved proposal without inserting another history run. Optimization mutation endpoints reject order-simulation IDs.
 
 Each submitted order has exactly one outcome. Price-condition evidence survives physical rejection. Shared interval SoC is identified as batch evidence. Terminal reserve failure invalidates the submitted portfolio even when earlier orders executed. Monetary components reconcile at cent precision. Independent physical validation checks energy, duration and delivery-grid consistency.
