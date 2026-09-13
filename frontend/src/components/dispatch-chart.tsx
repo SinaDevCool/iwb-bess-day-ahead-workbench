@@ -140,17 +140,17 @@ export function DispatchChart({
                 dot={false}
               />
               {selectedTime && <ReferenceLine x={selectedTime} stroke="#087d78" strokeDasharray="3 3" />}
-              <Scatter
-                data={markers}
-                dataKey="price_eur_mwh"
-                name="Submitted orders"
-                shape={<OrderMarker selectedOrderId={selectedOrderId} />}
-                onClick={(point) => {
-                  const marker = point as unknown as { orderId?: string; payload?: { orderId?: string } };
-                  const orderId = marker.orderId ?? marker.payload?.orderId;
-                  if (orderId) onSelectOrder?.(orderId);
-                }}
-              />
+              {markers.length > 0 && <Scatter
+                  data={markers}
+                  dataKey="price_eur_mwh"
+                  name="Submitted orders"
+                  shape={<OrderMarker selectedOrderId={selectedOrderId} />}
+                  onClick={(point) => {
+                    const marker = point as unknown as { orderId?: string; payload?: { orderId?: string } };
+                    const orderId = marker.orderId ?? marker.payload?.orderId;
+                    if (orderId) onSelectOrder?.(orderId);
+                  }}
+                />}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -284,7 +284,7 @@ export function DispatchChart({
 
 function OrderMarker(props: { cx?: number; cy?: number; payload?: { orderId: string; side: "BUY" | "SELL"; status: string }; selectedOrderId?: string }) {
   const { cx = 0, cy = 0, payload, selectedOrderId } = props;
-  if (!payload) return <g />;
+  if (!payload?.side || !payload.status) return <g aria-hidden="true" />;
   const executed = payload.status === "EXECUTED";
   const infeasible = payload.status === "PHYSICALLY_INFEASIBLE";
   const fill = executed ? (payload.side === "BUY" ? "#1d9c98" : "#e67d11") : "#fff";
