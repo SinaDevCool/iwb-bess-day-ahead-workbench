@@ -21,8 +21,6 @@ export function useWorkspaceSession(
     setResultKey,
     setView,
     setModal,
-    proposal,
-    setProposal,
     risk,
     setRisk,
     horizon,
@@ -35,11 +33,23 @@ export function useWorkspaceSession(
     setLookahead,
     setConfigurationOpen,
     setComparisonKind,
+    setScheduleSelection,
   } = context;
   useEffect(() => {
     const restoreView = () => {
       const params = new URLSearchParams(location.search);
       setView(workspaceView(params));
+      const timestamp = params.get("inspectInterval");
+      const simulationId = params.get("inspectRun");
+      setScheduleSelection(
+        timestamp && simulationId && Number.isFinite(Date.parse(timestamp))
+          ? {
+              simulationId,
+              timestamp: new Date(timestamp).toISOString(),
+              orderId: params.get("inspectOrder") ?? undefined,
+            }
+          : undefined,
+      );
       setComparisonKind(
         params.get("comparison") === "simulations"
           ? "simulations"
@@ -61,7 +71,6 @@ export function useWorkspaceSession(
           draft?: import("./workspace-types").Draft;
           result?: typeof result;
           resultKey?: string;
-          proposal?: typeof proposal;
           policy?: {
             risk?: string;
             horizon?: string;
@@ -82,7 +91,6 @@ export function useWorkspaceSession(
           setDraft(saved.draft);
           setResult(saved.result);
           setResultKey(saved.resultKey ?? "");
-          setProposal(saved.proposal);
           if (saved.policy) {
             setRisk(saved.policy.risk ?? "expected_value");
             setHorizon(saved.policy.horizon ?? "minimum_reserve");
@@ -112,14 +120,13 @@ export function useWorkspaceSession(
           draft,
           result,
           resultKey,
-          proposal,
           policy: { risk, horizon, terminal, weights, lookahead },
         });
       } catch {
         /* Storage can be unavailable; in-memory workspace remains usable. */
       }
     }
-  }, [draft, result, resultKey, proposal, risk, horizon, terminal, weights, lookahead]);
+  }, [draft, result, resultKey, risk, horizon, terminal, weights, lookahead]);
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (dirty) e.preventDefault();

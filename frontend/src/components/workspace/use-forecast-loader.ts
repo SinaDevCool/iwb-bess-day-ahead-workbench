@@ -6,7 +6,11 @@ export type ForecastPreview = { points: ForecastPoint[]; forecast: ForecastMetad
 type Preview = ForecastPreview;
 type Point = ForecastPoint;
 /** Preview is local: only the caller's Apply action replaces the shared forecast. */
-export function useForecastLoader(date: string, minutes: number, points: Point[]) {
+export function useForecastLoader(
+  date: string,
+  minutes: number,
+  points: { timestamp_utc: string }[],
+) {
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;

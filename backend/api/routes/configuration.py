@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from backend.config.defaults import DEFAULT_BATTERY, DEFAULT_MARKET
+from backend.domain.delivery_grid import delivery_grid
 from backend.domain.models import MarketConfig, SimulationRequest
 from backend.services.forecast_import_service import MAX_UPLOAD_BYTES, forecast_hash, import_csv
 from backend.services.forecast_service import build_demo_forecast
@@ -52,6 +53,20 @@ def configuration():
             "forecast": {"status": "illustrative", "label": "Illustrative deterministic profile"},
         },
     }
+
+
+@router.get("/api/delivery-grid")
+def grid(delivery_date: str, product_minutes: int = 60):
+    """Time boundaries only: choosing a date must not choose a price forecast."""
+    try:
+        return {
+            "points": [
+                {"timestamp_utc": stamp.isoformat()}
+                for stamp in delivery_grid(delivery_date, DEFAULT_MARKET.timezone, product_minutes)
+            ]
+        }
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
 
 
 @router.get("/api/forecast")

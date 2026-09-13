@@ -1,4 +1,4 @@
-import type { ForecastPoint } from "@/types/forecast";
+import type { Point as ForecastPoint } from "./workspace-types";
 import type { Dispatch, SetStateAction } from "react";
 import { clock } from "./workspace-format";
 /** These indices refer to the case's UTC delivery grid, including repeated DST hours. */

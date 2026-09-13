@@ -8,6 +8,7 @@ import { WorkspaceHistory } from "./workspace-history";
 import { BatteryEditor } from "./battery-editor";
 import { ForecastEditor } from "./forecast-editor";
 import type { ReadyWorkbench } from "./use-workbench";
+import { ProposalOrderPreview } from "./proposal-order-preview";
 import { euro, num } from "./workspace-format";
 /** Editors stage changes; only their Apply callbacks mutate the shared draft. */
 export function WorkspaceDialogs({
@@ -15,12 +16,15 @@ export function WorkspaceDialogs({
 }: {
   context: Pick<
     ReadyWorkbench,
+    | "setConfigurationOpen"
+    | "setReviewSettings"
     | "draft"
     | "busy"
     | "error"
     | "modal"
     | "setModal"
     | "preview"
+    | "previewCurrent"
     | "risk"
     | "horizon"
     | "confirmation"
@@ -33,11 +37,14 @@ export function WorkspaceDialogs({
 }) {
   const {
     draft,
+    setConfigurationOpen,
+    setReviewSettings,
     busy,
     error,
     modal,
     setModal,
     preview,
+    previewCurrent,
     risk,
     horizon,
     confirmation,
@@ -130,6 +137,16 @@ export function WorkspaceDialogs({
             Using {risk.replaceAll("_", " ")} · {horizon.replaceAll("_", " ")}. Proposal settings
             are in the configuration panel.
           </p>
+          <button
+            className="secondary"
+            onClick={() => {
+              setModal(null);
+              setConfigurationOpen(true);
+              setReviewSettings(true);
+            }}
+          >
+            Review proposal settings
+          </button>
           {error && (
             <p role="alert" className="field-error">
               {error}
@@ -138,12 +155,16 @@ export function WorkspaceDialogs({
           {preview && (
             <div className="ws-preview">
               <h3>Review proposal</h3>
+              {!previewCurrent && (
+                <p role="status">Inputs changed. Generate a new preview before replacing orders.</p>
+              )}
               <p>
                 {preview.orders.length} Limit orders ·{" "}
                 {euro(preview.proposal.summary.expected_contribution_eur)} forecast contribution ·
                 final SoC {num(preview.proposal.summary.proposal_terminal_soc_mwh)} MWh
               </p>
               <p>{preview.pricing_policy}</p>
+              <ProposalOrderPreview orders={preview.orders} market={draft.market} />
               <p>
                 Applying replaces all {draft.orders.length} entered orders. You can undo this
                 change.
@@ -162,8 +183,12 @@ export function WorkspaceDialogs({
               {busy ? `${busy}…` : "Generate preview"}
             </button>
             {preview && (
-              <button className="primary" onClick={apply} disabled={Boolean(busy)}>
-                Apply proposal
+              <button
+                className="primary"
+                onClick={apply}
+                disabled={Boolean(busy) || !previewCurrent}
+              >
+                Replace orders with proposal
               </button>
             )}
           </DialogActions>

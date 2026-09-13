@@ -18,7 +18,6 @@ type ReplacementActionContext = Pick<
   | "setError"
   | "setNotice"
   | "setModal"
-  | "setProposal"
   | "setUndo"
   | "setConfirmation"
   | "draftRef"
@@ -40,7 +39,6 @@ export function useReplacementActions(context: ReplacementActionContext) {
     setError,
     setNotice,
     setModal,
-    setProposal,
     setUndo,
     setConfirmation,
     draftRef,
@@ -86,7 +84,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
     if (!confirmed) {
       setConfirmation({
         message:
-          "Changing the date or duration loads its example forecast and clears orders. Battery settings are preserved; interval availability is cleared.",
+          "Changing date or duration clears the forecast, orders and interval availability. Other battery settings are preserved. Load a compatible forecast afterwards; you can undo this replacement.",
         action: () => void changeDate(value, true, minutes),
       });
       return;
@@ -95,7 +93,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
     setBusy("Loading date");
     try {
       const next = await api<{ points: Point[] }>(
-        `/api/forecast?delivery_date=${value}&product_minutes=${minutes}`,
+        `/api/delivery-grid?delivery_date=${value}&product_minutes=${minutes}`,
       );
       if (!draftRef.current || identity(draftRef.current) !== originalKey)
         throw new Error("Inputs changed while loading. Change the date again to retry.");
@@ -104,11 +102,11 @@ export function useReplacementActions(context: ReplacementActionContext) {
         date: value,
         market: { ...draft.market, product_minutes: minutes },
         points: next.points,
-        prices: next.points.map((p) => String(p.price_eur_mwh)),
+        prices: next.points.map(() => ""),
         forecast: {
-          source_type: "illustrative",
-          source_name: "Illustrative Day-Ahead example",
-          version: "illustrative-v1",
+          source_type: "manual",
+          source_name: "Forecast required",
+          version: "pending",
           bidding_zone: draft.market.bidding_zone,
         },
         orders: [],
@@ -160,10 +158,17 @@ export function useReplacementActions(context: ReplacementActionContext) {
         navigate("schedule");
       } else {
         const p = await api<Simulation>(`/api/simulations/${runId}`);
-        setProposal(p);
+        // Comparison's URL is its one selection owner; do not attach this run to the draft.
+        const url = new URL(location.href);
+        url.searchParams.set("runs", p.simulation_id);
+        url.searchParams.set("reference", p.simulation_id);
+        url.searchParams.set("focus", p.simulation_id);
+        url.searchParams.set("comparison", "proposals");
+        history.replaceState({}, "", url);
         setModal(null);
         setComparisonKind("proposals");
         navigate("compare");
+        window.dispatchEvent(new PopStateEvent("popstate"));
       }
     } catch (e) {
       setError(String(e));
@@ -192,7 +197,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
           version: "illustrative-v1",
           bidding_zone: draft.market.bidding_zone,
         },
-        orders: draft.market.product_minutes === 60 ? examples() : [],
+        orders: draft.market.product_minutes === 60 ? examples() : draft.orders,
         sourceProposalId: undefined,
       });
       setSelected("");

@@ -1,6 +1,6 @@
 "use client";
 import { ForecastPlot } from "@/components/dispatch-chart";
-import type { ForecastPoint } from "@/types/forecast";
+import type { Point as ForecastPoint } from "./workspace-types";
 import { DialogActions } from "./dialog";
 import { useForecastLoader, type ForecastPreview } from "./use-forecast-loader";
 type Point = ForecastPoint;
@@ -72,24 +72,25 @@ export function ForecastLoader({
           Validate pasted forecast
         </button>
       </details>
+      <button className="secondary" disabled={busy} onClick={() => void demo()}>
+        Preview demo forecast
+      </button>
       <details>
-        <summary>Forecast providers</summary>
+        <summary>External forecast providers</summary>
         <p>
           Commercial providers require credentials and confirmed CH forecast access. No automatic
           demo fallback.
         </p>
-        {providers.map((p) => (
-          <div className="provider-row" key={p.id}>
-            <span>{p.name}</span>
-            <button
-              className="secondary"
-              disabled={busy || !p.connected}
-              onClick={() => void demo()}
-            >
-              {p.connected ? "Preview demo" : "Not connected"}
-            </button>
-          </div>
-        ))}
+        {providers
+          .filter((p) => p.id !== "demo")
+          .map((p) => (
+            <div className="provider-row" key={p.id}>
+              <span>{p.name}</span>
+              <button className="secondary" disabled>
+                Not connected
+              </button>
+            </div>
+          ))}
       </details>
       {busy && <p role="status">Validating forecast…</p>}
       {error && (
@@ -101,13 +102,22 @@ export function ForecastLoader({
         <section>
           <h3>{filename}</h3>
           <p>
-            {preview.points.length}/{points.length} intervals validated · changes not yet applied
+            {preview.points.length}/{points.length} intervals validated · replacement not yet
+            applied
           </p>
           <ForecastPlot points={preview.points} />
         </section>
       )}
+      <p className="ws-help">
+        Replaces forecast prices only. Existing orders and limits stay unchanged; re-simulate to
+        update results.
+      </p>
       <DialogActions>
-        <span>{preview ? `${preview.points.length} intervals ready` : "No forecast applied"}</span>
+        <span>
+          {preview
+            ? `${preview.points.length} intervals ready`
+            : "Current forecast unchanged. Select a replacement to preview."}
+        </span>
         <button className="secondary" onClick={cancel}>
           Cancel
         </button>

@@ -20,6 +20,11 @@ export function ForecastEditor({
 }) {
   const { prices, setPrices, validating, paste, setPaste, error, setError, invalid, submit } =
     useForecastEditor(draft, apply);
+  const baseline = draft.forecast?.original_price_values ?? draft.prices;
+  const changed = (i: number) =>
+    prices[i]?.trim() && String(baseline[i]).trim()
+      ? Number(prices[i]) !== Number(baseline[i])
+      : prices[i] !== String(baseline[i]);
   return (
     <>
       <p>
@@ -35,7 +40,7 @@ export function ForecastEditor({
         zone={draft.market.timezone}
       />
       <details>
-        <summary>Paste prices</summary>
+        <summary>Adjust prices by pasting</summary>
         <p>
           One price per line, or HH:mm;price. For repeated DST hours use ISO timestamps with
           offsets.
@@ -72,24 +77,40 @@ export function ForecastEditor({
           Use pasted prices
         </button>
       </details>
+      <button
+        className="secondary small"
+        disabled={validating}
+        onClick={() => setPrices(baseline.map(String))}
+      >
+        Reset all adjustments
+      </button>
+      <p className="ws-help">
+        {draft.forecast?.original_price_values
+          ? "Reset restores the recorded original forecast."
+          : "Reset restores values present when this editor opened."}{" "}
+        Changes remain staged until Apply.
+      </p>
       <div className="ws-price-grid">
         {draft.points.map((p, i) => (
-          <label key={p.timestamp_utc}>
-            {clock(p.timestamp_utc, draft.market.timezone)}{" "}
-            <small
-              className={
-                draft.points.filter(
-                  (point) =>
-                    clock(point.timestamp_utc, draft.market.timezone) ===
-                    clock(p.timestamp_utc, draft.market.timezone),
-                ).length > 1
-                  ? "ws-time-evidence"
-                  : "sr-only"
-              }
-            >
-              {new Date(p.timestamp_utc).toISOString().slice(11, 16)} UTC
-            </small>
+          <div key={p.timestamp_utc}>
+            <label htmlFor={`forecast-price-${i}`}>
+              {clock(p.timestamp_utc, draft.market.timezone)}{" "}
+              <small
+                className={
+                  draft.points.filter(
+                    (point) =>
+                      clock(point.timestamp_utc, draft.market.timezone) ===
+                      clock(p.timestamp_utc, draft.market.timezone),
+                  ).length > 1
+                    ? "ws-time-evidence"
+                    : "sr-only"
+                }
+              >
+                {new Date(p.timestamp_utc).toISOString().slice(11, 16)} UTC
+              </small>
+            </label>
             <input
+              id={`forecast-price-${i}`}
               aria-label={`Price ${p.timestamp_utc}`}
               name={`price-${i}`}
               disabled={validating}
@@ -107,6 +128,24 @@ export function ForecastEditor({
               value={prices[i]}
               onChange={(e) => setPrices((x) => x.map((v, j) => (i === j ? e.target.value : v)))}
             />
+            {changed(i) && (
+              <span className="ws-help">
+                Adjusted · Original {baseline[i] === "" ? "blank" : baseline[i]}{" "}
+                <button
+                  type="button"
+                  className="ws-text-button"
+                  disabled={validating}
+                  onClick={() => {
+                    setPrices((values) =>
+                      values.map((value, index) => (index === i ? String(baseline[i]) : value)),
+                    );
+                    document.getElementById(`forecast-price-${i}`)?.focus();
+                  }}
+                >
+                  Reset interval {clock(p.timestamp_utc, draft.market.timezone)}
+                </button>
+              </span>
+            )}
             <small
               id={`price-bounds-${i}`}
               className={
@@ -120,7 +159,7 @@ export function ForecastEditor({
             >
               Required: {draft.market.min_price_eur_mwh} to {draft.market.max_price_eur_mwh} €/MWh
             </small>
-          </label>
+          </div>
         ))}
       </div>
       {invalid && (

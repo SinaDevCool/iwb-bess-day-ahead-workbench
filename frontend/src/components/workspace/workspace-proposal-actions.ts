@@ -1,10 +1,11 @@
 "use client";
 
 import { api } from "@/lib/api";
-import type { Simulation } from "@/types/api";
+import { useEffect, useRef } from "react";
 
 import type { ActionContext } from "./workspace-action-types";
-import { fromOrders, identity, requestBody } from "./workspace-adapters";
+import { fromOrders, requestBody } from "./workspace-adapters";
+import { proposalKey } from "./proposal-key";
 import type { Preview } from "./workspace-types";
 type ProposalActionContext = Pick<
   ActionContext,
@@ -18,8 +19,6 @@ type ProposalActionContext = Pick<
   | "setPreview"
   | "previewKey"
   | "setPreviewKey"
-  | "proposal"
-  | "setProposal"
   | "setUndo"
   | "risk"
   | "horizon"
@@ -43,8 +42,6 @@ export function useProposalActions(context: ProposalActionContext) {
     setPreview,
     previewKey,
     setPreviewKey,
-    proposal,
-    setProposal,
     setUndo,
     risk,
     horizon,
@@ -55,6 +52,18 @@ export function useProposalActions(context: ProposalActionContext) {
     change,
     validate,
   } = context;
+  const key = draft ? proposalKey(draft, { risk, horizon, terminal, weights, lookahead }) : "";
+  const latestKey = useRef(key);
+  const ticket = useRef(0);
+  useEffect(() => {
+    latestKey.current = key;
+  }, [key]);
+  useEffect(
+    () => () => {
+      ticket.current++;
+    },
+    [],
+  );
   const generate = async () => {
     if (!draft || !validate(false)) return;
     const w = weights.map(Number);
@@ -79,6 +88,8 @@ export function useProposalActions(context: ProposalActionContext) {
       return;
     }
     const snapshot = draft;
+    const startedKey = key;
+    const startedTicket = ++ticket.current;
     setBusy("Generating");
     setError("");
     try {
@@ -99,17 +110,20 @@ export function useProposalActions(context: ProposalActionContext) {
           },
         }),
       });
-      setPreview(next);
-      setPreviewKey(identity(snapshot));
+      if (startedTicket === ticket.current && startedKey === latestKey.current) {
+        setPreview(next);
+        setPreviewKey(startedKey);
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Proposal failed");
+      if (startedTicket === ticket.current)
+        setError(e instanceof Error ? e.message : "Proposal failed");
     } finally {
-      setBusy("");
+      if (startedTicket === ticket.current) setBusy("");
     }
   };
   const apply = () => {
     if (!draft || !preview) return;
-    if (identity(draft) !== previewKey) {
+    if (key !== previewKey) {
       setError("Inputs changed. Generate a new proposal before applying it.");
       return;
     }
@@ -118,32 +132,10 @@ export function useProposalActions(context: ProposalActionContext) {
       orders: fromOrders(preview.orders, draft.points),
       sourceProposalId: preview.proposal.simulation_id,
     });
-    setProposal(preview.proposal);
     setSelected(preview.orders[0]?.client_order_id ?? "");
     setModal(null);
     navigate("orders");
     setNotice("Proposal applied to the editable order list. Simulate to evaluate these orders.");
   };
-  const sensitivity = async () => {
-    if (!proposal) return;
-    setBusy("Calculating sensitivities");
-    try {
-      const snapshot = proposal;
-      const next = await api<{
-        items: NonNullable<Simulation["sensitivities"]>;
-      }>(`/api/simulations/${snapshot.simulation_id}/sensitivities`, {
-        method: "POST",
-      });
-      setProposal((current) =>
-        current?.simulation_id === snapshot.simulation_id
-          ? { ...current, sensitivities: next.items }
-          : current,
-      );
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy("");
-    }
-  };
-  return { generate, apply, sensitivity };
+  return { generate, apply, previewCurrent: Boolean(preview && key === previewKey) };
 }

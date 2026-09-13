@@ -2,6 +2,7 @@
 
 import { validateBattery, validateOrders } from "@/lib/order-simulation-validation";
 import { useMemo } from "react";
+import { isInvalidPrice } from "@/lib/price-input";
 import { patchDraft } from "./workspace-draft";
 
 import { useWorkspaceNavigation } from "./use-workspace-navigation";
@@ -30,14 +31,7 @@ export function useWorkbench() {
       draft ? validateOrders(draft.orders, draft.market, draft.battery, draft.points.length) : {},
     [draft],
   );
-  const priceIssues =
-    draft?.prices.map(
-      (p) =>
-        !p.trim() ||
-        !Number.isFinite(Number(p)) ||
-        Number(p) < draft.market.min_price_eur_mwh ||
-        Number(p) > draft.market.max_price_eur_mwh,
-    ) ?? [];
+  const priceIssues = draft?.prices.map((price) => isInvalidPrice(price, draft.market)) ?? [];
   const issues =
     Object.keys(batteryIssues).length +
     Object.keys(orderIssues).length +
@@ -57,6 +51,33 @@ export function useWorkbench() {
     }
     return true;
   };
+  const showOrderOnSchedule = (orderId: string) => {
+    if (!state.result || dirty) return;
+    const order = state.result.order_results.find(
+      (item) => item.submitted_order.client_order_id === orderId,
+    );
+    if (!order) return;
+    state.setScheduleSelection({
+      simulationId: state.result.simulation_id,
+      timestamp: new Date(order.submitted_order.delivery_start_utc).toISOString(),
+      orderId,
+    });
+    const url = new URL(location.href);
+    url.searchParams.set("scheduleView", "overview");
+    url.searchParams.set("inspectRun", state.result.simulation_id);
+    url.searchParams.set("inspectOrder", orderId);
+    url.searchParams.set(
+      "inspectInterval",
+      new Date(order.submitted_order.delivery_start_utc).toISOString(),
+    );
+    history.replaceState({}, "", url);
+    navigate("schedule");
+  };
+  const editResultOrder = (orderId: string) => {
+    if (dirty || !draft?.orders.some((order) => order.id === orderId)) return;
+    setSelected(orderId);
+    navigate("orders");
+  };
   const context = { ...state, dirty, navigate, change, validate };
   const replacements = useReplacementActions(context);
   const simulation = useSimulationActions(context);
@@ -64,6 +85,8 @@ export function useWorkbench() {
   useWorkspaceSession(state, replacements.load, dirty);
   return {
     ...state,
+    showOrderOnSchedule,
+    editResultOrder,
     ...replacements,
     ...simulation,
     ...proposals,

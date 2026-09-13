@@ -153,3 +153,22 @@ remain true, rather than repeat the code in English.
   pure chart-data mapping retains interval starts and energy boundary timestamps.
 - Compare runs: comparison controller loads immutable snapshots; selectors derive
   labels/duplicates; picker, chart, table and inspector only present that state.
+
+## Unified journey ownership
+
+- The editable draft and its last simulated result belong to `workspace-state`.
+  Stale results are labelled at the KPI boundary; comparison does not show those KPIs.
+- Proposal analysis belongs to `use-saved-run-comparison` and follows its focused
+  immutable run. The workbench retains only `sourceProposalId`, not a duplicate
+  proposal object. URL/history changes reload selection with late-response guards.
+- `proposal-key` fingerprints optimizer inputs, excluding entered orders. A preview
+  is read-only until explicit replacement; changed inputs require regeneration.
+- Forecast loading previews a complete replacement; interval editing stages changes
+  against the recorded baseline. Both update the existing draft, preserving orders.
+- `/api/delivery-grid` reuses the canonical DST-aware time grid without generating
+  prices. Changing delivery date/duration clears incompatible inputs with Undo.
+- Order-to-chart navigation carries simulation ID, timestamp and order ID. Editing
+  from saved outcomes is enabled only for the current draft/result pair; stale
+  snapshots offer the existing restore flow instead of editing unrelated orders.
+- Journey regressions live beside the workspace/comparison hooks. The delivery-grid
+  API tests explicitly cover 23-, 24- and 25-hour days for both product durations.

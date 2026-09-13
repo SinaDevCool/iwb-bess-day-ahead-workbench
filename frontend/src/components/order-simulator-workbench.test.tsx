@@ -192,7 +192,7 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Simulate orders" }));
     fireEvent.click(screen.getByRole("button", { name: "Add order" }));
     resolve(response(result));
-    expect(await screen.findByText(/Inputs changed. The displayed result/)).toBeInTheDocument();
+    expect(await screen.findByText(/Previous simulation—inputs changed/)).toBeInTheDocument();
     expect(screen.getByText("Schedule charts")).toBeInTheDocument();
   });
   it("requires explicit proposal application and supports undo", async () => {
@@ -224,9 +224,9 @@ describe("OrderSimulatorWorkbench", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Generate proposal" }));
     fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
-    await screen.findByRole("button", { name: "Apply proposal" });
+    await screen.findByRole("button", { name: "Replace orders with proposal" });
     expect(screen.getAllByRole("button", { name: /Edit .* order/, hidden: true })).toHaveLength(4);
-    fireEvent.click(screen.getByRole("button", { name: "Apply proposal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Replace orders with proposal" }));
     expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(4);
@@ -241,6 +241,28 @@ describe("OrderSimulatorWorkbench", () => {
     render(<UnifiedWorkbench />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Workbench unavailable");
     expect(screen.getByRole("button", { name: "Retry Loading" })).toBeEnabled();
+  });
+  it("loads a price-free grid on date changes and supports undo", async () => {
+    await ready();
+    const fetchMock = vi.fn(async () =>
+      response({ points: points.map(({ timestamp_utc }) => ({ timestamp_utc })) }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    fireEvent.change(screen.getByLabelText("Delivery date"), { target: { value: "2026-09-10" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm replacement" }));
+    await screen.findByText(/Forecast required/);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/delivery-grid?"),
+      expect.anything(),
+    );
+    expect(screen.queryAllByRole("button", { name: /Edit .* order/ })).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Edit intervals" }));
+    expect(screen.getByLabelText("Price " + points[0].timestamp_utc)).toHaveValue(null);
+    expect(screen.getByRole("button", { name: "Apply prices" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(4);
+    expect(screen.getByLabelText("Delivery date")).toHaveValue("2026-09-09");
   });
   it("confirms and cancels example replacement without a blocking browser dialog", async () => {
     await ready();
@@ -347,7 +369,7 @@ describe("OrderSimulatorWorkbench", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Generate proposal" }));
     fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
-    await screen.findByRole("button", { name: "Apply proposal" });
+    await screen.findByRole("button", { name: "Replace orders with proposal" });
     expect(JSON.parse(bodies[0]).terminal_value_eur_per_mwh).toBe(0);
   });
 });

@@ -3,8 +3,10 @@ import { n } from "./columns";
 /** Orders share interval SoC; their outcomes are not sequential sub-interval dispatch. */
 export function IntervalOrderDetails({
   row,
+  onEditOrder,
 }: {
   row: ReturnType<typeof intervalEvidence>[number];
+  onEditOrder?: (id: string) => void;
 }) {
   return (
     <div className="interval-order-details">
@@ -29,6 +31,14 @@ export function IntervalOrderDetails({
             contribution €{n(o.contribution_eur)}
           </p>
           <p>{o.reason}</p>
+          {onEditOrder && (
+            <button
+              className="secondary small"
+              onClick={() => onEditOrder(o.submitted_order.client_order_id)}
+            >
+              Edit order
+            </button>
+          )}
           <small>Order {o.submitted_order.client_order_id}</small>
         </article>
       ))}

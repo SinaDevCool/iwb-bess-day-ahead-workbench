@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 
 import type { ReadyWorkbench } from "./use-workbench";
@@ -10,6 +11,8 @@ export function ConfigurationPanel({
 }: {
   context: Pick<
     ReadyWorkbench,
+    | "reviewSettings"
+    | "setReviewSettings"
     | "draft"
     | "busy"
     | "setModal"
@@ -33,6 +36,8 @@ export function ConfigurationPanel({
 }) {
   const {
     draft,
+    reviewSettings,
+    setReviewSettings,
     busy,
     setModal,
     setPreview,
@@ -52,6 +57,18 @@ export function ConfigurationPanel({
     priceIssues,
     changeDate,
   } = context;
+  const policyRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (!reviewSettings || !configurationOpen) return;
+    const frame = requestAnimationFrame(() => {
+      if (policyRef.current) {
+        policyRef.current.open = true;
+        policyRef.current.scrollIntoView?.({ block: "nearest" });
+        policyRef.current.querySelector("select")?.focus();
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [reviewSettings, configurationOpen]);
   const invalidatePreview = () => {
     setPreview(undefined);
     setError("");
@@ -154,10 +171,21 @@ export function ConfigurationPanel({
           Battery settings
         </button>
       </details>
-      <details className="uw-config-section policy">
+      <details className="uw-config-section policy" ref={policyRef}>
         <summary>
           <span className="uw-step">3</span>Optimization Settings
         </summary>
+        {reviewSettings && (
+          <button
+            className="secondary"
+            onClick={() => {
+              setReviewSettings(false);
+              setModal("proposal");
+            }}
+          >
+            Return to proposal
+          </button>
+        )}
         <p className="ws-help">
           Used only when generating a proposal. Does not change execution of entered orders.
         </p>

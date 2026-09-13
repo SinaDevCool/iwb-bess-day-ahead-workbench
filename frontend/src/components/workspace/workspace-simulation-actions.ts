@@ -60,7 +60,8 @@ export function useSimulationActions(context: SimulationActionContext) {
         navigate("schedule");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Simulation failed");
+      if (ticket === requestId.current)
+        setError(e instanceof Error ? e.message : "Simulation failed");
     } finally {
       if (ticket === requestId.current) setBusy("");
     }

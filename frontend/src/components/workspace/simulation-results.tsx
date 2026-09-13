@@ -4,14 +4,22 @@ import { DispatchChart } from "@/components/dispatch-chart";
 import { IntervalResultsTable } from "@/components/interval-results-table";
 import type { OrderSimulation } from "@/types/api";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export function SimulationResults({
   result,
   stale = false,
+  selection,
+  onSelection,
+  onEditOrder,
+  onRestore,
 }: {
   result: OrderSimulation;
   stale?: boolean;
+  selection?: { simulationId: string; timestamp: string; orderId?: string };
+  onSelection?: (timestamp: string) => void;
+  onEditOrder?: (id: string) => void;
+  onRestore?: () => void;
 }) {
   const ordered = useMemo(
     () =>
@@ -20,21 +28,44 @@ export function SimulationResults({
       ),
     [result],
   );
-  const [detailView, setDetailView] = useState(false);
+  const [detailView, updateDetailView] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(location.search).get("scheduleView") === "detail",
+  );
+  const setDetailView = (detail: boolean) => {
+    updateDetailView(detail);
+    const url = new URL(location.href);
+    url.searchParams.set("scheduleView", detail ? "detail" : "overview");
+    history.pushState({}, "", url);
+  };
+  useEffect(() => {
+    const restore = () =>
+      updateDetailView(new URLSearchParams(location.search).get("scheduleView") === "detail");
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
   const [selectedId, setSelectedId] = useState<string>();
-  const [selectedInterval, setSelectedInterval] = useState<string>();
+  const selectedInterval =
+    selection?.simulationId === result.simulation_id ? selection.timestamp : undefined;
+  const setSelectedInterval = (value: string) => onSelection?.(value);
   const marketPassed = result.order_results.filter(
     (o) => o.submitted_order.order_type === "MARKET" || o.price_condition_passed === true,
   ).length;
   const summary = !result.summary.submitted_order_count
     ? "No orders entered. The simulation shows the idle battery schedule."
     : result.summary.infeasible_order_count
-      ? `${result.summary.executed_order_count} of ${result.summary.submitted_order_count} orders executed; ${result.summary.infeasible_order_count} physically infeasible.`
+      ? `${result.summary.executed_order_count} of ${result.summary.submitted_order_count} orders execute in this simulation; ${result.summary.infeasible_order_count} would violate battery constraints.`
       : result.summary.not_executed_order_count
         ? `${result.summary.executed_order_count} of ${result.summary.submitted_order_count} orders executed; ${result.summary.not_executed_order_count} did not meet the price condition.`
-        : `All ${result.summary.executed_order_count} submitted orders executed.`;
+        : `All ${result.summary.executed_order_count} entered orders execute in this simulation.`;
   return (
     <div className="simulation-results">
+      {stale && onRestore && (
+        <button className="secondary" onClick={onRestore}>
+          Restore these inputs to edit orders
+        </button>
+      )}
       <div className="uw-comparison-switch">
         <button
           className="secondary"
@@ -80,7 +111,7 @@ export function SimulationResults({
           Submitted portfolio:{" "}
           {result.submitted_portfolio_feasible ? "feasible" : "needs attention"} · {marketPassed}{" "}
           price-eligible · {result.summary.not_executed_order_count} price-rejected ·{" "}
-          {result.summary.infeasible_order_count} physically rejected.
+          {result.summary.infeasible_order_count} would violate battery constraints.
         </p>
       </details>
       {!detailView && (
@@ -94,7 +125,10 @@ export function SimulationResults({
               executedOrderCount={result.summary.executed_order_count}
               submittedOrderCount={result.summary.submitted_order_count}
               orderResults={ordered}
-              selectedOrderId={selectedId}
+              selectedOrderId={
+                selectedId ??
+                (selection?.simulationId === result.simulation_id ? selection.orderId : undefined)
+              }
               onSelectOrder={setSelectedId}
               selectedInterval={selectedInterval}
               onSelectInterval={setSelectedInterval}
@@ -107,6 +141,7 @@ export function SimulationResults({
       {detailView && (
         <IntervalResultsTable
           result={result}
+          onEditOrder={stale ? undefined : onEditOrder}
           selectedId={selectedInterval}
           onSelect={setSelectedInterval}
         />

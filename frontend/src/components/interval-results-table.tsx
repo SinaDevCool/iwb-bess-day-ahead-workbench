@@ -11,10 +11,12 @@ export function IntervalResultsTable({
   result,
   selectedId,
   onSelect,
+  onEditOrder,
 }: {
   result: Simulation | OrderSimulation;
   selectedId?: string;
   onSelect?: (id: string) => void;
+  onEditOrder?: (id: string) => void;
 }) {
   const { columns, update } = useColumns();
   const [expanded, setExpanded] = useState<string>();
@@ -132,7 +134,7 @@ export function IntervalResultsTable({
                   {expanded === row.id && (
                     <tr>
                       <td colSpan={columns.length + 2}>
-                        <IntervalOrderDetails row={row} />
+                        <IntervalOrderDetails row={row} onEditOrder={onEditOrder} />
                       </td>
                     </tr>
                   )}

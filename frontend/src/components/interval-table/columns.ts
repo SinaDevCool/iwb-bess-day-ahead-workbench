@@ -1,5 +1,5 @@
 export const choices = {
-  forecast: "DA price (€/MWh)",
+  forecast: "DA forecast (€/MWh)",
   action: "Action",
   power: "Power (MW)",
   soc: "End SoC (MWh)",

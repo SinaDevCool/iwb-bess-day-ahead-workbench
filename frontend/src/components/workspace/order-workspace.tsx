@@ -97,34 +97,40 @@ export function UnifiedWorkbench() {
               )}
             </button>
           </div>
-          {result && (
-            <div
-              className="uw-kpis"
-              aria-label={dirty ? "Previous simulation metrics" : "Current simulation metrics"}
-            >
-              <div>
-                <span>Simulated net contribution</span>
-                <strong>{euro(result.summary.net_contribution_eur)}</strong>
-                <small>Sales − purchases − costs</small>
+          {result && view !== "compare" && (
+            <section aria-label="Working case result">
+              <p className={dirty ? "stale-notice" : "ws-help"} role="status">
+                {dirty ? "Previous simulation—inputs changed" : "Current working-case simulation"} ·{" "}
+                {result.simulation_id} · {result.delivery_date}
+              </p>
+              <div
+                className="uw-kpis"
+                aria-label={dirty ? "Previous simulation metrics" : "Current simulation metrics"}
+              >
+                <div>
+                  <span>Simulated net contribution</span>
+                  <strong>{euro(result.summary.net_contribution_eur)}</strong>
+                  <small>Sales − purchases − costs</small>
+                </div>
+                <div>
+                  <span>Executed orders</span>
+                  <strong>
+                    {result.summary.executed_order_count} / {result.summary.submitted_order_count}
+                  </strong>
+                  <small>Executed / entered</small>
+                </div>
+                <div>
+                  <span>Battery throughput</span>
+                  <strong>{num(result.summary.throughput_mwh)} MWh</strong>
+                  <small>{num(result.summary.equivalent_cycles, 2)} EFC</small>
+                </div>
+                <div>
+                  <span>Final SoC</span>
+                  <strong>{num(result.summary.final_soc_mwh)} MWh</strong>
+                  <small>Reserve {num(result.battery.target_soc_mwh)} MWh</small>
+                </div>
               </div>
-              <div>
-                <span>Executed orders</span>
-                <strong>
-                  {result.summary.executed_order_count} / {result.summary.submitted_order_count}
-                </strong>
-                <small>Executed / entered</small>
-              </div>
-              <div>
-                <span>Battery throughput</span>
-                <strong>{num(result.summary.throughput_mwh)} MWh</strong>
-                <small>{num(result.summary.equivalent_cycles, 2)} EFC</small>
-              </div>
-              <div>
-                <span>Final SoC</span>
-                <strong>{num(result.summary.final_soc_mwh)} MWh</strong>
-                <small>Reserve {num(result.battery.target_soc_mwh)} MWh</small>
-              </div>
-            </div>
+            </section>
           )}
           <nav className="uw-tabs" aria-label="Workbench views">
             {(
@@ -168,6 +174,8 @@ export function UnifiedWorkbench() {
                   onClick={() => {
                     setDraft(undo);
                     setUndo(undefined);
+                    context.setError("");
+                    context.setSelected("");
                     setNotice("Previous inputs restored.");
                   }}
                 >
@@ -175,15 +183,19 @@ export function UnifiedWorkbench() {
                 </button>
               </div>
             )}
-            {result && dirty && (
-              <div className="stale-notice" role="status">
-                Inputs changed. The displayed result is a previous snapshot; re-run to update it.
-              </div>
-            )}
             <OrdersView context={ready} />
             {view === "schedule" &&
               (result ? (
-                <SimulationResults result={result} stale={dirty} />
+                <SimulationResults
+                  result={result}
+                  stale={dirty}
+                  selection={context.scheduleSelection}
+                  onSelection={(timestamp) =>
+                    context.setScheduleSelection({ simulationId: result.simulation_id, timestamp })
+                  }
+                  onEditOrder={context.editResultOrder}
+                  onRestore={() => void context.restore(result.simulation_id, "ORDER_SIMULATION")}
+                />
               ) : (
                 <section className="ws-card ws-empty">
                   <h2>Dispatch & Economics</h2>

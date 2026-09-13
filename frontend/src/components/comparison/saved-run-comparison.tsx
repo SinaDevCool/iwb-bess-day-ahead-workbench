@@ -11,11 +11,13 @@ import { MAX_RUNS, shortId, words } from "./comparison-format";
 import { ComparisonTable } from "./comparison-table";
 import { RunComparisonChart } from "./run-comparison-chart";
 import { RunInspector } from "./run-inspector";
+import { ProposalAnalysis } from "./proposal-analysis";
 export function SavedRunComparison() {
   const {
     onRunRenamed,
     catalogue,
     runs,
+    setRuns,
     selectedIds,
     referenceId,
     setReferenceId,
@@ -63,7 +65,7 @@ export function SavedRunComparison() {
         <span>{error}. Refresh the page to try again.</span>
       </div>
     );
-  if (!catalogue.length)
+  if (!catalogue.length && !runs.length)
     return (
       <div className="state-block">
         <strong>No Saved Runs Yet</strong>
@@ -151,6 +153,21 @@ export function SavedRunComparison() {
         ))}
       </section>
 
+      {focused && (
+        <ProposalAnalysis
+          key={focused.simulation_id}
+          run={focused}
+          update={(updated) =>
+            setRuns((items) =>
+              items.map((item) =>
+                item.simulation_id === updated.simulation_id
+                  ? { ...item, sensitivities: updated.sensitivities }
+                  : item,
+              ),
+            )
+          }
+        />
+      )}
       {runs.length >= 2 && (
         <>
           <section className="comparison-visual" aria-labelledby="comparison-results-title">

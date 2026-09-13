@@ -24,50 +24,60 @@ export function useSavedRunComparison() {
 
   useEffect(() => {
     let active = true;
-    api<{ items: SimulationRunSummary[] }>("/api/simulation-runs?limit=100")
-      .then(async ({ items }) => {
-        if (!active) return;
-        setCatalogue(items);
-        const params = new URLSearchParams(location.search);
-        const requested = (params.get("runs") ?? "")
-          .split(",")
-          .filter((id) => items.some((item) => item.simulation_id === id))
-          .slice(0, MAX_RUNS);
-        const defaults = requested.length
-          ? requested
-          : items.slice(0, Math.min(2, items.length)).map((item) => item.simulation_id);
-        const reference = defaults.includes(params.get("reference") ?? "")
-          ? params.get("reference")!
-          : (defaults[0] ?? "");
-        const requestedMetric = params.get("metric") as ComparisonMetric | null;
-        const nextMetric = ["contribution", "throughput", "cycles", "orders"].includes(
-          requestedMetric ?? "",
+    let generation = 0;
+    const load = () => {
+      const ticket = ++generation;
+      setLoading(true);
+      setError("");
+      api<{ items: SimulationRunSummary[] }>("/api/simulation-runs?limit=100")
+        .then(async ({ items }) => {
+          if (!active || ticket !== generation) return;
+          setCatalogue(items);
+          const params = new URLSearchParams(location.search);
+          const requested = (params.get("runs") ?? "")
+            .split(",")
+            .filter((id) => /^sim-[a-zA-Z0-9-]+$/.test(id))
+            .slice(0, MAX_RUNS);
+          const defaults = requested.length
+            ? requested
+            : items.slice(0, Math.min(2, items.length)).map((item) => item.simulation_id);
+          const reference = defaults.includes(params.get("reference") ?? "")
+            ? params.get("reference")!
+            : (defaults[0] ?? "");
+          const requestedMetric = params.get("metric") as ComparisonMetric | null;
+          const nextMetric = ["contribution", "throughput", "cycles", "orders"].includes(
+            requestedMetric ?? "",
+          )
+            ? requestedMetric!
+            : "contribution";
+          const details = await Promise.all(
+            defaults.map((id) => api<Simulation>(`/api/simulations/${id}`)),
+          );
+          if (!active || ticket !== generation) return;
+          setSelectedIds(defaults);
+          setReferenceId(reference);
+          const requestedFocus = params.get("focus") ?? "";
+          setFocusedId(
+            defaults.includes(requestedFocus)
+              ? requestedFocus
+              : (defaults.find((id) => id !== reference) ?? defaults[0] ?? ""),
+          );
+          setMetric(nextMetric);
+          setRuns(details);
+        })
+        .catch(
+          (cause) =>
+            active &&
+            ticket === generation &&
+            setError(cause instanceof Error ? cause.message : "Saved runs could not be loaded"),
         )
-          ? requestedMetric!
-          : "contribution";
-        const details = await Promise.all(
-          defaults.map((id) => api<Simulation>(`/api/simulations/${id}`)),
-        );
-        if (!active) return;
-        setSelectedIds(defaults);
-        setReferenceId(reference);
-        const requestedFocus = params.get("focus") ?? "";
-        setFocusedId(
-          defaults.includes(requestedFocus)
-            ? requestedFocus
-            : (defaults.find((id) => id !== reference) ?? defaults[0] ?? ""),
-        );
-        setMetric(nextMetric);
-        setRuns(details);
-      })
-      .catch(
-        (cause) =>
-          active &&
-          setError(cause instanceof Error ? cause.message : "Saved runs could not be loaded"),
-      )
-      .finally(() => active && setLoading(false));
+        .finally(() => active && ticket === generation && setLoading(false));
+    };
+    load();
+    window.addEventListener("popstate", load);
     return () => {
       active = false;
+      window.removeEventListener("popstate", load);
     };
   }, []);
 

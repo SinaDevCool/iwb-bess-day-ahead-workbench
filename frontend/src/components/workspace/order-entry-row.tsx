@@ -3,7 +3,7 @@ import { priceCondition, type DraftOrderInput } from "@/lib/order-simulation-val
 import type { Market, SubmittedOrderType } from "@/types/api";
 import { Trash2 } from "lucide-react";
 type DraftOrder = DraftOrderInput;
-type ForecastPoint = { timestamp_utc: string; price_eur_mwh: number };
+type ForecastPoint = { timestamp_utc: string };
 const money = (value: number) =>
   new Intl.NumberFormat("en-CH", {
     style: "currency",

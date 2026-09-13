@@ -1,6 +1,7 @@
 "use client";
 
 import { type DraftOrderInput } from "@/lib/order-simulation-validation";
+import { useEffect, useRef } from "react";
 import { Plus, RotateCcw, X } from "lucide-react";
 import { OrderRow } from "./order-entry-row";
 
@@ -27,6 +28,7 @@ export function OrdersView({
     | "change"
     | "orderIssues"
     | "loadExample"
+    | "showOrderOnSchedule"
   >;
 }) {
   const {
@@ -44,7 +46,19 @@ export function OrdersView({
     change,
     orderIssues,
     loadExample,
+    showOrderOnSchedule,
   } = context;
+  const editorRef = useRef<HTMLHeadingElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  useEffect(() => {
+    if (view !== "orders" || !selected) return;
+    const frame = requestAnimationFrame(() => {
+      editorRef.current?.scrollIntoView?.({ block: "nearest" });
+      editorRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selected, view]);
   const current = draft.orders.find((o) => o.id === selected);
   return (
     view === "orders" && (
@@ -57,7 +71,8 @@ export function OrdersView({
             <div>
               <button
                 className="secondary small"
-                onClick={() => {
+                onClick={(event) => {
+                  openerRef.current = event.currentTarget;
                   const o: DraftOrderInput = {
                     id: id(),
                     interval: 0,
@@ -106,8 +121,14 @@ export function OrdersView({
                         <td>
                           <button
                             className="ws-row-link"
+                            ref={(node) => {
+                              rowRefs.current[o.id] = node;
+                            }}
                             aria-label={`Edit ${clock(draft.points[o.interval].timestamp_utc, draft.market.timezone)} ${o.side} order`}
-                            onClick={() => setSelected(o.id)}
+                            onClick={(event) => {
+                              openerRef.current = event.currentTarget;
+                              setSelected(o.id);
+                            }}
                           >
                             {clock(draft.points[o.interval].timestamp_utc, draft.market.timezone)}–
                             {clock(
@@ -159,7 +180,7 @@ export function OrdersView({
             {current && (
               <aside className="ws-order-editor">
                 <div className="ws-section-head">
-                  <h3>
+                  <h3 ref={editorRef} tabIndex={-1}>
                     {current.side} ·{" "}
                     {draft.points[current.interval]
                       ? clock(draft.points[current.interval].timestamp_utc, draft.market.timezone)
@@ -168,11 +189,26 @@ export function OrdersView({
                   <button
                     aria-label="Close order editor"
                     className="icon-button"
-                    onClick={() => setSelected("")}
+                    onClick={() => {
+                      setSelected("");
+                      (rowRefs.current[selected] ?? openerRef.current)?.focus();
+                    }}
                   >
                     <X size={16} />
                   </button>
                 </div>
+                <button
+                  className="secondary small"
+                  disabled={!result || dirty}
+                  onClick={() => showOrderOnSchedule(current.id)}
+                >
+                  View on schedule
+                </button>
+                {(!result || dirty) && (
+                  <p className="ws-help">
+                    Simulate the current orders before locating their execution on the schedule.
+                  </p>
+                )}
                 <OrderRow
                   order={current}
                   rowIndex={draft.orders.indexOf(current)}
@@ -211,13 +247,15 @@ export function OrdersView({
           onClick={() =>
             setConfirmation({
               message:
-                "Load example prices and orders? Battery settings are preserved. You can undo the replacement.",
+                draft.market.product_minutes === 60
+                  ? "Load example prices and orders? Battery settings are preserved. You can undo the replacement."
+                  : "Load a demo forecast? Existing orders and battery settings are preserved. You can undo the replacement.",
               action: () => void loadExample(),
             })
           }
         >
           <RotateCcw size={14} />
-          Load example inputs
+          {draft.market.product_minutes === 60 ? "Load example inputs" : "Load demo forecast"}
         </button>
       </>
     )

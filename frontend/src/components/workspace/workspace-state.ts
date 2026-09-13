@@ -1,6 +1,6 @@
 "use client";
 
-import type { OrderSimulation, Simulation } from "@/types/api";
+import type { OrderSimulation } from "@/types/api";
 import { useEffect, useRef, useState } from "react";
 
 import type { Draft, Preview, View } from "./workspace-types";
@@ -10,6 +10,12 @@ export function useWorkspaceState() {
   const [result, setResult] = useState<OrderSimulation>();
   const [resultKey, setResultKey] = useState("");
   const [view, setView] = useState<View>("orders");
+  const [scheduleSelection, setScheduleSelection] = useState<{
+    simulationId: string;
+    timestamp: string;
+    orderId?: string;
+  }>();
+  const [reviewSettings, setReviewSettings] = useState(false);
   const [selected, setSelected] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -19,7 +25,6 @@ export function useWorkspaceState() {
   >(null);
   const [preview, setPreview] = useState<Preview>();
   const [previewKey, setPreviewKey] = useState("");
-  const [proposal, setProposal] = useState<Simulation>();
   const [undo, setUndo] = useState<Draft>();
   const [risk, setRisk] = useState("expected_value");
   const [horizon, setHorizon] = useState("minimum_reserve");
@@ -41,6 +46,10 @@ export function useWorkspaceState() {
   return {
     draft,
     setDraft,
+    scheduleSelection,
+    setScheduleSelection,
+    reviewSettings,
+    setReviewSettings,
     result,
     setResult,
     resultKey,
@@ -61,8 +70,6 @@ export function useWorkspaceState() {
     setPreview,
     previewKey,
     setPreviewKey,
-    proposal,
-    setProposal,
     undo,
     setUndo,
     risk,
