@@ -225,6 +225,15 @@ export function OrderSimulatorWorkbench({ openOptimizer }: { openOptimizer: () =
     setPasteErrors([]);
     setForecastOpen(false);
   };
+  if ((!battery || !market) && error)
+    return (
+      <main className="simulator-loading simulator-load-error" role="alert">
+        <AlertTriangle aria-hidden="true" />
+        <div><strong>Order simulator unavailable</strong><span>{error} Check the backend service and try again.</span></div>
+        <button className="primary compact" type="button" onClick={() => void loadDemo(date, true)}>Retry Loading</button>
+        <button className="secondary compact" type="button" onClick={openOptimizer}>Open Dispatch Optimizer</button>
+      </main>
+    );
   if (!battery || !market)
     return (
       <div className="simulator-loading">
@@ -499,7 +508,7 @@ function OrderRow({ order, rowIndex, points, prices, market, issues, update, rem
   return (
     <div className="order-entry-row">
       <span className="row-number">{rowIndex + 1}</span>
-      <label>
+      <label className="order-delivery">
         Delivery
         <select name={`delivery-${order.id}`} aria-label={`Delivery for order ${rowIndex + 1}`} aria-invalid={Boolean(issues[`${prefix}.interval`])} value={order.interval} onChange={(event) => update(order.id, { interval: Number(event.target.value) })}>
           {points.map((point, index) => (
@@ -510,14 +519,14 @@ function OrderRow({ order, rowIndex, points, prices, market, issues, update, rem
         </select>
         {issues[`${prefix}.interval`] && <small className="field-error">{issues[`${prefix}.interval`]}</small>}
       </label>
-      <label>
+      <label className="order-side">
         Side
         <select name={`side-${order.id}`} aria-label={`Side for order ${rowIndex + 1}`} value={order.side} onChange={(event) => update(order.id, { side: event.target.value as "BUY" | "SELL" })}>
           <option>BUY</option>
           <option>SELL</option>
         </select>
       </label>
-      <label>
+      <label className="order-type">
         Type
         <select
           name={`type-${order.id}`}
@@ -534,7 +543,7 @@ function OrderRow({ order, rowIndex, points, prices, market, issues, update, rem
           <option value="LIMIT">Limit</option>
         </select>
       </label>
-      <label>
+      <label className="order-volume">
         Volume
         <span className="unit-input">
           <input name={`volume-${order.id}`} type="number" inputMode="decimal" autoComplete="off" step={market.volume_increment_mw} aria-label={`Volume for order ${rowIndex + 1}`} aria-invalid={Boolean(issues[`${prefix}.volume`])} value={order.volume} onChange={(event) => update(order.id, { volume: event.target.value })} />
@@ -543,7 +552,7 @@ function OrderRow({ order, rowIndex, points, prices, market, issues, update, rem
         {issues[`${prefix}.volume`] && <small className="field-error">{issues[`${prefix}.volume`]}</small>}
       </label>
       {order.orderType === "LIMIT" ? (
-        <label>
+        <label className="order-price">
           {order.side === "BUY" ? "Maximum buy price" : "Minimum sell price"}
           <span className="unit-input">
             <input name={`limit-${order.id}`} aria-label={`Limit price for order ${rowIndex + 1}`} type="number" inputMode="decimal" autoComplete="off" step={market.price_increment_eur_mwh} aria-invalid={Boolean(issues[`${prefix}.limit`])} value={order.limit} onChange={(event) => update(order.id, { limit: event.target.value })} />

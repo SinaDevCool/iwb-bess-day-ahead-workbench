@@ -50,4 +50,12 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add Order" }));
     expect(screen.getAllByRole("button", { name: /Remove order/ })).toHaveLength(5);
   });
+
+  it("shows a recoverable error when simulator defaults cannot be loaded", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("Backend offline"); }));
+    render(<OrderSimulatorWorkbench openOptimizer={() => undefined} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Order simulator unavailable");
+    expect(screen.getByRole("button", { name: "Retry Loading" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Open Dispatch Optimizer" })).toBeEnabled();
+  });
 });

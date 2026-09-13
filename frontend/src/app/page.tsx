@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   BatteryCharging,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   Download,
   FileCheck2,
@@ -76,6 +77,7 @@ const scheduleViews = [
 ] as const;
 type TabKey = (typeof tabs)[number][0];
 type PanelPreference = "auto" | "expanded" | "collapsed";
+type ConfigSection = "market" | "policy" | "battery";
 const compactTabLabels: Record<TabKey, string> = {
   schedule: "Dispatch",
   orders: "Orders",
@@ -133,6 +135,7 @@ function OptimizerWorkbench({ openSimulator }: { openSimulator: () => void }) {
     ),
     [dirty, setDirty] = useState(false),
     [advanced, setAdvanced] = useState(false),
+    [configSection, setConfigSection] = useState<ConfigSection>("market"),
     [panelPreference, setPanelPreference] = useState<PanelPreference>("auto"),
     [compactWorkspace, setCompactWorkspace] = useState(false),
     [drawerWorkspace, setDrawerWorkspace] = useState(false),
@@ -581,10 +584,13 @@ function OptimizerWorkbench({ openSimulator }: { openSimulator: () => void }) {
               </div>
             </div>
             <div id="configuration-content" className="inputs-content">
-            <fieldset className="config-group market-config">
+            <fieldset className={`config-group market-config${configSection === "market" ? " active" : " collapsed"}`}>
               <legend>
-                <span className="config-step">1</span>
-                <span className="config-legend-copy"><strong>Market &amp; Costs</strong><small>Delivery setup &amp; trading costs</small></span>
+                <button type="button" aria-expanded={configSection === "market"} onClick={() => setConfigSection("market")}>
+                  <span className="config-step">1</span>
+                  <span className="config-legend-copy"><strong>Market &amp; Costs</strong><small>{configSection === "market" ? "Delivery setup & trading costs" : `${market.product_minutes} min · ${scenario}`}</small></span>
+                  <ChevronDown size={16} aria-hidden="true" />
+                </button>
               </legend>
               <p className="section-intro">Set the delivery product, illustrative price case and marginal execution costs.</p>
               <label htmlFor="date">
@@ -696,10 +702,13 @@ function OptimizerWorkbench({ openSimulator }: { openSimulator: () => void }) {
               </div>
               <small>Both fees apply to every executed MWh, whether BUY or SELL. Fixed membership costs are excluded from dispatch optimization.</small>
             </fieldset>
-            <fieldset className="config-group policy-config">
+            <fieldset className={`config-group policy-config${configSection === "policy" ? " active" : " collapsed"}`}>
               <legend>
-                <span className="config-step">2</span>
-                <span className="config-legend-copy"><strong>Optimization Policy</strong><small>Risk preference &amp; terminal value</small></span>
+                <button type="button" aria-expanded={configSection === "policy"} onClick={() => setConfigSection("policy")}>
+                  <span className="config-step">2</span>
+                  <span className="config-legend-copy"><strong>Optimization Policy</strong><small>{configSection === "policy" ? "Risk preference & terminal value" : `${riskPosture.replaceAll("_", " ")} · ${horizonPolicy.replaceAll("_", " ")}`}</small></span>
+                  <ChevronDown size={16} aria-hidden="true" />
+                </button>
               </legend>
               <p className="section-intro">Choose how uncertainty and stored energy after the delivery day should be valued.</p>
               <label htmlFor="risk-posture">
@@ -731,10 +740,13 @@ function OptimizerWorkbench({ openSimulator }: { openSimulator: () => void }) {
                 />
               )}
             </fieldset>
-            <fieldset className="config-group battery-config">
+            <fieldset className={`config-group battery-config${configSection === "battery" ? " active" : " collapsed"}`}>
               <legend>
-                <span className="config-step">3</span>
-                <span className="config-legend-copy"><strong>Battery &amp; Availability</strong><small>Physical limits &amp; outages</small></span>
+                <button type="button" aria-expanded={configSection === "battery"} onClick={() => setConfigSection("battery")}>
+                  <span className="config-step">3</span>
+                  <span className="config-legend-copy"><strong>Battery &amp; Availability</strong><small>{configSection === "battery" ? "Physical limits & outages" : `${battery.capacity_mwh} MWh · ${Math.min(battery.max_charge_power_mw, battery.grid_limit_mw)} MW · ${availability}`}</small></span>
+                  <ChevronDown size={16} aria-hidden="true" />
+                </button>
               </legend>
               <p className="section-intro">Define the executable operating envelope. These limits are enforced by the optimizer.</p>
               <div className="assumption-note">
@@ -922,7 +934,7 @@ function OptimizerWorkbench({ openSimulator }: { openSimulator: () => void }) {
             </button>
             </div>
           </aside>
-          <div className="main-column">
+          <div className={`main-column${result ? "" : " empty-run"}`}>
             <section className="kpis" aria-label={dirty && result ? "Previous optimization summary; rerun required" : "Optimization summary"}>
               <Kpi
                 label="Day-Ahead Cash Contribution"
@@ -1172,8 +1184,16 @@ type OP = {
 };
 function Orders(p: OP) {
   const editorRef = useRef<HTMLElement>(null);
+  const closeRef = useRef(p.close);
+  useEffect(() => { closeRef.current = p.close; }, [p.close]);
   useEffect(() => {
-    if (p.selected) editorRef.current?.scrollIntoView({ block: "nearest" });
+    if (!p.selected) return;
+    editorRef.current?.focus();
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") closeRef.current();
+    };
+    addEventListener("keydown", closeOnEscape);
+    return () => removeEventListener("keydown", closeOnEscape);
   }, [p.selected]);
   const issue = traderEditIssue(p);
   const volumeChanged = Boolean(p.selected) && Number(p.volume) !== p.selected?.volume_mw;
@@ -1201,7 +1221,7 @@ function Orders(p: OP) {
         onSelect={p.choose}
       />
       {p.selected && (
-        <aside ref={editorRef} className="edit-drawer" aria-labelledby="edit-title">
+        <aside ref={editorRef} className="edit-drawer" aria-labelledby="edit-title" tabIndex={-1}>
           <div className="drawer-head">
             <div>
               <span className={"side " + p.selected.side.toLowerCase()}>

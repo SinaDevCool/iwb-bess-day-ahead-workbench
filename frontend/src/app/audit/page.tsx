@@ -75,7 +75,14 @@ export default function AuditPage() {
 }
 function Stat({ label, value }: { label: string; value: number }) { return <div className="audit-stat"><span>{label}</span><strong>{value}</strong></div>; }
 function RunEvidence({ run, lifecycle }: { run: Simulation; lifecycle: Event[] }) {
-  return <details className="evidence"><summary>View Evidence</summary><pre><code>{JSON.stringify({ input_fingerprint: run.audit.input_hash, optimizer: run.optimization.engine, validation: run.validation.status, events: lifecycle.map((event) => ({ time_utc: event.created_at, type: event.event_type, evidence: event.payload })) }, null, 2)}</code></pre></details>;
+  const [copied, setCopied] = useState(false);
+  const evidence = JSON.stringify({ input_fingerprint: run.audit.input_hash, optimizer: run.optimization.engine, validation: run.validation.status, events: lifecycle.map((event) => ({ time_utc: event.created_at, type: event.event_type, evidence: event.payload })) }, null, 2);
+  const copy = async () => {
+    await navigator.clipboard.writeText(evidence);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  };
+  return <details className="evidence"><summary>View Evidence</summary><div className="evidence-toolbar"><span>Model &amp; lifecycle evidence</span><button type="button" onClick={() => void copy()}>{copied ? "Copied" : "Copy JSON"}</button></div><pre><code>{evidence}</code></pre><span className="sr-only" role="status" aria-live="polite">{copied ? "Evidence copied" : ""}</span></details>;
 }
 const shortTitle = (value: string) => value === "SIMULATION_CREATED" ? "Optimized" : value.replace("ORDER_PROPOSAL_", "").replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 const localTime = (value: string) => new Intl.DateTimeFormat("en-CH", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Zurich" }).format(new Date(value));
