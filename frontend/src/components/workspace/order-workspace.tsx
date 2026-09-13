@@ -195,8 +195,12 @@ export function UnifiedWorkbench() {
                   result={result}
                   stale={dirty}
                   selection={context.scheduleSelection}
-                  onSelection={(timestamp) =>
-                    context.setScheduleSelection({ simulationId: result.simulation_id, timestamp })
+                  onSelection={(timestamp, orderId) =>
+                    context.setScheduleSelection({
+                      simulationId: result.simulation_id,
+                      timestamp,
+                      orderId,
+                    })
                   }
                   onEditOrder={context.editResultOrder}
                   onRestore={() => void context.restore(result.simulation_id, "ORDER_SIMULATION")}

@@ -1,0 +1,172 @@
+/* Schedule presentation owns track hierarchy and the shared interval inspector. */
+.ws-schedule .schedule-forecast .ws-schedule-plot {
+  height: 110px;
+}
+.ws-schedule .schedule-power .ws-schedule-plot {
+  height: 160px;
+}
+.ws-schedule .schedule-soc .ws-schedule-plot {
+  height: 150px;
+}
+.ws-schedule .schedule-contribution .ws-schedule-plot {
+  height: 100px;
+}
+.ws-schedule .plot-heading {
+  background: transparent;
+  font-size: 13px;
+  padding: 6px 0;
+  border: 0;
+  height: auto;
+  min-height: 32px;
+  box-sizing: border-box;
+  gap: 12px;
+}
+.ws-schedule .chart-overview h3 {
+  font-size: 18px;
+}
+.ws-schedule .chart-overview p,
+.ws-schedule .chart-foot {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.schedule-inspector {
+  padding: 12px 16px;
+  background: #f4f8f7;
+  border: 1px solid #d5e4e1;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.schedule-inspector-heading,
+.schedule-inspector-actions,
+.schedule-inspector-values {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.schedule-inspector-heading {
+  justify-content: space-between;
+}
+.schedule-inspector-values {
+  margin-top: 6px;
+}
+.schedule-inspector-actions {
+  gap: 8px;
+}
+.schedule-inspector button {
+  min-height: 32px;
+}
+.schedule-inspector:focus-visible,
+.schedule-outcomes button:focus-visible {
+  outline: 2px solid #087d78;
+  outline-offset: 3px;
+}
+.schedule-order-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  border-top: 1px solid #d5e4e1;
+  padding-top: 8px;
+  margin: 8px 0 0;
+  color: #425e64;
+}
+.schedule-order-evidence select {
+  max-width: 210px;
+}
+.schedule-track-legend,
+.schedule-outcome-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.schedule-track-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 400;
+}
+.schedule-track-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.schedule-outcome-legend {
+  font-size: 12px;
+  color: #425e64;
+  padding: 6px 0;
+}
+.schedule-outcome-grid {
+  display: grid;
+  margin-left: 60px;
+  margin-right: 24px;
+  min-height: 28px;
+}
+.schedule-outcome-grid button {
+  padding: 0;
+  min-width: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  font-size: 15px;
+  cursor: pointer;
+  height: 28px;
+}
+.schedule-outcome-grid sup {
+  font-size: 9px;
+}
+.schedule-outcome-grid .constraint {
+  color: #a43d2e;
+}
+.schedule-outcome-grid .executed {
+  color: #087d78;
+}
+.schedule-outcome-grid .not-executed {
+  color: #526b70;
+}
+.schedule-outcome-grid button[aria-pressed="true"] {
+  background: #d9ede8;
+  outline: 1px solid #087d78;
+}
+@media (max-width: 760px) {
+  .schedule-inspector button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .schedule-inspector {
+    padding: 10px;
+  }
+  .schedule-inspector-values {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .schedule-outcome-legend {
+    gap: 6px 12px;
+  }
+}
+.ws-schedule .plot-card {
+  border: 0;
+  border-top: 1px solid #e0e8e6;
+  border-radius: 0;
+  margin: 0;
+  overflow: hidden;
+}
+.ws-schedule figcaption.chart-foot {
+  display: block;
+  margin: 10px 0 0;
+}
+.ws-schedule .plot-heading strong {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.schedule-energy-summary {
+  margin: 0 0 2px;
+  color: #526b70;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}

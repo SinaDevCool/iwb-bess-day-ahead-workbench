@@ -12,7 +12,10 @@ export function useScheduleInspection(
   selectedInterval?: string,
   onSelectInterval?: (id: string) => void,
 ) {
-  const [hovered, setHovered] = useState<number>();
+  const [hover, setHover] = useState<{ index: number; anchor?: string }>();
+  const hovered = hover?.anchor === selectedInterval ? hover?.index : undefined;
+  const setHovered = (index?: number) =>
+    setHover(index === undefined ? undefined : { index, anchor: selectedInterval });
   const [pinned, setPinned] = useState(false);
   const activeIndex =
     hovered ?? rows.findIndex((r) => new Date(r.timestamp_utc).toISOString() === selectedInterval);
@@ -35,10 +38,13 @@ export function useScheduleInspection(
     );
   };
   const trackEvents = {
+    onPointerLeave: () => {
+      if (!pinned) setHovered(undefined);
+    },
     onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
       if (pinned || event.pointerType === "touch") return;
       const index = indexAtPointer(event);
-      if (index >= 0) inspect(index);
+      if (index >= 0) setHovered(index);
     },
     onClick: (event: React.MouseEvent<HTMLDivElement>) => {
       const index = indexAtPointer(event);
@@ -49,6 +55,7 @@ export function useScheduleInspection(
     },
   };
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       e.preventDefault();
       inspect(

@@ -180,9 +180,3 @@
   overflow: auto;
   font-size: 12px;
 }
-.ws-schedule .plot-card {
-  margin-bottom: 10px;
-  border: 1px solid #dce6e4;
-  border-radius: 8px;
-  overflow: hidden;
-}

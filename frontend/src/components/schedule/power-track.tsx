@@ -1,6 +1,6 @@
 import type { scheduleChartData } from "@/lib/schedule-chart-data";
 import type { Battery } from "@/types/api";
-import { Bar, ComposedChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
+import { Bar, Cell, ComposedChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
 import { axis, grid, margin, Y_AXIS_WIDTH } from "./chart-config";
 import type { useScheduleInspection } from "./use-schedule-inspection";
 /** Render one track; time and selection are supplied by the parent. */
@@ -11,6 +11,7 @@ export function PowerTrack({
   cursor,
   intervals,
   battery,
+  barSize,
 }: {
   trackEvents: ReturnType<typeof useScheduleInspection>["trackEvents"];
   xAxis: React.ReactNode;
@@ -18,9 +19,10 @@ export function PowerTrack({
   cursor: React.ReactNode;
   intervals: ReturnType<typeof scheduleChartData>["intervals"];
   battery: Battery;
+  barSize?: number;
 }) {
   return (
-    <div className="plot-card">
+    <div className="plot-card schedule-power">
       <div className="plot-heading">
         <span className="schedule-track-legend">
           Scheduled power{" "}
@@ -49,27 +51,42 @@ export function PowerTrack({
               width={Y_AXIS_WIDTH}
               tick={axis}
               domain={[
-                -Math.max(battery.max_charge_power_mw, battery.max_discharge_power_mw),
-                Math.max(battery.max_charge_power_mw, battery.max_discharge_power_mw),
+                -Math.max(1, battery.max_charge_power_mw, battery.max_discharge_power_mw),
+                Math.max(1, battery.max_charge_power_mw, battery.max_discharge_power_mw),
               ]}
             />
             {tip}
             {cursor}
             <ReferenceLine y={0} stroke="#829693" />
-            <Bar
-              dataKey="charge"
-              name="Charge MW"
-              fill="#1d9c98"
-              maxBarSize={18}
-              isAnimationActive={false}
+            <ReferenceLine
+              y={
+                -Math.min(
+                  battery.max_charge_power_mw,
+                  battery.grid_limit_mw ?? battery.max_charge_power_mw,
+                )
+              }
+              stroke="#7d9295"
+              strokeDasharray="3 4"
             />
-            <Bar
-              dataKey="discharge"
-              name="Discharge MW"
-              fill="#db7c13"
-              maxBarSize={18}
-              isAnimationActive={false}
+            <ReferenceLine
+              y={Math.min(
+                battery.max_discharge_power_mw,
+                battery.grid_limit_mw ?? battery.max_discharge_power_mw,
+              )}
+              stroke="#7d9295"
+              strokeDasharray="3 4"
             />
+            {/* One signed series keeps buy and sell centred on the same interval. */}
+            <Bar
+              dataKey="power"
+              name="Scheduled power MW"
+              barSize={barSize}
+              isAnimationActive={false}
+            >
+              {intervals.map((row) => (
+                <Cell key={row.x} fill={row.power < 0 ? "#168780" : "#c8750c"} />
+              ))}
+            </Bar>
           </ComposedChart>
         </ResponsiveContainer>
       </div>

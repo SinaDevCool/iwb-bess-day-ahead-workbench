@@ -6,6 +6,9 @@ vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   ComposedChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   Area: () => null,
+  Cell: () => null,
+  ReferenceArea: () => null,
+  ReferenceDot: () => null,
   Bar: () => null,
   CartesianGrid: () => null,
   ReferenceLine: () => null,
@@ -77,4 +80,40 @@ it("supports keyboard selection and safely handles an empty schedule", () => {
   expect(screen.queryByRole("button", { name: "Unpin" })).not.toBeInTheDocument();
   view.rerender(<DispatchChart rows={[]} battery={battery} />);
   expect(() => fireEvent.keyDown(screen.getByRole("group"), { key: "ArrowRight" })).not.toThrow();
+});
+it("does not commit hover and lets an external interval override inspection", () => {
+  const selected = vi.fn();
+  const view = render(<DispatchChart rows={rows} battery={battery} onSelectInterval={selected} />);
+  const track = screen.getByRole("img", { name: "Day-Ahead price forecast" });
+  vi.spyOn(track, "getBoundingClientRect").mockReturnValue({ left: 0, width: 284 } as DOMRect);
+  fireEvent.pointerMove(track, { clientX: 210, pointerType: "mouse" });
+  expect(selected).not.toHaveBeenCalled();
+  view.rerender(
+    <DispatchChart
+      rows={rows}
+      battery={battery}
+      selectedInterval="2026-09-09T00:00:00.000Z"
+      onSelectInterval={selected}
+    />,
+  );
+  expect(screen.getByRole("group")).toHaveTextContent("DA €50.00");
+});
+it("commits a pinned interval and allows detail navigation", () => {
+  const selected = vi.fn(),
+    details = vi.fn();
+  render(
+    <DispatchChart
+      rows={rows}
+      battery={battery}
+      selectedInterval="2026-09-09T00:00:00.000Z"
+      onSelectInterval={selected}
+      onShowDetails={details}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Pin interval" }));
+  expect(selected).toHaveBeenCalledWith("2026-09-09T00:00:00.000Z");
+  fireEvent.click(screen.getByRole("button", { name: "Next interval" }));
+  expect(selected).toHaveBeenLastCalledWith("2026-09-09T01:00:00.000Z");
+  fireEvent.click(screen.getByRole("button", { name: "Interval details" }));
+  expect(details).toHaveBeenCalledOnce();
 });

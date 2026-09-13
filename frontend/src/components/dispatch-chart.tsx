@@ -1,11 +1,12 @@
 "use client";
 export { scheduleChartData } from "@/lib/schedule-chart-data";
 export { ForecastPlot } from "./schedule/forecast-plot";
-import { intervalAtTime } from "@/lib/interval-evidence";
+import { OrderOutcomeStrip } from "./schedule/order-outcome-strip";
+import { useChartWidth } from "./schedule/use-chart-width";
 import { scheduleChartData } from "@/lib/schedule-chart-data";
-import type { Battery, Dispatch, SimulatedOrderResult } from "@/types/api";
-import { ReferenceLine, Tooltip, XAxis } from "recharts";
-import { axis, clock, exact, timeTicks } from "./schedule/chart-config";
+import type { Battery, Dispatch, Market, SimulatedOrderResult } from "@/types/api";
+import { ReferenceArea, ReferenceLine, Tooltip, XAxis } from "recharts";
+import { axis, clock, timeTicks, Y_AXIS_WIDTH, margin } from "./schedule/chart-config";
 import { ContributionTrack } from "./schedule/contribution-track";
 import { ForecastTrack } from "./schedule/forecast-track";
 import { PowerTrack } from "./schedule/power-track";
@@ -16,6 +17,9 @@ import { useScheduleInspection } from "./schedule/use-schedule-inspection";
 export function DispatchChart({
   rows,
   battery,
+  market,
+  onEditOrder,
+  onShowDetails,
   forecast,
   mode = "optimization",
   executedOrderCount,
@@ -30,6 +34,9 @@ export function DispatchChart({
 }: {
   rows: Dispatch[];
   battery: Battery;
+  market?: Pick<Market, "product_minutes" | "timezone">;
+  onEditOrder?: (id: string) => void;
+  onShowDetails?: () => void;
   forecast?: {
     source_type: "illustrative" | "manual" | "file";
     source_name: string;
@@ -46,21 +53,33 @@ export function DispatchChart({
   showContribution?: boolean;
   contributionLabel?: string;
 }) {
-  const { start, end, dt, intervals, soc } = scheduleChartData(rows, battery);
-  const zone = "Europe/Zurich";
+  const { start, end, dt, intervals, soc } = scheduleChartData(
+    rows,
+    battery,
+    market?.product_minutes,
+  );
+  const zone = market?.timezone ?? "Europe/Zurich";
+  const { ref, width } = useChartWidth();
+  const barSize = Math.max(
+    1,
+    ((width - Y_AXIS_WIDTH - margin.right) / Math.max(1, rows.length)) * 0.8,
+  );
   const prices = rows.map((r) => ({
     x: Date.parse(r.timestamp_utc),
     price: r.price_eur_mwh,
   }));
   if (prices.length) prices.push({ ...prices[prices.length - 1], x: end });
-  const xAxis = (
+  const xAxis = (labels: boolean) => (
     <XAxis
       dataKey="x"
       type="number"
       domain={[start, end]}
-      ticks={timeTicks(start, end)}
-      tickFormatter={(v) => (v === end ? "24:00" : clock(v, zone))}
-      tick={axis}
+      ticks={timeTicks(start, end).filter(
+        (_, i, a) => width > 650 || i % 2 === 0 || i === a.length - 1,
+      )}
+      tickFormatter={(v) => (v === end && clock(v, zone) === "00:00" ? "24:00" : clock(v, zone))}
+      tick={labels ? axis : false}
+      height={labels ? 26 : 8}
       axisLine={false}
       tickLine={false}
     />
@@ -75,14 +94,43 @@ export function DispatchChart({
   );
   const { active, inspect, setPinned, trackEvents } = inspection;
   const tip = <Tooltip content={() => null} cursor={false} />;
-  const cursor = active ? (
-    <ReferenceLine
-      x={Date.parse(active.timestamp_utc) + dt / 2}
-      stroke="#174b56"
-      strokeDasharray="3 3"
-    />
-  ) : null;
-  const selected = orderResults?.find((o) => o.submitted_order.client_order_id === selectedOrderId);
+  const cursor = (
+    <>
+      {(battery.unavailable_intervals ?? []).map(
+        (index) =>
+          rows[index] && (
+            <ReferenceArea
+              key={index}
+              x1={Date.parse(rows[index].timestamp_utc)}
+              x2={Date.parse(rows[index].timestamp_utc) + dt}
+              fill="#738087"
+              fillOpacity={0.1}
+            />
+          ),
+      )}
+      {active ? (
+        <>
+          <ReferenceArea
+            x1={Date.parse(active.timestamp_utc)}
+            x2={Date.parse(active.timestamp_utc) + dt}
+            fill="#087d78"
+            fillOpacity={0.04}
+          />
+          <ReferenceLine
+            x={Date.parse(active.timestamp_utc) + dt / 2}
+            stroke="#174b56"
+            strokeDasharray="3 3"
+          />
+        </>
+      ) : null}
+    </>
+  );
+  const selected = orderResults?.find(
+    (o) =>
+      o.submitted_order.client_order_id === selectedOrderId &&
+      o.submitted_order.delivery_start_utc &&
+      Date.parse(o.submitted_order.delivery_start_utc) === Date.parse(active?.timestamp_utc ?? ""),
+  );
   const selectedX = selected ? Date.parse(selected.submitted_order.delivery_start_utc) : undefined;
   return (
     <figure className="dispatch-figure ws-schedule">
@@ -110,75 +158,79 @@ export function DispatchChart({
         dt={dt}
         zone={zone}
         orderResults={orderResults}
+        selectedOrderId={selectedOrderId}
+        onSelectOrder={onSelectOrder}
+        onEditOrder={onEditOrder}
+        onShowDetails={onShowDetails}
       />
-      <ForecastTrack
-        trackEvents={trackEvents}
-        xAxis={xAxis}
-        tip={tip}
-        cursor={cursor}
-        prices={prices}
-        forecast={forecast}
-        selectedX={selectedX}
-      />
-      <PowerTrack
-        trackEvents={trackEvents}
-        xAxis={xAxis}
-        tip={tip}
-        cursor={cursor}
-        intervals={intervals}
-        battery={battery}
-      />
-      <SocTrack
-        trackEvents={trackEvents}
-        xAxis={xAxis}
-        tip={tip}
-        cursor={cursor}
-        soc={soc}
-        battery={battery}
-      />
-      {showContribution && (
-        <ContributionTrack
-          label={contributionLabel}
+      {rows.length === 0 && (
+        <p>No delivery intervals to display. Enter a forecast and simulate orders.</p>
+      )}
+      <div ref={ref} className="schedule-tracks" hidden={rows.length === 0}>
+        <ForecastTrack
           trackEvents={trackEvents}
-          xAxis={xAxis}
+          xAxis={xAxis(false)}
           tip={tip}
           cursor={cursor}
-          rows={rows}
+          prices={prices}
+          forecast={forecast}
+          selectedX={selectedX}
+          selectedLimit={
+            selected?.submitted_order.order_type === "LIMIT"
+              ? selected.submitted_order.limit_price_eur_mwh
+              : undefined
+          }
           dt={dt}
         />
-      )}
-      {orderResults && orderResults.length > 0 && (
-        <details className="ws-chart-orders">
-          <summary>Locate an order on the forecast</summary>
-          <div>
-            {orderResults.map((o) => (
-              <button
-                type="button"
-                key={o.submitted_order.client_order_id}
-                aria-pressed={selectedOrderId === o.submitted_order.client_order_id}
-                onClick={() => {
-                  onSelectOrder?.(o.submitted_order.client_order_id);
-                  const index = intervalAtTime(
-                    rows.map((r) => Date.parse(r.timestamp_utc)),
-                    dt,
-                    Date.parse(o.submitted_order.delivery_start_utc),
-                  );
-                  if (index >= 0) {
-                    inspect(index);
-                    setPinned(true);
-                  }
-                }}
-              >
-                {exact(Date.parse(o.submitted_order.delivery_start_utc), zone)} ·{" "}
-                {o.submitted_order.side} · {o.execution_status.replaceAll("_", " ").toLowerCase()}
-              </button>
-            ))}
-          </div>
-        </details>
-      )}
+        {orderResults && (
+          <OrderOutcomeStrip
+            rows={rows}
+            orders={orderResults}
+            selectedInterval={active ? new Date(active.timestamp_utc).toISOString() : undefined}
+            zone={zone}
+            onSelect={(index, id) => {
+              inspect(index);
+              setPinned(true);
+              onSelectOrder?.(id);
+            }}
+          />
+        )}
+        <PowerTrack
+          trackEvents={trackEvents}
+          xAxis={xAxis(false)}
+          tip={tip}
+          cursor={cursor}
+          intervals={intervals}
+          barSize={barSize}
+          battery={battery}
+        />
+        <SocTrack
+          trackEvents={trackEvents}
+          xAxis={xAxis(!showContribution)}
+          tip={tip}
+          cursor={cursor}
+          soc={soc}
+          selectedIndex={inspection.activeIndex}
+          battery={battery}
+        />
+        {showContribution && (
+          <ContributionTrack
+            label={contributionLabel}
+            trackEvents={trackEvents}
+            xAxis={xAxis(true)}
+            tip={tip}
+            cursor={cursor}
+            rows={rows}
+            dt={dt}
+            barSize={barSize}
+          />
+        )}
+      </div>
       <figcaption className="chart-foot">
-        Europe/Zurich · Power is interval-average; energy joins boundary states assuming constant
-        interval power. Dashed lines: {battery.min_soc_mwh}–{battery.max_soc_mwh} MWh.
+        {zone} · {dt / 60000}-minute intervals · Power is interval-average; energy joins boundary
+        states assuming constant interval power. Dashed lines: {battery.min_soc_mwh}–
+        {battery.max_soc_mwh} MWh. End reserve: {battery.target_soc_mwh} MWh (end marker only).
+        Shaded intervals: unavailable. Power dashed lines: effective limits.
       </figcaption>
     </figure>
   );

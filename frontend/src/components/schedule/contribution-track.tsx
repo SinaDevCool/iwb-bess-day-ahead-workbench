@@ -1,5 +1,5 @@
 import type { Dispatch } from "@/types/api";
-import { Bar, ComposedChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
+import { Bar, Cell, ComposedChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
 import { axis, grid, margin, Y_AXIS_WIDTH } from "./chart-config";
 import type { useScheduleInspection } from "./use-schedule-inspection";
 /** Render one track; time and selection are supplied by the parent. */
@@ -10,6 +10,7 @@ export function ContributionTrack({
   cursor,
   rows,
   dt,
+  barSize,
   label = "Net contribution",
 }: {
   trackEvents: ReturnType<typeof useScheduleInspection>["trackEvents"];
@@ -18,10 +19,11 @@ export function ContributionTrack({
   cursor: React.ReactNode;
   rows: Dispatch[];
   dt: number;
+  barSize?: number;
   label?: string;
 }) {
   return (
-    <div className="plot-card">
+    <div className="plot-card schedule-contribution">
       <div className="plot-heading">
         <span className="schedule-track-legend">
           {label}{" "}
@@ -46,31 +48,28 @@ export function ContributionTrack({
           <ComposedChart
             data={rows.map((r) => ({
               x: Date.parse(r.timestamp_utc) + dt / 2,
-              gain: Math.max(0, r.interval_pnl_eur),
-              cost: Math.min(0, r.interval_pnl_eur),
+              contribution: r.interval_pnl_eur,
             }))}
             margin={margin}
           >
             {grid}
             {xAxis}
-            <YAxis width={Y_AXIS_WIDTH} tick={axis} />
+            <YAxis
+              width={Y_AXIS_WIDTH}
+              tick={axis}
+              tickFormatter={(v: number) => (Math.abs(v) >= 1000 ? `${v / 1000}k` : String(v))}
+            />
             {tip}
             {cursor}
             <ReferenceLine y={0} stroke="#829693" />
-            <Bar
-              dataKey="gain"
-              name="Positive contribution"
-              fill="#237451"
-              maxBarSize={18}
-              isAnimationActive={false}
-            />
-            <Bar
-              dataKey="cost"
-              name="Negative contribution"
-              fill="#b45443"
-              maxBarSize={18}
-              isAnimationActive={false}
-            />
+            <Bar dataKey="contribution" name={label} barSize={barSize} isAnimationActive={false}>
+              {rows.map((row) => (
+                <Cell
+                  key={row.timestamp_utc}
+                  fill={row.interval_pnl_eur < 0 ? "#b45443" : "#237451"}
+                />
+              ))}
+            </Bar>
           </ComposedChart>
         </ResponsiveContainer>
       </div>

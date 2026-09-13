@@ -1,4 +1,6 @@
 import type { Battery, Dispatch, SimulatedOrderResult } from "@/types/api";
+import { projectIntervals } from "@/lib/interval-evidence";
+import { IntervalOrderEvidence } from "./interval-order-evidence";
 import { clock, euros, exact, number } from "./chart-config";
 import type { useScheduleInspection } from "./use-schedule-inspection";
 /** Read-only evidence for the shared selected interval, never a second calculation. */
@@ -9,6 +11,10 @@ export function ScheduleInspector({
   dt,
   zone,
   orderResults,
+  selectedOrderId,
+  onSelectOrder,
+  onEditOrder,
+  onShowDetails,
 }: {
   inspection: ReturnType<typeof useScheduleInspection>;
   rows: Dispatch[];
@@ -16,14 +22,15 @@ export function ScheduleInspector({
   dt: number;
   zone: string;
   orderResults?: SimulatedOrderResult[];
+  selectedOrderId?: string;
+  onSelectOrder?: (id: string) => void;
+  onEditOrder?: (id: string) => void;
+  onShowDetails?: () => void;
 }) {
   const { active, activeIndex, pinned, setPinned } = inspection;
-  const orderCount =
-    orderResults?.filter(
-      (o) =>
-        Date.parse(o.submitted_order.delivery_start_utc) ===
-        Date.parse(active?.timestamp_utc ?? ""),
-    ).length ?? 0;
+  const evidence = projectIntervals(rows, battery, dt / 60000, orderResults)[activeIndex];
+  const intervalOrders = evidence?.orders ?? [];
+  const orderCount = intervalOrders.length;
   return (
     <div
       className="schedule-inspector"
@@ -34,33 +41,76 @@ export function ScheduleInspector({
     >
       {active ? (
         <>
-          <strong>
-            {exact(Date.parse(active.timestamp_utc), zone)}–
-            {clock(Date.parse(active.timestamp_utc) + dt, zone)} {pinned ? "· pinned" : ""}
-          </strong>
-          <span>DA {euros(active.price_eur_mwh)}/MWh</span>
-          <span>
-            {active.action} · {number(Math.abs(active.power_mw), 1)} MW
-          </span>
-          <span>
-            SoC {number(activeIndex ? rows[activeIndex - 1].soc_mwh : battery.initial_soc_mwh)} →{" "}
-            {number(active.soc_mwh)} MWh
-          </span>
-          <span>Contribution {euros(active.interval_pnl_eur)}</span>
-          {orderResults && (
+          <div className="schedule-inspector-heading">
+            <strong aria-live={pinned ? "polite" : "off"}>
+              {exact(Date.parse(active.timestamp_utc), zone)}–
+              {clock(Date.parse(active.timestamp_utc) + dt, zone)} {pinned ? "· pinned" : ""}
+            </strong>
+            <div className="schedule-inspector-actions">
+              <button
+                type="button"
+                className="ws-text-button"
+                aria-label="Previous interval"
+                disabled={activeIndex <= 0}
+                onClick={() => {
+                  inspection.inspect(activeIndex - 1);
+                  setPinned(true);
+                }}
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                className="ws-text-button"
+                aria-label="Next interval"
+                disabled={activeIndex >= rows.length - 1}
+                onClick={() => {
+                  inspection.inspect(activeIndex + 1);
+                  setPinned(true);
+                }}
+              >
+                →
+              </button>
+              {onShowDetails && (
+                <button type="button" className="ws-text-button" onClick={onShowDetails}>
+                  Interval details
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="schedule-inspector-values">
+            <span>DA {euros(active.price_eur_mwh)}/MWh</span>
             <span>
-              {orderCount} {orderCount === 1 ? "order" : "orders"}
+              {active.action} · {number(Math.abs(active.power_mw), 1)} MW
             </span>
+            <span>
+              SoC {number(evidence.socBefore)} → {number(active.soc_mwh)} MWh
+            </span>
+            <span>Contribution {euros(active.interval_pnl_eur)}</span>
+            {orderResults && (
+              <span>
+                {orderCount} {orderCount === 1 ? "order" : "orders"}
+              </span>
+            )}
+            <button
+              className="ws-text-button"
+              aria-pressed={pinned}
+              onClick={() => {
+                if (!pinned) inspection.inspect(activeIndex);
+                setPinned(!pinned);
+              }}
+            >
+              {pinned ? "Unpin" : "Pin interval"}
+            </button>
+          </div>
+          {orderResults && (
+            <IntervalOrderEvidence
+              orders={intervalOrders}
+              selectedId={selectedOrderId}
+              onSelect={onSelectOrder}
+              onEdit={onEditOrder}
+            />
           )}
-          <button
-            className="ws-text-button"
-            aria-pressed={pinned}
-            onClick={() => {
-              setPinned((value) => !value);
-            }}
-          >
-            {pinned ? "Unpin" : "Pin interval"}
-          </button>
         </>
       ) : (
         <span>

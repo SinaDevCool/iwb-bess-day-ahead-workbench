@@ -100,11 +100,7 @@
 .order-workspace .ws-orders td:nth-child(n + 4) {
   text-align: right;
 }
-.order-workspace .ws-schedule .plot-card {
-  border-left: 0;
-  border-right: 0;
-  border-radius: 0;
-}
+
 @media (max-width: 760px) {
   .ws-dialog-header {
     padding: 14px 18px;

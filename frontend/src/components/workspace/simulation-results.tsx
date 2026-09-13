@@ -18,7 +18,7 @@ export function SimulationResults({
   result: OrderSimulation;
   stale?: boolean;
   selection?: { simulationId: string; timestamp: string; orderId?: string };
-  onSelection?: (timestamp: string) => void;
+  onSelection?: (timestamp: string, orderId?: string) => void;
   onEditOrder?: (id: string) => void;
   onRestore?: () => void;
 }) {
@@ -46,7 +46,6 @@ export function SimulationResults({
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
   }, []);
-  const [selectedId, setSelectedId] = useState<string>();
   const selectedInterval =
     selection?.simulationId === result.simulation_id ? selection.timestamp : undefined;
   const setSelectedInterval = (value: string) => onSelection?.(value);
@@ -92,6 +91,10 @@ export function SimulationResults({
         <>
           <div className="simulator-card">
             <DispatchChart
+              key={result.simulation_id}
+              market={result.market}
+              onEditOrder={stale ? undefined : onEditOrder}
+              onShowDetails={() => setDetailView(true)}
               rows={result.dispatch}
               battery={result.battery}
               forecast={result.forecast}
@@ -100,10 +103,16 @@ export function SimulationResults({
               submittedOrderCount={result.summary.submitted_order_count}
               orderResults={ordered}
               selectedOrderId={
-                selectedId ??
-                (selection?.simulationId === result.simulation_id ? selection.orderId : undefined)
+                selection?.simulationId === result.simulation_id ? selection.orderId : undefined
               }
-              onSelectOrder={setSelectedId}
+              onSelectOrder={(id) => {
+                const order = ordered.find((o) => o.submitted_order.client_order_id === id);
+                if (order)
+                  onSelection?.(
+                    new Date(order.submitted_order.delivery_start_utc).toISOString(),
+                    id,
+                  );
+              }}
               selectedInterval={selectedInterval}
               onSelectInterval={setSelectedInterval}
               showContribution

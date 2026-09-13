@@ -10,6 +10,8 @@ export function ForecastTrack({
   prices,
   forecast,
   selectedX,
+  selectedLimit,
+  dt,
 }: {
   trackEvents: ReturnType<typeof useScheduleInspection>["trackEvents"];
   xAxis: React.ReactNode;
@@ -18,9 +20,11 @@ export function ForecastTrack({
   prices: { x: number; price: number }[];
   forecast: { source_name: string } | undefined;
   selectedX: number | undefined;
+  selectedLimit?: number | null;
+  dt: number;
 }) {
   return (
-    <div className="plot-card">
+    <div className="plot-card schedule-forecast">
       <div className="plot-heading">
         <span>Day-Ahead price forecast · {forecast?.source_name ?? "Saved forecast"}</span>
         <strong>€/MWh</strong>
@@ -43,11 +47,22 @@ export function ForecastTrack({
               name="Forecast €/MWh"
               type="stepAfter"
               stroke="#174b56"
+              strokeWidth={2}
               fill="#edf4f3"
               dot={false}
               isAnimationActive={false}
             />
-            {selectedX !== undefined && <ReferenceLine x={selectedX} stroke="#087d78" />}
+            {selectedX !== undefined && selectedLimit != null && (
+              <ReferenceLine
+                segment={[
+                  { x: selectedX, y: selectedLimit },
+                  { x: selectedX + dt, y: selectedLimit },
+                ]}
+                stroke="#a55413"
+                strokeWidth={3}
+                strokeDasharray="4 3"
+              />
+            )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>

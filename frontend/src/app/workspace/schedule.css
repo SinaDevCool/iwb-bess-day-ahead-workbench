@@ -1,6 +1,6 @@
 /* workspace: schedule. Ordered by the parent manifest. */
 .ws-schedule-plot {
-  height: 170px;
+  height: 160px;
   width: 100%;
   min-width: 0;
 }
@@ -70,23 +70,4 @@
 }
 .order-workspace .stale-notice {
   margin-bottom: 12px;
-}
-.ws-chart-orders {
-  font-size: 12px;
-  margin: 10px 0;
-}
-.ws-chart-orders > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 0;
-}
-.ws-chart-orders button {
-  border: 1px solid #bfd1cf;
-  background: #fff;
-  border-radius: 5px;
-  padding: 6px;
-}
-.ws-chart-orders button[aria-pressed="true"] {
-  background: #e0f1ec;
 }
