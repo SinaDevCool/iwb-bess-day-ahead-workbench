@@ -39,7 +39,14 @@ export function ForecastTrack({
           <ComposedChart data={prices} margin={margin}>
             {grid}
             {xAxis}
-            <YAxis width={Y_AXIS_WIDTH} tick={axis} />
+            <YAxis
+              width={Y_AXIS_WIDTH}
+              tick={axis}
+              domain={[
+                (minimum: number) => Math.min(0, minimum, selectedLimit ?? minimum),
+                (maximum: number) => Math.max(1, maximum, selectedLimit ?? maximum),
+              ]}
+            />
             {tip}
             {cursor}
             <Area
