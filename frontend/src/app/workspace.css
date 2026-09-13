@@ -2,7 +2,7 @@
   max-width: 1600px;
   margin: auto;
   padding: 0 28px 36px;
-  color: #183d43;
+  color: var(--ink);
 }
 .ws-header,
 .ws-context,
@@ -266,10 +266,10 @@
 .ws-dialog {
   width: min(760px, calc(100vw - 32px));
   max-height: 88dvh;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid #d4e1df;
   border-radius: 14px;
-  padding: 24px;
+  padding: 0;
   color: #183d43;
   box-shadow: 0 18px 80px #123b4333;
 }
@@ -334,8 +334,6 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin: 18px 0;
-  max-height: 40vh;
-  overflow: auto;
   padding: 2px;
 }
 .ws-price-grid small {
@@ -556,7 +554,7 @@
     grid-template-columns: repeat(2, 1fr);
   }
   .ws-dialog {
-    padding: 18px;
+    padding: 0;
   }
   .order-workspace .result-checks {
     grid-template-columns: 1fr;
@@ -610,4 +608,41 @@
 .order-workspace .ws-nav button,
 .order-workspace .ws-context button {
   min-height: 36px;
+}
+
+/* Shared workspace rhythm. Editors use one scrolling body and fixed actions. */
+.ws-dialog[open] { display: flex; flex-direction: column; }
+.ws-dialog-header { flex: none; margin: 0; padding: 18px 24px; border-bottom: 1px solid var(--line); }
+.ws-dialog-header h2 { font-size: 18px; }
+.ws-dialog-body { padding: 0 24px 20px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+.ws-dialog-footer-slot { flex: none; }
+.ws-dialog-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--line); background: var(--white); }
+.ws-dialog-footer span { margin-right: auto; color: var(--muted); font-size: 12px; }
+.ws-dialog-footer .primary, .ws-dialog-footer .secondary { margin: 0; min-height: 40px; }
+.ws-field-group { border: 0; border-top: 1px solid var(--line); margin: 20px 0; padding: 14px 0 0; min-width: 0; }
+.ws-field-group legend { font-size: 14px; font-weight: 700; padding: 0 12px 0 0; }
+.ws-field-group .ws-fields { margin: 0; }
+.ws-dialog input[aria-invalid="true"] { border-color: var(--error); background: #fff8f6; }
+.ws-dialog .ws-time-evidence { font-size: 12px; }
+.ws-dialog .ws-fields small, .ws-dialog .ws-price-grid small { font-size: 12px; }
+.ws-dialog .ws-price-grid .sr-only { position: absolute; }
+.order-workspace h1, .order-workspace h2, .order-workspace h3 { text-wrap: balance; }
+.order-workspace .ws-help code { overflow-wrap: anywhere; }
+.order-workspace .ws-empty .secondary { width: auto; }
+.order-workspace .ws-validation-line summary { cursor: pointer; padding: 4px 0; }
+.order-workspace .ws-validation-line p { margin: 8px 0; }
+.order-workspace .ws-card td:nth-last-child(1) small { overflow-wrap: anywhere; }
+.order-workspace table th.numeric, .order-workspace table td.numeric { text-align: right; }
+.order-workspace .ws-orders th:nth-child(n+4),
+.order-workspace .ws-orders td:nth-child(n+4) { text-align: right; }
+.order-workspace .ws-schedule .plot-card { border-left: 0; border-right: 0; border-radius: 0; }
+.order-workspace .ws-order-editor { align-self: start; position: sticky; top: 76px; }
+@media (max-width: 760px) {
+  .order-workspace .ws-order-editor { grid-row: 1; position: static; }
+  .ws-dialog-header { padding: 14px 18px; }
+  .ws-dialog-body { padding: 0 18px 18px; }
+  .ws-dialog-footer { padding: 12px 18px; }
+  .ws-dialog-footer span { width: 100%; }
+  .ws-dialog-footer button { min-height: 44px; }
+  .order-workspace .simulation-kpis { grid-template-columns: 1fr; }
 }

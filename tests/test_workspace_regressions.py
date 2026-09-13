@@ -96,6 +96,8 @@ def test_proposal_adapter_roundtrip_and_type_guards():
     assert client.post(f"/api/order-proposals/{r['simulation_id']}/approve").status_code == 409
     history = client.get("/api/workspace-history").json()["items"]
     assert {x["run_type"] for x in history} == {"ORDER_SIMULATION", "OPTIMIZATION"}
+    assert all(x["display_name"] for x in history)
+    assert next(x for x in history if x["simulation_id"] == p["proposal"]["simulation_id"])["display_name"] == p["proposal"]["display_name"]
     before_ids = {x["simulation_id"] for x in history}
     sensitivities = client.post(f"/api/simulations/{p['proposal']['simulation_id']}/sensitivities")
     assert sensitivities.status_code == 200, sensitivities.text

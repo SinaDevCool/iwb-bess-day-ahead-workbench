@@ -131,7 +131,7 @@ def proposal_preview(request: SimulationRequest):
 
 @app.get("/api/workspace-history")
 def workspace_history():
-    return {"items": [{"simulation_id": p["simulation_id"], "run_type": p.get("run_type", "OPTIMIZATION"), "created_at_utc": p["created_at_utc"], "delivery_date": p["delivery_date"], "validation_status": p["validation"]["status"], "contribution_eur": p["summary"].get("net_contribution_eur", p["summary"].get("expected_contribution_eur", 0)), "source_proposal_id": p.get("audit", {}).get("source_proposal_id")} for p in list_simulations(100)]}
+    return {"items": [{"simulation_id": p["simulation_id"], "display_name": legacy_run_display_name(p), "run_type": p.get("run_type", "OPTIMIZATION"), "created_at_utc": p["created_at_utc"], "delivery_date": p["delivery_date"], "validation_status": p["validation"]["status"], "contribution_eur": p["summary"].get("net_contribution_eur", p["summary"].get("expected_contribution_eur", 0)), "source_proposal_id": p.get("audit", {}).get("source_proposal_id")} for p in list_simulations(100)]}
 
 
 def _optimization_payload(simulation_id: str):

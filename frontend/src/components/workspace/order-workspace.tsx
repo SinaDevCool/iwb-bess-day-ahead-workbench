@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Plus, RotateCcw, X, LoaderCircle, ChevronDown } from "lucide-react";
 import { api } from "@/lib/api";
 import { parseForecast } from "@/lib/forecast-parser";
@@ -626,7 +627,7 @@ export function OrderWorkspace({
         <div className="ws-actions">
           <details className="ws-menu" ref={menuRef}>
             <summary>
-              Analysis <ChevronDown size={14} />
+              {view === "history" ? "Analysis · History" : view === "analysis" ? "Analysis · Comparison" : "Analysis"} <ChevronDown size={14} aria-hidden="true" />
             </summary>
             <div>
               <button onClick={() => navigate("analysis")}>
@@ -833,7 +834,7 @@ export function OrderWorkspace({
                 {current && (
                   <aside className="ws-order-editor">
                     <div className="ws-section-head">
-                      <h3>Edit order</h3>
+                      <h3>{current.side} · {draft.points[current.interval] ? clock(draft.points[current.interval].timestamp_utc, draft.market.timezone) : "Select delivery"}</h3>
                       <button
                         aria-label="Close order editor"
                         className="icon-button"
@@ -870,8 +871,7 @@ export function OrderWorkspace({
                           draft.market.product_minutes) /
                           60,
                       )}{" "}
-                      MWh for this interval. Physical limits are evaluated by
-                      simulation.
+                      MWh for this interval. Physical feasibility is checked when simulated. Changes update the draft; re-simulate to update results.
                     </p>
                   </aside>
                 )}
@@ -938,9 +938,10 @@ export function OrderWorkspace({
                       </strong>
                     </div>
                     <div>
-                      Proposal ID<strong>{proposal.simulation_id}</strong>
+                      Final stored energy<strong>{num(proposal.summary.proposal_terminal_soc_mwh)} MWh</strong>
                     </div>
                   </div>
+                  <p className="ws-help">Proposal reference · <code>{proposal.simulation_id}</code></p>
                   <details>
                     <summary>Optimization evidence</summary>
                     <p>
@@ -965,13 +966,17 @@ export function OrderWorkspace({
                   )}
                 </>
               ) : (
+                <div className="ws-empty">
                 <p>
                   Generate a proposal or open one from History to inspect its
                   evidence.
                 </p>
+                <button className="secondary" onClick={() => setModal("proposal")}>Generate proposal</button>
+                <button className="ws-text-button" onClick={() => navigate("history")}>Open history</button>
+                </div>
               )}
             </section>
-            <SavedRunComparison />
+            {proposal && <SavedRunComparison />}
           </>
         )}
         {view === "history" && (
@@ -984,6 +989,7 @@ export function OrderWorkspace({
           close={() => setConfirmation(undefined)}
         >
           <p>{confirmation.message}</p>
+          <DialogActions>
           <button
             className="secondary"
             onClick={() => setConfirmation(undefined)}
@@ -1000,12 +1006,14 @@ export function OrderWorkspace({
           >
             Confirm replacement
           </button>
+          </DialogActions>
         </Dialog>
       )}
       {modal === "forecast" && (
         <Dialog title="Edit Day-Ahead prices" close={() => setModal(null)}>
           <ForecastEditor
             draft={draft}
+            cancel={() => setModal(null)}
             apply={(prices) => {
               change({ prices });
               setModal(null);
@@ -1017,6 +1025,7 @@ export function OrderWorkspace({
         <Dialog title="Battery settings" close={() => setModal(null)}>
           <BatteryEditor
             draft={draft}
+            cancel={() => setModal(null)}
             apply={(patch) => {
               change(patch);
               setModal(null);
@@ -1125,13 +1134,6 @@ export function OrderWorkspace({
               {error}
             </p>
           )}
-          <button
-            className="primary"
-            disabled={Boolean(busy)}
-            onClick={() => void generate()}
-          >
-            {busy ? `${busy}…` : "Generate preview"}
-          </button>
           {preview && (
             <div className="ws-preview">
               <h3>Review proposal</h3>
@@ -1146,17 +1148,24 @@ export function OrderWorkspace({
                 Applying replaces all {draft.orders.length} entered orders. You
                 can undo this change.
               </p>
-              <button className="primary" onClick={apply}>
-                Apply proposal
-              </button>
             </div>
           )}
+          <DialogActions>
+            <button className="secondary" onClick={() => setModal(null)}>Cancel</button>
+            <button className={preview ? "secondary" : "primary"} disabled={Boolean(busy)} onClick={() => void generate()}>{busy ? `${busy}…` : "Generate preview"}</button>
+            {preview && <button className="primary" onClick={apply} disabled={Boolean(busy)}>Apply proposal</button>}
+          </DialogActions>
         </Dialog>
       )}
     </div>
   );
 }
 
+const DialogFooterContext = createContext<HTMLElement | null>(null);
+function DialogActions({children}: {children: React.ReactNode}) {
+  const target = useContext(DialogFooterContext);
+  return target ? createPortal(<div className="ws-dialog-footer">{children}</div>, target) : null;
+}
 export function Dialog({
   title,
   close,
@@ -1167,6 +1176,7 @@ export function Dialog({
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const [footer, setFooter] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
     ref.current?.showModal();
@@ -1184,17 +1194,20 @@ export function Dialog({
       }}
       aria-label={title}
     >
-      <div className="ws-section-head">
+      <div className="ws-section-head ws-dialog-header">
         <h2>{title}</h2>
         <button
           className="icon-button"
           aria-label={`Close ${title}`}
           onClick={close}
         >
-          <X size={18} />
+          <X size={18} aria-hidden="true" />
         </button>
       </div>
-      {children}
+      <DialogFooterContext.Provider value={footer}>
+        <div className="ws-dialog-body">{children}</div>
+      </DialogFooterContext.Provider>
+      <div ref={setFooter} className="ws-dialog-footer-slot" />
     </dialog>
   );
 }
@@ -1202,9 +1215,11 @@ export function Dialog({
 function ForecastEditor({
   draft,
   apply,
+  cancel,
 }: {
   draft: Draft;
   apply: (prices: string[]) => void;
+  cancel: () => void;
 }) {
   const [prices, setPrices] = useState(draft.prices);
   const [paste, setPaste] = useState("");
@@ -1218,11 +1233,10 @@ function ForecastEditor({
   );
   return (
     <>
-      <p>
-        {draft.points.length} delivery intervals · {draft.market.timezone}.
-        Paste one price per line, or HH:mm;price. For repeated DST hours use ISO
-        timestamps with offsets.
-      </p>
+      <p>Day-Ahead forecast · €/MWh · {draft.market.timezone}. Changes are staged until you apply them.</p>
+      <details>
+      <summary>Paste prices</summary>
+      <p>One price per line, or HH:mm;price. For repeated DST hours use ISO timestamps with offsets.</p>
       <label>
         Paste prices
         <textarea
@@ -1257,15 +1271,21 @@ function ForecastEditor({
           {error}
         </p>
       )}
+      </details>
       <div className="ws-price-grid">
         {draft.points.map((p, i) => (
           <label key={p.timestamp_utc}>
             {clock(p.timestamp_utc, draft.market.timezone)}{" "}
-            <small>
+            <small className={draft.points.filter(point => clock(point.timestamp_utc, draft.market.timezone) === clock(p.timestamp_utc, draft.market.timezone)).length > 1 ? "ws-time-evidence" : "sr-only"}>
               {new Date(p.timestamp_utc).toISOString().slice(11, 16)} UTC
             </small>
             <input
               aria-label={`Price ${p.timestamp_utc}`}
+              name={`price-${i}`}
+              autoComplete="off"
+              inputMode="decimal"
+              aria-invalid={!prices[i]?.trim() || !Number.isFinite(Number(prices[i])) || Number(prices[i]) < draft.market.min_price_eur_mwh || Number(prices[i]) > draft.market.max_price_eur_mwh}
+              aria-describedby={`price-bounds-${i}`}
               type="number"
               step="any"
               value={prices[i]}
@@ -1275,6 +1295,7 @@ function ForecastEditor({
                 )
               }
             />
+            <small id={`price-bounds-${i}`} className={!prices[i]?.trim() || !Number.isFinite(Number(prices[i])) || Number(prices[i]) < draft.market.min_price_eur_mwh || Number(prices[i]) > draft.market.max_price_eur_mwh ? "field-error" : "sr-only"}>Required: {draft.market.min_price_eur_mwh} to {draft.market.max_price_eur_mwh} €/MWh</small>
           </label>
         ))}
       </div>
@@ -1283,6 +1304,10 @@ function ForecastEditor({
           Enter every price within configured bounds; blank is not zero.
         </p>
       )}
+      <DialogActions>
+      <span role="status">{prices.filter(p => p.trim() && Number.isFinite(Number(p)) && Number(p) >= draft.market.min_price_eur_mwh && Number(p) <= draft.market.max_price_eur_mwh).length}/{draft.points.length} valid</span>
+      <button className="secondary" onClick={cancel}>Cancel</button>
+      {invalid && <button className="ws-text-button" onClick={event => event.currentTarget.closest("dialog")?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus()}>Review invalid prices</button>}
       <button
         className="primary"
         disabled={invalid}
@@ -1290,6 +1315,7 @@ function ForecastEditor({
       >
         Apply prices
       </button>
+      </DialogActions>
     </>
   );
 }
@@ -1310,9 +1336,11 @@ const BATTERY_FIELDS: [keyof Battery, string, string][] = [
 function BatteryEditor({
   draft,
   apply,
+  cancel,
 }: {
   draft: Draft;
   apply: (patch: Partial<Draft>) => void;
+  cancel: () => void;
 }) {
   const [resetError, setResetError] = useState("");
   const [resetPending, setResetPending] = useState(false);
@@ -1348,25 +1376,29 @@ function BatteryEditor({
       <p>
         Task baseline: 100 MWh / 50 MW. Two hours is interpreted as nominal
         charge or discharge duration, not a waiting period. Other values are
-        assumptions. Ramp limits are not modeled.
+        assumptions. Ramp limits are not modeled. Changes are staged; Cancel discards them.
       </p>
-      <div className="ws-fields">
-        {BATTERY_FIELDS.map(([key, label, unit]) => (
+      {[
+        {title: "Battery & connection", keys: ["capacity_mwh", "max_charge_power_mw", "max_discharge_power_mw", "grid_limit_mw", "round_trip_efficiency"]},
+        {title: "Operating limits", keys: ["initial_soc_mwh", "min_soc_mwh", "max_soc_mwh", "target_soc_mwh", "max_equivalent_cycles"]},
+        {title: "Battery wear cost", keys: ["degradation_cost_eur_per_mwh"]},
+      ].map(group => <fieldset className="ws-field-group" key={group.title}><legend>{group.title}</legend><div className="ws-fields">
+        {BATTERY_FIELDS.filter(([key]) => group.keys.includes(key)).map(([key, label, unit]) => (
           <label key={key}>
-            {label} <small>{unit}</small>
+            {label} <small>{key === "round_trip_efficiency" ? "%" : unit}</small>
             <input
               type="number"
               step="any"
-              value={raw[key]}
+              value={key === "round_trip_efficiency" && raw[key]?.trim() ? Number((Number(raw[key]) * 100).toFixed(8)) : raw[key]}
               name={key}
               autoComplete="off"
-              aria-label={`${label} ${unit}`}
+              aria-label={`${label} ${key === "round_trip_efficiency" ? "%" : unit}`}
               aria-describedby={
                 issues[key] ? `battery-error-${key}` : undefined
               }
               disabled={resetPending}
               aria-invalid={Boolean(issues[key])}
-              onChange={(e) => setRaw((x) => ({ ...x, [key]: e.target.value }))}
+              onChange={(e) => setRaw((x) => ({ ...x, [key]: key === "round_trip_efficiency" && e.target.value.trim() ? String(Number(e.target.value) / 100) : e.target.value }))}
             />
             {issues[key] && (
               <small id={`battery-error-${key}`} className="field-error">
@@ -1375,7 +1407,7 @@ function BatteryEditor({
             )}
           </label>
         ))}
-      </div>
+      </div></fieldset>)}
       <details>
         <summary>Availability</summary>
         <p>Selected intervals are unavailable. No dispatch is permitted.</p>
@@ -1432,6 +1464,10 @@ function BatteryEditor({
           assumptions with IWB.
         </p>
       </details>
+      <DialogActions>
+      <span>Apply to draft · re-simulate to update results</span>
+      <button className="secondary" onClick={cancel} disabled={resetPending}>Cancel</button>
+      {Object.keys(issues).length > 0 && <button className="ws-text-button" onClick={event => event.currentTarget.closest("dialog")?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus()}>Review invalid settings</button>}
       <button
         className="primary"
         disabled={Object.keys(issues).length > 0 || feesInvalid || resetPending}
@@ -1449,6 +1485,7 @@ function BatteryEditor({
       >
         Apply settings
       </button>
+      </DialogActions>
       {feesInvalid && (
         <p role="alert" className="field-error">
           Transaction fees must be non-negative finite values.

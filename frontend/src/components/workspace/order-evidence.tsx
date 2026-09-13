@@ -151,6 +151,7 @@ export function OrderRow({
             step={market.volume_increment_mw}
             aria-label={`Volume for order ${rowIndex + 1}`}
             aria-invalid={Boolean(issues[`${prefix}.volume`])}
+            aria-describedby={issues[`${prefix}.volume`] ? `${order.id}-volume-error` : undefined}
             value={order.volume}
             onChange={(event) =>
               update(order.id, { volume: event.target.value })
@@ -159,7 +160,7 @@ export function OrderRow({
           <small>MW</small>
         </span>
         {issues[`${prefix}.volume`] && (
-          <small className="field-error">{issues[`${prefix}.volume`]}</small>
+          <small id={`${order.id}-volume-error`} className="field-error">{issues[`${prefix}.volume`]}</small>
         )}
       </label>
       {order.orderType === "LIMIT" ? (
@@ -174,6 +175,7 @@ export function OrderRow({
               autoComplete="off"
               step={market.price_increment_eur_mwh}
               aria-invalid={Boolean(issues[`${prefix}.limit`])}
+              aria-describedby={issues[`${prefix}.limit`] ? `${order.id}-limit-error` : undefined}
               value={order.limit}
               onChange={(event) =>
                 update(order.id, { limit: event.target.value })
@@ -182,13 +184,13 @@ export function OrderRow({
             <small>€/MWh</small>
           </span>
           {issues[`${prefix}.limit`] ? (
-            <small className="field-error">{issues[`${prefix}.limit`]}</small>
+            <small id={`${order.id}-limit-error`} className="field-error">{issues[`${prefix}.limit`]}</small>
           ) : (
             preview && (
               <small
                 className={`condition-preview ${preview.passed ? "passed" : "rejected"}`}
               >
-                {preview.passed ? "Would pass" : "Would not pass"} ·{" "}
+                {preview.passed ? "Price condition met" : "Price condition not met"} at the entered forecast ·{" "}
                 {money(Math.abs(preview.marginEurMwh))}/MWh{" "}
                 {preview.marginEurMwh >= 0 ? "inside" : "outside"}
               </small>
@@ -269,13 +271,16 @@ export function SimulationResults({ result }: { result: OrderSimulation }) {
           </span>
         </div>
       </div>
-      <div className="ws-validation-line" role="status">
+      <details className="ws-validation-line">
+        <summary>Execution checks · {result.submitted_portfolio_feasible ? "submitted portfolio feasible" : "submitted portfolio needs attention"}</summary>
+        <p>
         Submitted portfolio:{" "}
         {result.submitted_portfolio_feasible ? "feasible" : "needs attention"} ·{" "}
         {marketPassed} price-eligible ·{" "}
         {result.summary.not_executed_order_count} price-rejected ·{" "}
         {result.summary.infeasible_order_count} physically rejected.
-      </div>
+        </p>
+      </details>
       <div className="simulation-kpis">
         <Kpi
           label="Net contribution"
@@ -288,7 +293,7 @@ export function SimulationResults({ result }: { result: OrderSimulation }) {
         <Kpi
           label="Executed orders"
           value={`${result.summary.executed_order_count}/${result.summary.submitted_order_count}`}
-          detail={`${result.summary.not_executed_order_count} price-rejected`}
+          detail="executed / submitted"
         />
         <Kpi
           label="Final SoC"
@@ -451,17 +456,9 @@ function OutcomeRows({
     <>
       <tr
         className={selected ? "selected" : ""}
-        tabIndex={0}
-        aria-expanded={selected}
         onClick={select}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            select();
-          }
-        }}
       >
-        <td>{time(order.delivery_start_utc, zone)}</td>
+        <td><button className="ws-row-link" aria-expanded={selected} aria-label={`Details for ${time(order.delivery_start_utc, zone)} ${order.side} order`} onClick={event => {event.stopPropagation(); select();}}>{time(order.delivery_start_utc, zone)} {selected ? "−" : "+"}</button></td>
         <td>
           <strong>
             {order.order_type} {order.side}

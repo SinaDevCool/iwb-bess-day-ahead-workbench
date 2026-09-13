@@ -308,6 +308,36 @@ describe("OrderSimulatorWorkbench", () => {
       screen.getByRole("button", { name: "Apply settings" }),
     ).toBeEnabled();
   });
+  it("shows percentage efficiency but keeps the backend ratio and stages cancellation", async () => {
+    await ready();
+    fireEvent.click(screen.getByRole("button", {name: "Battery settings"}));
+    expect(screen.getByRole("group", {name: "Battery & connection"})).toBeInTheDocument();
+    expect(screen.getByLabelText("Round-trip efficiency %")).toHaveValue(90);
+    fireEvent.change(screen.getByLabelText("Round-trip efficiency %"), {target: {value: "95"}});
+    fireEvent.click(screen.getByRole("button", {name: "Cancel"}));
+    fireEvent.click(screen.getByRole("button", {name: "Battery settings"}));
+    expect(screen.getByLabelText("Round-trip efficiency %")).toHaveValue(90);
+    fireEvent.change(screen.getByLabelText("Round-trip efficiency %"), {target: {value: "95"}});
+    fireEvent.click(screen.getByRole("button", {name: "Apply settings"}));
+    const fetchMock = vi.fn(async () => response(result));
+    vi.stubGlobal("fetch", fetchMock);
+    fireEvent.click(screen.getByRole("button", {name: "Simulate"}));
+    await screen.findByText("Schedule charts");
+    const init = fetchMock.mock.calls[0] as unknown as [unknown, RequestInit];
+    expect(JSON.parse(String(init[1].body)).battery.round_trip_efficiency).toBe(0.95);
+  });
+  it("keeps forecast actions in the shared footer and discards cancelled edits", async () => {
+    await ready();
+    fireEvent.click(screen.getByRole("button", {name: "Edit prices"}));
+    const field = screen.getByLabelText("Price " + points[0].timestamp_utc);
+    fireEvent.change(field, {target: {value: ""}});
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field).toHaveAccessibleDescription(/Required/);
+    expect(screen.getByRole("button", {name: "Apply prices"}).closest(".ws-dialog-footer-slot")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", {name: "Cancel"}));
+    fireEvent.click(screen.getByRole("button", {name: "Edit prices"}));
+    expect(screen.getByLabelText("Price " + points[0].timestamp_utc)).toHaveValue(30);
+  });
   it("ignores a hidden terminal value when switching to minimum reserve", async () => {
     await ready();
     const bodies: string[] = [];

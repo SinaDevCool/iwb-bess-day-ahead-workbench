@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { runDisplayName } from "@/lib/comparison";
 type Entry = {
   simulation_id: string;
   run_type: string;
@@ -9,6 +10,7 @@ type Entry = {
   validation_status: string;
   contribution_eur: number;
   source_proposal_id?: string;
+  display_name?: string;
 };
 export function WorkspaceHistory({
   restore,
@@ -57,20 +59,14 @@ export function WorkspaceHistory({
                 <th>Delivery</th>
                 <th>Cash contribution</th>
                 <th>Validation</th>
-                <th>Source proposal</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {items.map((r) => (
                 <tr key={r.simulation_id}>
                   <td>
-                    <button
-                      disabled={busy}
-                      className="ws-row-link"
-                      onClick={() => void restore(r.simulation_id, r.run_type)}
-                    >
-                      {r.simulation_id}
-                    </button>
+                    <strong>{runDisplayName(r)}</strong>
                     <small>
                       {new Date(r.created_at_utc).toLocaleString("en-GB")}
                     </small>
@@ -87,8 +83,8 @@ export function WorkspaceHistory({
                       currency: "EUR",
                     }).format(r.contribution_eur)}
                   </td>
-                  <td>{r.validation_status}</td>
-                  <td>{r.source_proposal_id ?? "—"}</td>
+                  <td>{r.validation_status.replaceAll("_", " ")}</td>
+                  <td><button disabled={busy} className="ws-row-link" onClick={() => void restore(r.simulation_id, r.run_type)}>{r.run_type === "ORDER_SIMULATION" ? "Restore simulation" : "Open proposal"}</button><small title={r.source_proposal_id}>Reference: {r.simulation_id}</small></td>
                 </tr>
               ))}
             </tbody>
