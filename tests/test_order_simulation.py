@@ -58,6 +58,21 @@ def order(order_id, side, kind, volume, limit=None):
     }
 
 
+def test_forecast_application_time_survives_simulation(tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+
+    monkeypatch.setattr("backend.db.repository.DB_PATH", tmp_path / "provenance.sqlite")
+    request = request_with([])
+    applied = datetime(2026, 9, 8, 10, tzinfo=timezone.utc)
+    request.forecast.updated_at_utc = applied
+    result = run_order_simulation(request)
+    assert result.forecast.updated_at_utc == applied
+    assert result.forecast.issued_at_utc is None
+    assert result.forecast.content_hash
+    assert len(result.dispatch) == 24
+    assert all(row.power_mw == 0 for row in result.dispatch)
+
+
 def test_market_and_limit_execution_changes_soc_sequentially(tmp_path, monkeypatch):
     monkeypatch.setattr("backend.db.repository.DB_PATH", tmp_path / "test.sqlite")
     result = run_order_simulation(

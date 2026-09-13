@@ -25,6 +25,8 @@ class ForecastMetadata(BaseModel):
     content_hash: str | None = None
     issued_at_utc: datetime | None = None
     imported_at_utc: datetime | None = None
+    # Browser-recorded application event, distinct from provider publication time.
+    updated_at_utc: datetime | None = None
     adjusted_intervals: int = Field(0, ge=0)
     original_content_hash: str | None = None
     provider_id: str | None = None

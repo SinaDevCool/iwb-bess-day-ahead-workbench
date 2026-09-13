@@ -37,10 +37,6 @@ export function SocTrack({
         <span>Stored energy · state of charge</span>
         <strong>MWh</strong>
       </div>
-      <p className="schedule-energy-summary">
-        Start {battery.initial_soc_mwh} → End {soc[soc.length - 1]?.soc.toFixed(1)} MWh · End
-        reserve {battery.target_soc_mwh} MWh
-      </p>
       <div
         className="ws-schedule-plot"
         role="img"
@@ -83,6 +79,11 @@ export function SocTrack({
                 fill="white"
                 stroke="#655fb4"
                 strokeWidth={2}
+                label={{
+                  value: `Reserve ${battery.target_soc_mwh} MWh`,
+                  position: "insideTopRight",
+                  fontSize: 12,
+                }}
               />
             )}
             {selectedIndex != null &&

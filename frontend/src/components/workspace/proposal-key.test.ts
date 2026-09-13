@@ -6,6 +6,7 @@ import type { Draft } from "./workspace-types";
 const draft = {
   date: "2026-09-09",
   prices: ["40", "80"],
+  points: [{ timestamp_utc: "2026-09-08T22:00:00Z" }, { timestamp_utc: "2026-09-08T23:00:00Z" }],
   market: { bidding_zone: "CH" },
   battery: {},
   orders: [],

@@ -46,96 +46,69 @@ const rows = [
     interval_pnl_eur: -310,
   },
 ] as Dispatch[];
-it("selects and pins a direct click without any prior hover", () => {
-  const selected = vi.fn();
-  render(<DispatchChart rows={rows} battery={battery} onSelectInterval={selected} />);
-  const track = screen.getByRole("img", { name: "Day-Ahead price forecast" });
-  vi.spyOn(track, "getBoundingClientRect").mockReturnValue({
-    left: 0,
-    width: 284,
-    right: 284,
-    top: 0,
-    bottom: 170,
-    height: 170,
-    x: 0,
-    y: 0,
-    toJSON: () => ({}),
-  });
-  fireEvent.click(track, { clientX: 210 });
-  expect(selected).toHaveBeenLastCalledWith("2026-09-09T01:00:00.000Z");
-  expect(screen.getByRole("button", { name: "Unpin" })).toHaveAttribute("aria-pressed", "true");
-  expect(screen.getByRole("group")).toHaveTextContent("-€310.00");
-  fireEvent.click(screen.getByRole("button", { name: "Unpin" }));
-  expect(screen.getByRole("button", { name: "Pin interval" })).toHaveAttribute(
-    "aria-pressed",
-    "false",
-  );
-});
-it("supports keyboard selection and safely handles an empty schedule", () => {
-  const selected = vi.fn();
-  const view = render(<DispatchChart rows={rows} battery={battery} onSelectInterval={selected} />);
-  fireEvent.keyDown(screen.getByRole("group"), { key: "ArrowRight" });
-  expect(selected).toHaveBeenLastCalledWith("2026-09-09T00:00:00.000Z");
-  fireEvent.keyDown(screen.getByRole("group"), { key: "Escape" });
-  expect(screen.queryByRole("button", { name: "Unpin" })).not.toBeInTheDocument();
-  view.rerender(<DispatchChart rows={[]} battery={battery} />);
-  expect(() => fireEvent.keyDown(screen.getByRole("group"), { key: "ArrowRight" })).not.toThrow();
-});
-it("does not commit hover and lets an external interval override inspection", () => {
-  const selected = vi.fn();
-  const view = render(<DispatchChart rows={rows} battery={battery} onSelectInterval={selected} />);
-  const track = screen.getByRole("img", { name: "Day-Ahead price forecast" });
-  vi.spyOn(track, "getBoundingClientRect").mockReturnValue({ left: 0, width: 284 } as DOMRect);
-  fireEvent.pointerMove(track, { clientX: 210, pointerType: "mouse" });
-  expect(selected).not.toHaveBeenCalled();
-  view.rerender(
-    <DispatchChart
-      rows={rows}
-      battery={battery}
-      selectedInterval="2026-09-09T00:00:00.000Z"
-      onSelectInterval={selected}
-    />,
-  );
-  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("Forecast €50.00");
-});
-it("commits a pinned interval and allows detail navigation", () => {
+function plotBounds(element: HTMLElement) {
+  vi.spyOn(element, "getBoundingClientRect").mockReturnValue({ left: 0, width: 284 } as DOMRect);
+}
+it("opens an interval directly without pin controls", () => {
   const selected = vi.fn(),
     details = vi.fn();
   render(
     <DispatchChart
       rows={rows}
       battery={battery}
-      selectedInterval="2026-09-09T00:00:00.000Z"
       onSelectInterval={selected}
       onShowDetails={details}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Pin interval" }));
-  expect(selected).toHaveBeenCalledWith("2026-09-09T00:00:00.000Z");
-  fireEvent.click(screen.getByRole("button", { name: "Next interval" }));
+  const track = screen.getByRole("img", { name: "Day-Ahead price forecast" });
+  plotBounds(track);
+  fireEvent.click(track, { clientX: 210 });
   expect(selected).toHaveBeenLastCalledWith("2026-09-09T01:00:00.000Z");
-  fireEvent.click(screen.getByRole("button", { name: "Interval details" }));
   expect(details).toHaveBeenCalledOnce();
+  expect(screen.queryByText(/Unpin|Pin interval|Inspect orders/)).not.toBeInTheDocument();
 });
-it("shows all four hover values without expanding the inspector or committing selection", () => {
+it("supports keyboard inspection, dismissal and empty data", () => {
+  const selected = vi.fn();
+  const view = render(<DispatchChart rows={rows} battery={battery} onSelectInterval={selected} />);
+  const track = screen.getByRole("img", { name: "Day-Ahead price forecast" });
+  fireEvent.keyDown(track, { key: "ArrowRight" });
+  expect(selected).not.toHaveBeenCalled();
+  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("Forecast €50.00");
+  fireEvent.keyDown(track, { key: "ArrowRight" });
+  fireEvent.keyDown(track, { key: "Enter" });
+  expect(selected).toHaveBeenLastCalledWith("2026-09-09T01:00:00.000Z");
+  fireEvent.keyDown(track, { key: "Escape" });
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  view.rerender(<DispatchChart rows={[]} battery={battery} />);
+  expect(screen.getByText(/No delivery intervals/)).toBeInTheDocument();
+});
+it("synchronizes all four tooltips including idle values, without committing hover", () => {
   vi.stubGlobal("PointerEvent", MouseEvent);
   const selected = vi.fn();
   render(
     <DispatchChart rows={rows} battery={battery} showContribution onSelectInterval={selected} />,
   );
   const track = screen.getByRole("img", { name: "Day-Ahead price forecast" });
-  vi.spyOn(track, "getBoundingClientRect").mockReturnValue({ left: 0, width: 284 } as DOMRect);
-  const before = screen.getByRole("group").textContent;
+  plotBounds(track);
   fireEvent.pointerMove(track, { clientX: 210 });
   expect(screen.getAllByRole("tooltip")).toHaveLength(4);
   expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("Forecast €30.00");
   expect(screen.getAllByRole("tooltip")[1]).toHaveTextContent("-10.0 MW");
   expect(screen.getAllByRole("tooltip")[2]).toHaveTextContent("50.00 → 59.49 MWh");
   expect(screen.getAllByRole("tooltip")[3]).toHaveTextContent("-€310.00");
-  expect(screen.getByRole("group").textContent).toBe(before);
-  expect(selected).not.toHaveBeenCalled();
+  const position = screen.getAllByRole("tooltip")[0].style.left;
   fireEvent.pointerMove(track, { clientX: 90 });
   expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("Forecast €50.00");
-  expect(screen.getByRole("group").textContent).toBe(before);
+  expect(screen.getAllByRole("tooltip")[1]).toHaveTextContent("idle 0.0 MW");
+  expect(screen.getAllByRole("tooltip")[0].style.left).not.toBe(position);
+  expect(selected).not.toHaveBeenCalled();
+  fireEvent.pointerLeave(track);
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   vi.unstubAllGlobals();
+});
+it("honours an external selected interval without requiring an order", () => {
+  render(
+    <DispatchChart rows={rows} battery={battery} selectedInterval="2026-09-09T00:00:00.000Z" />,
+  );
+  expect(screen.getAllByRole("tooltip")[0]).toHaveTextContent("Forecast €50.00");
 });

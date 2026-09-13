@@ -10,10 +10,33 @@ export function IntervalOrderDetails({
 }) {
   return (
     <div className="interval-order-details">
+      <strong>
+        {row.action === "idle"
+          ? "Battery idle"
+          : row.action === "charge"
+            ? "Battery charging"
+            : "Battery discharging"}
+      </strong>
+      <p>
+        Forecast €{n(row.price_eur_mwh)}/MWh · Power {n(row.power_mw)} MW · Energy{" "}
+        {n(row.grid_energy_mwh)} MWh · Net contribution €{n(row.interval_pnl_eur)}
+      </p>
       <p>
         Interval SoC: {n(row.socBefore)} → {n(row.soc_mwh)} MWh. Shared interval state, not a
         separate state per order.
       </p>
+      {!row.orders.length && (
+        <p>
+          No orders were entered for this interval.
+          {row.action === "idle" ? " Stored energy remains unchanged." : ""}
+        </p>
+      )}
+      {row.orders.length > 0 && row.action === "idle" && (
+        <p>
+          No battery movement resulted. The order outcomes below explain the price conditions or
+          physical constraints.
+        </p>
+      )}
       {row.orders.map((o) => (
         <article key={o.submitted_order.client_order_id}>
           <strong>

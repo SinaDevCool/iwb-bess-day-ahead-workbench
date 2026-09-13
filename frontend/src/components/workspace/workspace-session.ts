@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { readPreference, writePreference } from "@/lib/session-preferences";
 import type { WorkspaceState } from "./workspace-state";
+import { restoredResultKey } from "./workspace-adapters";
 const STORAGE = "iwb-order-workspace-v2";
 /** Session storage is a recoverable convenience, not the authoritative backend history. */
 export function useWorkspaceSession(
@@ -90,7 +91,7 @@ export function useWorkspaceSession(
         ) {
           setDraft(saved.draft);
           setResult(saved.result);
-          setResultKey(saved.resultKey ?? "");
+          setResultKey(restoredResultKey(saved.resultKey ?? ""));
           if (saved.policy) {
             setRisk(saved.policy.risk ?? "expected_value");
             setHorizon(saved.policy.horizon ?? "minimum_reserve");

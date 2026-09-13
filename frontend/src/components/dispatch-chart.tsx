@@ -1,7 +1,7 @@
 "use client";
 export { scheduleChartData } from "@/lib/schedule-chart-data";
 export { ForecastPlot } from "./schedule/forecast-plot";
-import { OrderOutcomeStrip } from "./schedule/order-outcome-strip";
+import { TooltipPosition } from "./schedule/tooltip-position";
 import { useChartWidth } from "./schedule/use-chart-width";
 import { scheduleChartData } from "@/lib/schedule-chart-data";
 import type { Battery, Dispatch, Market, SimulatedOrderResult } from "@/types/api";
@@ -19,7 +19,6 @@ import {
 import { ContributionTrack } from "./schedule/contribution-track";
 import { ForecastTrack } from "./schedule/forecast-track";
 import { PowerTrack } from "./schedule/power-track";
-import { ScheduleInspector } from "./schedule/schedule-inspector";
 import { SocTrack } from "./schedule/soc-track";
 import { useScheduleInspection } from "./schedule/use-schedule-inspection";
 import { useDisplayTimezone } from "./workspace/time-preference";
@@ -29,7 +28,6 @@ export function DispatchChart({
   rows,
   battery,
   market,
-  onEditOrder,
   onShowDetails,
   forecast,
   mode = "optimization",
@@ -37,7 +35,6 @@ export function DispatchChart({
   submittedOrderCount,
   orderResults,
   selectedOrderId,
-  onSelectOrder,
   selectedInterval,
   onSelectInterval,
   showContribution = false,
@@ -46,7 +43,6 @@ export function DispatchChart({
   rows: Dispatch[];
   battery: Battery;
   market?: Pick<Market, "product_minutes" | "timezone">;
-  onEditOrder?: (id: string) => void;
   onShowDetails?: () => void;
   forecast?: {
     source_type: "illustrative" | "manual" | "file";
@@ -58,7 +54,6 @@ export function DispatchChart({
   submittedOrderCount?: number;
   orderResults?: SimulatedOrderResult[];
   selectedOrderId?: string;
-  onSelectOrder?: (id: string) => void;
   selectedInterval?: string;
   onSelectInterval?: (id: string) => void;
   showContribution?: boolean;
@@ -102,8 +97,9 @@ export function DispatchChart({
     dt,
     selectedInterval,
     onSelectInterval,
+    onShowDetails,
   );
-  const { active, inspect, setPinned, trackEvents } = inspection;
+  const { active, trackEvents } = inspection;
   const tip = null;
   const activeTime = active
     ? `${exact(Date.parse(active.timestamp_utc), zone)}–${clock(Date.parse(active.timestamp_utc) + dt, zone)}`
@@ -111,7 +107,7 @@ export function DispatchChart({
   const readouts = active
     ? {
         price: `${activeTime} · Forecast ${euros(active.price_eur_mwh)}/MWh`,
-        power: `${activeTime} · ${active.action} ${number(active.power_mw, 1)} MW`,
+        power: `${activeTime} · ${active.action} ${number(active.power_mw, 1)} MW · Energy ${number((Math.abs(active.power_mw) * dt) / 3600000)} MWh`,
         soc: `${activeTime} · ${number(inspection.activeIndex > 0 ? rows[inspection.activeIndex - 1].soc_mwh : battery.initial_soc_mwh)} → ${number(active.soc_mwh)} MWh`,
         contribution: `${activeTime} · ${euros(active.interval_pnl_eur)}`,
       }
@@ -168,91 +164,75 @@ export function DispatchChart({
           </p>
         </div>
       </div>
-      <ScheduleInspector
-        inspection={inspection}
-        rows={rows}
-        battery={battery}
-        dt={dt}
-        zone={zone}
-        orderResults={orderResults}
-        selectedOrderId={selectedOrderId}
-        onSelectOrder={onSelectOrder}
-        onEditOrder={onEditOrder}
-        onShowDetails={onShowDetails}
-      />
       {rows.length === 0 && (
         <p>No delivery intervals to display. Enter a forecast and simulate orders.</p>
       )}
-      <div ref={ref} className="schedule-tracks" hidden={rows.length === 0}>
-        <ForecastTrack
-          readout={readouts?.price}
-          trackEvents={trackEvents}
-          xAxis={xAxis(false)}
-          tip={tip}
-          cursor={cursor}
-          prices={prices}
-          forecast={forecast}
-          selectedX={selectedX}
-          selectedLimit={
-            selected?.submitted_order.order_type === "LIMIT"
-              ? selected.submitted_order.limit_price_eur_mwh
-              : undefined
-          }
-          dt={dt}
-        />
-        {orderResults && (
-          <OrderOutcomeStrip
-            rows={rows}
-            orders={orderResults}
-            selectedInterval={active ? new Date(active.timestamp_utc).toISOString() : undefined}
-            zone={zone}
-            onSelect={(index, id) => {
-              inspect(index);
-              setPinned(true);
-              onSelectOrder?.(id);
-            }}
-          />
-        )}
-        <PowerTrack
-          readout={readouts?.power}
-          trackEvents={trackEvents}
-          xAxis={xAxis(false)}
-          tip={tip}
-          cursor={cursor}
-          intervals={intervals}
-          barSize={barSize}
-          battery={battery}
-        />
-        <SocTrack
-          readout={readouts?.soc}
-          trackEvents={trackEvents}
-          xAxis={xAxis(!showContribution)}
-          tip={tip}
-          cursor={cursor}
-          soc={soc}
-          selectedIndex={inspection.activeIndex}
-          battery={battery}
-        />
-        {showContribution && (
-          <ContributionTrack
-            readout={readouts?.contribution}
-            label={contributionLabel}
+      <TooltipPosition.Provider
+        value={
+          (Y_AXIS_WIDTH + inspection.fraction * (width - Y_AXIS_WIDTH - margin.right)) /
+          Math.max(1, width)
+        }
+      >
+        <div ref={ref} className="schedule-tracks" hidden={rows.length === 0}>
+          <ForecastTrack
+            readout={readouts?.price}
             trackEvents={trackEvents}
-            xAxis={xAxis(true)}
+            xAxis={xAxis(false)}
             tip={tip}
             cursor={cursor}
-            rows={rows}
+            prices={prices}
+            forecast={forecast}
+            selectedX={selectedX}
+            selectedLimit={
+              selected?.submitted_order.order_type === "LIMIT"
+                ? selected.submitted_order.limit_price_eur_mwh
+                : undefined
+            }
             dt={dt}
-            barSize={barSize}
           />
-        )}
-      </div>
+          <PowerTrack
+            readout={readouts?.power}
+            trackEvents={trackEvents}
+            xAxis={xAxis(false)}
+            tip={tip}
+            cursor={cursor}
+            intervals={intervals}
+            barSize={barSize}
+            battery={battery}
+          />
+          <SocTrack
+            readout={readouts?.soc}
+            trackEvents={trackEvents}
+            xAxis={xAxis(!showContribution)}
+            tip={tip}
+            cursor={cursor}
+            soc={soc}
+            selectedIndex={inspection.activeIndex}
+            battery={battery}
+          />
+          {showContribution && (
+            <ContributionTrack
+              readout={readouts?.contribution}
+              label={contributionLabel}
+              trackEvents={trackEvents}
+              xAxis={xAxis(true)}
+              tip={tip}
+              cursor={cursor}
+              rows={rows}
+              dt={dt}
+              barSize={barSize}
+            />
+          )}
+        </div>
+      </TooltipPosition.Provider>
       <figcaption className="chart-foot">
-        {dt / 60000}-minute intervals · Power is interval-average; energy joins boundary states
-        assuming constant interval power. Dashed lines: {battery.min_soc_mwh}–{battery.max_soc_mwh}{" "}
-        MWh. End reserve: {battery.target_soc_mwh} MWh (end marker only). Vertical dashed line:
-        inspected interval, shared by all charts. Shaded intervals: unavailable. Power dashed lines:
-        charge/discharge limits.
+        Hover or focus a chart and use arrow keys to inspect. Click or press Enter for interval
+        details. Escape dismisses tooltips. {dt / 60000}-minute intervals · Power is
+        interval-average; energy joins boundary states assuming constant interval power. Dashed
+        lines: {battery.min_soc_mwh}–{battery.max_soc_mwh} MWh. End reserve:{" "}
+        {battery.target_soc_mwh} MWh (end marker only). Vertical dashed line: inspected interval,
+        shared by all charts. Shaded intervals: unavailable. Power dashed lines: charge/discharge
+        limits.
       </figcaption>
     </figure>
   );

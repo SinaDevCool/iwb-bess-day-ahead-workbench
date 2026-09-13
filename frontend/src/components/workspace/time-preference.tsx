@@ -47,7 +47,7 @@ export function TimezoneSelector() {
         value={zone}
         onChange={(e) => changeZone(e.target.value as DisplayTimezone)}
       >
-        <option value="Europe/Zurich">Zurich · CET/CEST</option>
+        <option value="Europe/Zurich">CET/CEST</option>
         <option value="UTC">UTC</option>
       </select>
     </label>

@@ -33,6 +33,7 @@ export function WorkspaceDialogs({
     | "generate"
     | "apply"
     | "restore"
+    | "setUndo"
   >;
 }) {
   const {
@@ -53,6 +54,7 @@ export function WorkspaceDialogs({
     generate,
     apply,
     restore,
+    setUndo,
   } = context;
   const SettingsEditor = modal === "costs" ? CostEditor : BatteryEditor;
   return (
@@ -88,8 +90,15 @@ export function WorkspaceDialogs({
             draft={draft}
             cancel={() => setModal(null)}
             apply={(prices) => {
-              if (prices.some((price, index) => Number(price) !== Number(draft.prices[index])))
+              if (
+                prices.some(
+                  (price, index) =>
+                    !draft.prices[index]?.trim() || Number(price) !== Number(draft.prices[index]),
+                )
+              ) {
+                setUndo(draft);
                 change({ prices });
+              }
               setModal(null);
             }}
           />
@@ -102,12 +111,14 @@ export function WorkspaceDialogs({
             date={draft.date}
             minutes={draft.market.product_minutes}
             points={draft.points}
+            currentForecast={draft.forecast}
             cancel={() => setModal(null)}
             apply={(preview) => {
+              setUndo(draft);
               change({
                 points: preview.points,
                 prices: preview.points.map((p) => String(p.price_eur_mwh)),
-                forecast: preview.forecast,
+                forecast: { ...preview.forecast, updated_at_utc: new Date().toISOString() },
               });
               setModal(null);
             }}

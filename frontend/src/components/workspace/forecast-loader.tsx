@@ -4,6 +4,8 @@ import type { Point as ForecastPoint } from "./workspace-types";
 import { DialogActions } from "./dialog";
 import { useForecastLoader, type ForecastPreview } from "./use-forecast-loader";
 import { ForecastIssues } from "./forecast-issues";
+import { ForecastSnapshot } from "./forecast-snapshot";
+import type { ForecastMetadata } from "@/types/forecast";
 type Point = ForecastPoint;
 type Preview = ForecastPreview;
 
@@ -11,12 +13,14 @@ export function ForecastLoader({
   date,
   minutes,
   points,
+  currentForecast,
   apply,
   cancel,
 }: {
   date: string;
   minutes: number;
   points: Point[];
+  currentForecast?: ForecastMetadata;
   apply: (preview: Preview) => void;
   cancel: () => void;
 }) {
@@ -35,6 +39,7 @@ export function ForecastLoader({
   } = useForecastLoader(date, minutes, points);
   return (
     <div className="forecast-loader">
+      <ForecastSnapshot forecast={currentForecast} />
       <p>
         CH · {date} · {minutes}-minute intervals · €/MWh. Load a complete forecast, then adjust
         individual intervals if needed.
@@ -119,7 +124,7 @@ export function ForecastLoader({
       <ForecastIssues message={error} issues={issues} />
       {preview && (
         <section>
-          <h3>{filename}</h3>
+          <ForecastSnapshot forecast={preview.forecast} preview />
           <p>
             {preview.points.length}/{points.length} intervals validated · replacement not yet
             applied

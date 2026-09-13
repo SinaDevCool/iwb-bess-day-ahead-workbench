@@ -120,10 +120,10 @@
   margin-left: auto;
 }
 .forecast-edited-key {
-  background: #087d78;
+  background: #2563eb;
 }
 .forecast-original-key {
-  background: #7d8b91;
+  background: repeating-linear-gradient(to right, #64748b 0 6px, transparent 6px 10px);
 }
 .forecast-chart-legend .forecast-adjusted-key {
   height: 12px;
@@ -216,6 +216,16 @@
 }
 .interval-results-table .selected {
   background: #e9f4f1;
+}
+.interval-row {
+  cursor: pointer;
+}
+.interval-row:hover {
+  background: #f1f7f5;
+}
+.interval-row:focus-within {
+  outline: 2px solid #087d78;
+  outline-offset: -2px;
 }
 .interval-results-table small {
   display: block;

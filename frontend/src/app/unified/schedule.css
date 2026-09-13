@@ -1,23 +1,23 @@
-/* Schedule presentation owns track hierarchy and the shared interval inspector. */
+/* Four aligned tracks with overlay inspection; no hover element affects layout. */
 .ws-schedule .schedule-forecast .ws-schedule-plot {
-  height: 110px;
-}
-.ws-schedule .schedule-power .ws-schedule-plot {
-  height: 160px;
-}
-.ws-schedule .schedule-soc .ws-schedule-plot {
   height: 150px;
 }
+.ws-schedule .schedule-power .ws-schedule-plot {
+  height: 180px;
+}
+.ws-schedule .schedule-soc .ws-schedule-plot {
+  height: 180px;
+}
 .ws-schedule .schedule-contribution .ws-schedule-plot {
-  height: 100px;
+  height: 150px;
 }
 .ws-schedule .plot-heading {
   background: transparent;
   font-size: 13px;
-  padding: 6px 0;
+  padding: 10px 0;
   border: 0;
   height: auto;
-  min-height: 32px;
+  min-height: 36px;
   box-sizing: border-box;
   gap: 12px;
 }
@@ -29,55 +29,41 @@
   font-size: 13px;
   line-height: 1.5;
 }
-.schedule-inspector {
-  padding: 12px 16px;
-  background: #f4f8f7;
-  border: 1px solid #d5e4e1;
+.ws-schedule-plot {
+  position: relative;
+  touch-action: pan-y;
+}
+.ws-schedule-plot:focus-visible {
+  outline: 2px solid #087d78;
+  outline-offset: -2px;
+}
+.schedule-track-readout {
+  position: absolute;
+  top: 8px;
+  z-index: 5;
+  width: 236px;
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+  padding: 10px 12px;
   border-radius: 8px;
-  margin-bottom: 12px;
+  background: #fff;
+  border: 1px solid #b9cecb;
+  box-shadow: 0 3px 12px #153a4220;
+  color: #183e45;
   font-size: 13px;
+  line-height: 1.45;
   font-variant-numeric: tabular-nums;
 }
-.schedule-inspector-heading,
-.schedule-inspector-actions,
-.schedule-inspector-values {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 20px;
+.schedule-track-readout strong,
+.schedule-track-readout span {
+  display: block;
 }
-.schedule-inspector-heading {
-  justify-content: space-between;
+.schedule-track-readout strong {
+  padding-bottom: 4px;
+  font-size: 12px;
+  color: #526b70;
 }
-.schedule-inspector-values {
-  margin-top: 6px;
-}
-.schedule-inspector-actions {
-  gap: 8px;
-}
-.schedule-inspector button {
-  min-height: 32px;
-}
-.schedule-inspector:focus-visible,
-.schedule-outcomes button:focus-visible {
-  outline: 2px solid #087d78;
-  outline-offset: 3px;
-}
-.schedule-order-evidence {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  border-top: 1px solid #d5e4e1;
-  padding-top: 8px;
-  margin: 8px 0 0;
-  color: #425e64;
-}
-.schedule-order-evidence select {
-  max-width: 210px;
-}
-.schedule-track-legend,
-.schedule-outcome-legend {
+.schedule-track-legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -95,83 +81,6 @@
   border-radius: 2px;
   display: inline-block;
 }
-.schedule-outcome-legend {
-  font-size: 12px;
-  color: #425e64;
-  padding: 6px 0;
-}
-.schedule-outcomes summary {
-  cursor: pointer;
-  padding: 10px 0;
-  font-size: 13px;
-}
-.schedule-outcomes summary span {
-  color: #526b70;
-  margin-left: 12px;
-}
-.schedule-outcome-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 0;
-  max-height: 180px;
-  overflow: auto;
-}
-.schedule-outcome-list button {
-  padding: 8px 12px;
-  border: 1px solid #d5e4e1;
-  border-radius: 6px;
-  background: #f4f8f7;
-  color: #183e45;
-  cursor: pointer;
-}
-.schedule-outcome-list button[aria-pressed="true"] {
-  outline: 2px solid #087d78;
-}
-.schedule-inspector-idle {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 32px;
-}
-.schedule-inspector-idle > span {
-  flex: 1;
-}
-.ws-schedule-plot {
-  position: relative;
-}
-.schedule-track-readout {
-  position: absolute;
-  right: 28px;
-  top: 4px;
-  z-index: 2;
-  pointer-events: none;
-  padding: 5px 8px;
-  border-radius: 4px;
-  background: #fff;
-  border: 1px solid #d5e4e1;
-  color: #183e45;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  max-width: calc(100% - 90px);
-}
-@media (max-width: 760px) {
-  .schedule-inspector button {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  .schedule-inspector {
-    padding: 10px;
-  }
-  .schedule-inspector-values {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  .schedule-outcome-legend {
-    gap: 6px 12px;
-  }
-}
 .ws-schedule .plot-card {
   border: 0;
   border-top: 1px solid #e0e8e6;
@@ -181,15 +90,23 @@
 }
 .ws-schedule figcaption.chart-foot {
   display: block;
-  margin: 10px 0 0;
+  margin: 12px 0 0;
 }
 .ws-schedule .plot-heading strong {
   font-size: 12px;
   flex-shrink: 0;
 }
 .schedule-energy-summary {
-  margin: 0 0 2px;
+  margin: 0 0 4px;
   color: #526b70;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+.result-snapshot {
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.result-snapshot summary {
+  cursor: pointer;
+  padding: 8px 0;
 }

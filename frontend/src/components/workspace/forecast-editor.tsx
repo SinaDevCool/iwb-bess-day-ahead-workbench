@@ -7,6 +7,7 @@ import { DialogActions, useDialogCloseGuard } from "./dialog";
 import { useDisplayTimezone } from "./time-preference";
 import { ForecastPriceTable } from "./forecast-price-table";
 import type { Draft } from "./workspace-types";
+import { ForecastSnapshot } from "./forecast-snapshot";
 
 /** One editing session; Apply retains the existing validation and draft-update path. */
 export function ForecastEditor({
@@ -60,6 +61,7 @@ export function ForecastEditor({
   };
   return (
     <div className="forecast-editor">
+      <ForecastSnapshot forecast={draft.forecast} />
       <p className="ws-help">
         {draft.date} · {draft.market.product_minutes}-minute intervals · Prices in €/MWh. Changes
         remain staged until Apply.
@@ -72,7 +74,7 @@ export function ForecastEditor({
         baseline={baseline.map((value) =>
           value.trim() && Number.isFinite(Number(value)) ? Number(value) : null,
         )}
-        baselineLabel={hasSource ? "Original" : "Before editing"}
+        baselineLabel={hasSource ? "Original forecast" : "Before editing"}
         zone={zone}
         selected={selected}
         onSelect={pick}
@@ -175,7 +177,8 @@ export function ForecastEditor({
       />
       <DialogActions>
         <span role="status">
-          {prices.filter(valid).length}/{draft.points.length} valid · {count} adjusted
+          {prices.filter(valid).length}/{draft.points.length} valid · {count} adjusted ·{" "}
+          {pending ? "Unsaved changes" : "No unsaved changes"}
         </span>
         {error && (
           <span role="alert" className="field-error">

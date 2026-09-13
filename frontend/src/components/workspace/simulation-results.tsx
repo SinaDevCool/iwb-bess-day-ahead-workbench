@@ -1,5 +1,5 @@
 "use client";
-import { EconomicsPanel } from "@/components/analytics-charts";
+import { ForecastSnapshot } from "./forecast-snapshot";
 import { DispatchChart } from "@/components/dispatch-chart";
 import { IntervalResultsTable } from "@/components/interval-results-table";
 import type { OrderSimulation } from "@/types/api";
@@ -90,10 +90,13 @@ export function SimulationResults({
       {!detailView && (
         <>
           <div className="simulator-card">
+            <details className="result-snapshot">
+              <summary>Forecast used by this result</summary>
+              <ForecastSnapshot forecast={result.forecast} />
+            </details>
             <DispatchChart
               key={result.simulation_id}
               market={result.market}
-              onEditOrder={stale ? undefined : onEditOrder}
               onShowDetails={() => setDetailView(true)}
               rows={result.dispatch}
               battery={result.battery}
@@ -105,21 +108,12 @@ export function SimulationResults({
               selectedOrderId={
                 selection?.simulationId === result.simulation_id ? selection.orderId : undefined
               }
-              onSelectOrder={(id) => {
-                const order = ordered.find((o) => o.submitted_order.client_order_id === id);
-                if (order)
-                  onSelection?.(
-                    new Date(order.submitted_order.delivery_start_utc).toISOString(),
-                    id,
-                  );
-              }}
               selectedInterval={selectedInterval}
               onSelectInterval={setSelectedInterval}
               showContribution
               contributionLabel={simulationPresentation(result).contributionLabel}
             />
           </div>
-          <EconomicsPanel result={result} breakdownOnly />
         </>
       )}
       {detailView && (

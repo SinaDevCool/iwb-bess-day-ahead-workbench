@@ -45,7 +45,10 @@ export function ForecastPlot({
     <div className="forecast-chart-block">
       <div className="forecast-chart-legend">
         <span>
-          <i className="forecast-edited-key" />
+          <i
+            className="forecast-edited-key"
+            style={{ borderColor: baseline && hasChanges ? "#2563eb" : "#087d78" }}
+          />
           {baseline && hasChanges ? "Edited" : "Forecast"}
         </span>
         {baseline && hasChanges && (
@@ -154,8 +157,9 @@ export function ForecastPlot({
               <Line
                 dataKey="original"
                 type="stepAfter"
-                stroke="#7d8b91"
-                strokeWidth={1.5}
+                stroke="#64748b"
+                strokeWidth={2}
+                strokeDasharray="6 4"
                 dot={false}
                 activeDot={false}
                 isAnimationActive={false}
@@ -165,9 +169,9 @@ export function ForecastPlot({
               dataKey="price"
               name="Forecast €/MWh"
               type="stepAfter"
-              stroke="#087d78"
-              strokeWidth={2}
-              fill="#eaf3f2"
+              stroke={baseline && hasChanges ? "#2563eb" : "#087d78"}
+              strokeWidth={2.5}
+              fill="transparent"
               dot={false}
               activeDot={false}
               isAnimationActive={false}

@@ -1,0 +1,43 @@
+/* Reused provenance summary: source timestamps are not delivery timestamps. */
+.forecast-snapshot {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  color: #183e45;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.forecast-snapshot > span,
+.forecast-snapshot small {
+  color: #526b70;
+  line-height: 1.5;
+}
+.forecast-snapshot summary {
+  cursor: pointer;
+  padding: 6px 0;
+}
+.forecast-snapshot dl {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 8px;
+  margin: 8px 0;
+}
+.forecast-snapshot dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.forecast-snapshot.compact {
+  padding: 4px 0;
+  border: 0;
+  font-size: 12px;
+}
+.forecast-snapshot.compact strong {
+  font-weight: 400;
+}
+@media (max-width: 500px) {
+  .forecast-snapshot dl {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

@@ -1,6 +1,11 @@
 import type { Draft } from "./workspace-types";
 /** Preserve the original forecast and count adjustments against that immutable baseline. */
 export function patchDraft(current: Draft | undefined, patch: Partial<Draft>): Draft | undefined {
+  const pricesChanged = patch.prices?.some((price, i) =>
+    price.trim() && current?.prices[i]?.trim()
+      ? Number(price) !== Number(current.prices[i])
+      : price !== current?.prices[i],
+  );
   // An empty delivery grid is not a zero-price baseline. The first complete entry
   // becomes the baseline; subsequent changes compare against that saved forecast.
   const baseline =
@@ -14,9 +19,11 @@ export function patchDraft(current: Draft | undefined, patch: Partial<Draft>): D
         ...patch,
         forecast:
           patch.forecast ??
-          (patch.prices
+          (patch.prices && pricesChanged
             ? {
                 ...current.forecast,
+                updated_at_utc: new Date().toISOString(),
+                content_hash: undefined,
                 source_type: current.forecast?.source_type ?? "manual",
                 source_name:
                   current.forecast?.version === "pending"

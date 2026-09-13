@@ -8,6 +8,9 @@ export type ForecastMetadata = {
   content_hash?: string;
   original_content_hash?: string;
   imported_at_utc?: string;
+  /** Time applied to the working case; not a provider publication timestamp. */
+  updated_at_utc?: string;
+  provider_id?: string;
   issued_at_utc?: string;
   adjusted_intervals?: number;
   original_price_values?: number[];

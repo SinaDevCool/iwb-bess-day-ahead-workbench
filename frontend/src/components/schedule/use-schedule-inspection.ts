@@ -1,9 +1,10 @@
 "use client";
 import { intervalAtTime } from "@/lib/interval-evidence";
 import type { Dispatch } from "@/types/api";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Y_AXIS_WIDTH, margin } from "./chart-config";
-/** One inspection state drives every track. Explicit pinning wins over hover. */
+
+/** Transient inspection never writes navigation state. Click/Enter opens interval details. */
 export function useScheduleInspection(
   rows: Dispatch[],
   start: number,
@@ -11,68 +12,91 @@ export function useScheduleInspection(
   dt: number,
   selectedInterval?: string,
   onSelectInterval?: (id: string) => void,
+  onShowDetails?: () => void,
 ) {
-  const [hover, setHover] = useState<{ index: number; anchor?: string }>();
-  const hovered = hover?.anchor === selectedInterval ? hover?.index : undefined;
-  const setHovered = (index?: number) =>
-    setHover(index === undefined ? undefined : { index, anchor: selectedInterval });
-  const [pinned, setPinned] = useState(false);
-  const activeIndex =
-    hovered ?? rows.findIndex((r) => new Date(r.timestamp_utc).toISOString() === selectedInterval);
+  const [hover, setHover] = useState<{ index: number; fraction: number; anchor?: string }>();
+  const [dismissed, setDismissed] = useState(false);
+  const timestamps = useMemo(() => rows.map((row) => Date.parse(row.timestamp_utc)), [rows]);
+  const current = hover?.anchor === selectedInterval ? hover : undefined;
+  const activeIndex = dismissed
+    ? -1
+    : (current?.index ??
+      rows.findIndex((row) => new Date(row.timestamp_utc).toISOString() === selectedInterval));
   const active = rows[activeIndex];
-  const inspect = (index: number) => {
+  const fraction = current?.fraction ?? (activeIndex + 0.5) / Math.max(rows.length, 1);
+  const inspect = (index: number, position = (index + 0.5) / Math.max(rows.length, 1)) => {
     if (!rows[index]) return;
-    setHovered(index);
-    onSelectInterval?.(new Date(rows[index].timestamp_utc).toISOString());
+    setDismissed(false);
+    setHover({ index, fraction: position, anchor: selectedInterval });
   };
-  const indexAtPointer = (
-    event: React.MouseEvent<HTMLDivElement> | React.PointerEvent<HTMLDivElement>,
-  ) => {
+  const atPointer = (event: React.MouseEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    const fraction =
-      (event.clientX - bounds.left - Y_AXIS_WIDTH) / (bounds.width - Y_AXIS_WIDTH - margin.right);
-    return intervalAtTime(
-      rows.map((r) => Date.parse(r.timestamp_utc)),
+    const plotWidth = bounds.width - Y_AXIS_WIDTH - margin.right;
+    const position = (event.clientX - bounds.left - Y_AXIS_WIDTH) / plotWidth;
+    if (plotWidth <= 0 || position < 0 || position > 1) return undefined;
+    const index = intervalAtTime(
+      timestamps,
       dt,
-      start + fraction * (end - start),
+      Math.min(end - 1, start + position * (end - start)),
     );
+    return index < 0 ? undefined : { index, position };
+  };
+  const open = (index: number) => {
+    if (!rows[index]) return;
+    onSelectInterval?.(new Date(rows[index].timestamp_utc).toISOString());
+    onShowDetails?.();
   };
   const trackEvents = {
+    tabIndex: 0,
+    onFocus: () => {
+      if (activeIndex < 0) inspect(0);
+    },
+    onBlur: () => {
+      setHover(undefined);
+      setDismissed(true);
+    },
     onPointerLeave: () => {
-      if (!pinned) setHovered(undefined);
+      setHover(undefined);
+      setDismissed(true);
     },
     onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
-      if (pinned || event.pointerType === "touch") return;
-      const index = indexAtPointer(event);
-      if (index >= 0) setHovered(index);
+      // Moving over the overlay keeps it readable instead of chasing its own box.
+      if ((event.target as Element).closest?.('[role="tooltip"]')) return;
+      if (event.pointerType === "touch") return;
+      const point = atPointer(event);
+      if (point) inspect(point.index, point.position);
     },
     onClick: (event: React.MouseEvent<HTMLDivElement>) => {
-      const index = indexAtPointer(event);
-      if (index >= 0) {
-        inspect(index);
-        setPinned(true);
+      if ((event.target as Element).closest?.('[role="tooltip"]')) return;
+      const point = atPointer(event);
+      if (point) {
+        inspect(point.index, point.position);
+        open(point.index);
+      }
+    },
+    onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return;
+      if (["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) {
+        event.preventDefault();
+        const next =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? rows.length - 1
+              : activeIndex < 0
+                ? 0
+                : activeIndex + (event.key === "ArrowRight" ? 1 : -1);
+        inspect(Math.max(0, Math.min(rows.length - 1, next)));
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        open(activeIndex);
+      }
+      if (event.key === "Escape") {
+        setHover(undefined);
+        setDismissed(true);
       }
     },
   };
-  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.target !== e.currentTarget) return;
-    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-      e.preventDefault();
-      inspect(
-        Math.max(
-          0,
-          Math.min(
-            rows.length - 1,
-            activeIndex < 0 ? 0 : activeIndex + (e.key === "ArrowRight" ? 1 : -1),
-          ),
-        ),
-      );
-      setPinned(true);
-    }
-    if (e.key === "Escape") {
-      setPinned(false);
-      setHovered(undefined);
-    }
-  };
-  return { active, activeIndex, inspect, pinned, setPinned, trackEvents, onKeyDown };
+  return { active, activeIndex, fraction, trackEvents };
 }

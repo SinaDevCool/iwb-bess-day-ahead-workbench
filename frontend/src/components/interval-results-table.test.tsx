@@ -59,3 +59,19 @@ it("restores column choices without increasing the table width budget", async ()
   expect(screen.getAllByRole("columnheader")).toHaveLength(7);
   expect(screen.queryByRole("columnheader", { name: "Action" })).not.toBeInTheDocument();
 });
+it("opens idle interval evidence from any ordinary cell and from the delivery button", () => {
+  const idle = {
+    ...result,
+    dispatch: [
+      { ...result.dispatch[0], action: "idle", power_mw: 0, soc_mwh: 50, interval_pnl_eur: 0 },
+    ],
+    order_results: [],
+  } as OrderSimulation;
+  render(<IntervalResultsTable result={idle} />);
+  fireEvent.click(screen.getByText("idle"));
+  expect(screen.getByText(/No orders were entered/)).toBeInTheDocument();
+  const delivery = screen.getByRole("button", { name: /02:00/ });
+  expect(delivery).toHaveAttribute("aria-expanded", "true");
+  fireEvent.click(delivery);
+  expect(screen.queryByText(/No orders were entered/)).not.toBeInTheDocument();
+});

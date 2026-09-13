@@ -4,7 +4,7 @@ import { api } from "@/lib/api";
 import type { Battery, Market, OrderSimulation, Simulation } from "@/types/api";
 
 import type { ActionContext } from "./workspace-action-types";
-import { examples, fromOrders, identity } from "./workspace-adapters";
+import { examples, fromOrders, identity, calculationIdentity } from "./workspace-adapters";
 import { changeResolution } from "./workspace-duration-transition";
 import type { Draft, Point } from "./workspace-types";
 type ReplacementActionContext = Pick<
@@ -66,6 +66,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
           source_type: "illustrative",
           source_name: "Illustrative Day-Ahead example",
           version: "illustrative-v1",
+          updated_at_utc: new Date().toISOString(),
           bidding_zone: configuration.market.bidding_zone,
         },
       });
@@ -166,7 +167,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
         setSelected("");
         setNotice("");
         setResult(r);
-        setResultKey(identity(d));
+        setResultKey(calculationIdentity(d));
         setModal(null);
         navigate("schedule");
       } else {
@@ -208,6 +209,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
           source_type: "illustrative",
           source_name: "Illustrative Day-Ahead example",
           version: "illustrative-v1",
+          updated_at_utc: new Date().toISOString(),
           bidding_zone: draft.market.bidding_zone,
         },
         orders: examples(draft.market.product_minutes),

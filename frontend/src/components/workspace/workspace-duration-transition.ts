@@ -64,6 +64,7 @@ export function changeResolution(draft: Draft, points: Point[], minutes: 15 | 60
       source_type: "manual",
       source_name: `${(draft.forecast?.source_name ?? "Entered forecast").replace(/(?: · resampled)+$/, "")} · resampled`,
       version: `resampled-${minutes}`,
+      updated_at_utc: new Date().toISOString(),
       content_hash: undefined,
       original_content_hash: undefined,
       original_price_values: baseline ? originals : undefined,

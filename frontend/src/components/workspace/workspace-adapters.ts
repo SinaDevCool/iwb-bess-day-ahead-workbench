@@ -3,6 +3,29 @@ import type { SubmittedOrder } from "@/types/api";
 import type { Draft, Point } from "./workspace-types";
 /** Pure adapters preserve string drafts until submission; no persistence or network calls. */
 export const identity = (draft: Draft) => JSON.stringify(draft);
+/** Calculation freshness excludes provenance; full identity still guards async replacement. */
+export const calculationInputs = (draft: Draft) => ({
+  date: draft.date,
+  battery: draft.battery,
+  market: draft.market,
+  timestamps: draft.points.map((point) => point.timestamp_utc),
+  // Keep blanks invalid, rather than coercing them into zero.
+  prices: draft.prices.map((price) => (price.trim() ? Number(price) : null)),
+});
+export const calculationIdentity = (draft: Draft) =>
+  JSON.stringify({
+    ...calculationInputs(draft),
+    orders: draft.orders,
+  });
+/** Old sessions stored the complete draft as their result key. Migrate that key, not live inputs. */
+export function restoredResultKey(key: string) {
+  try {
+    const saved = JSON.parse(key);
+    return saved.points && saved.orders ? calculationIdentity(saved) : key;
+  } catch {
+    return key;
+  }
+}
 export const id = () => crypto.randomUUID();
 export const fromOrders = (orders: SubmittedOrder[], points: Point[]): DraftOrderInput[] =>
   orders.map((o) => ({

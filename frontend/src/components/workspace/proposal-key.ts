@@ -1,5 +1,5 @@
 import type { Draft } from "./workspace-types";
-import { requestBody } from "./workspace-adapters";
+import { calculationInputs } from "./workspace-adapters";
 
 /** Only optimizer inputs invalidate a preview; editing entered orders does not. */
 export function proposalKey(
@@ -13,5 +13,5 @@ export function proposalKey(
   },
 ) {
   // The transport converts numeric strings; validity must also preserve blanks.
-  return JSON.stringify({ ...requestBody(draft), price_values: draft.prices, policy });
+  return JSON.stringify({ ...calculationInputs(draft), policy });
 }

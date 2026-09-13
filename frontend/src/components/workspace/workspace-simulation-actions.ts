@@ -4,7 +4,7 @@ import { api } from "@/lib/api";
 import type { OrderSimulation } from "@/types/api";
 
 import type { ActionContext } from "./workspace-action-types";
-import { identity, requestBody } from "./workspace-adapters";
+import { calculationIdentity, requestBody } from "./workspace-adapters";
 type SimulationActionContext = Pick<
   ActionContext,
   | "draft"
@@ -33,7 +33,7 @@ export function useSimulationActions(context: SimulationActionContext) {
   const simulate = async () => {
     if (!draft || !validate()) return;
     const snapshot = draft,
-      key = identity(snapshot),
+      key = calculationIdentity(snapshot),
       ticket = ++requestId.current;
     setBusy("Simulating");
     setError("");

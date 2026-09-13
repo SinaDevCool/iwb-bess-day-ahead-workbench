@@ -24,6 +24,27 @@ The primary workflow is forecast input + explicit Market/Limit order input -> de
 - Resolution conversion resamples the recorded original prices on the same UTC overlaps as entered prices. Splitting preserves prices; merging uses the mean source price. Stale content hashes are removed and adjustment counts are recomputed. An incompatible old baseline is not plotted against a new grid.
 - Order-row cells delegate selection to the existing row button/opener. The same `OrderTicket` is used at every width; keyboard focus and the existing draft update path remain unchanged. A market order has no price-limit input; the forecast is context, not a second order-entry chart.
 
+## Snapshot and chart simplification
+
+- `forecast-snapshot.tsx` is the shared provenance display in the sidebar, import
+  preview, price editor and saved simulation. Case update time is separate from
+  provider issue/import time; absent legacy dates remain explicitly unknown.
+- Calculation freshness excludes provenance-only changes. Full draft identity
+  still protects asynchronous requests. Saved results retain their own forecast.
+- Four chart-local floating tooltips share one interval and pointer position.
+  Hover does not change layout or write selection into navigation. Arrow keys
+  inspect, Enter/click opens interval details, and Escape dismisses tooltips.
+  The former pin inspector and order strip are removed, not hidden duplicates.
+- Interval rows expand for both orders and idle periods. The top contribution
+  metric and interval contribution chart remain; the duplicate simulation
+  financial summary below the charts is removed.
+- Forecast edits use solid blue against a dashed grey baseline and amber changed
+  intervals. The configuration shell delegates market/battery content to small
+  section components, with optional proposal settings kept separate.
+- Simulation evaluates entered orders deterministically; it must not silently
+  re-optimize them. The MILP remains behind Generate proposal. Display timezone
+  changes preserve UTC delivery instants, prices, quantities and economics.
+
 ## Evidence and API boundaries
 
 `POST /api/proposal-preview` creates a saved optimization proposal and returns editable Limit orders; it does not apply them. `GET /api/workspace-history` combines typed run summaries. `POST /api/simulations/{id}/sensitivities` evaluates the saved proposal without inserting another history run. Optimization mutation endpoints reject order-simulation IDs.

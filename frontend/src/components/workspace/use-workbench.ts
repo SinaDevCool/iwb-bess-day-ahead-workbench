@@ -6,7 +6,7 @@ import { isInvalidPrice } from "@/lib/price-input";
 import { patchDraft } from "./workspace-draft";
 
 import { useWorkspaceNavigation } from "./use-workspace-navigation";
-import { identity, requestBody } from "./workspace-adapters";
+import { calculationIdentity, requestBody } from "./workspace-adapters";
 import { useProposalActions } from "./workspace-proposal-actions";
 import { useReplacementActions } from "./workspace-replacement-actions";
 import { useWorkspaceSession } from "./workspace-session";
@@ -19,7 +19,7 @@ export function useWorkbench() {
   const { draft, setDraft, resultKey, setSelected, setError, setNotice, setModal, errorRef } =
     state;
   const { navigate, selectComparison } = useWorkspaceNavigation(state);
-  const dirty = Boolean(draft && resultKey !== identity(draft));
+  const dirty = Boolean(draft && resultKey !== calculationIdentity(draft));
   const change = (patch: Partial<Draft>) => {
     setDraft((current) => patchDraft(current, patch));
     setError("");

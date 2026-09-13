@@ -21,7 +21,15 @@ export function IntervalResultsTable({
 }) {
   const { columns, update } = useColumns();
   const zone = useDisplayTimezone();
-  const [expanded, setExpanded] = useState<string>();
+  const [expansion, setExpansion] = useState<{ id?: string; anchor?: string }>();
+  const expanded =
+    expansion && (expansion.anchor === selectedId || expansion.id === selectedId)
+      ? expansion.id
+      : selectedId;
+  const toggle = (id: string) => {
+    setExpansion({ id: expanded === id ? undefined : id, anchor: selectedId });
+    onSelect?.(id);
+  };
   const rows = intervalEvidence(result);
   const leading = columns.filter((c) => c === "forecast" || c === "action");
   const trailing = columns.filter((c) => c !== "forecast" && c !== "action");
@@ -30,7 +38,7 @@ export function IntervalResultsTable({
       <div className="interval-table-heading">
         <div>
           <h3 id="interval-results-title">Battery schedule &amp; order outcomes</h3>
-          <p>One row per interval. Expand Orders for execution evidence.</p>
+          <p>One row per interval. Select any row to inspect its schedule and order evidence.</p>
         </div>
         <details className="column-picker">
           <summary>
@@ -91,9 +99,20 @@ export function IntervalResultsTable({
               };
               return (
                 <Fragment key={row.id}>
-                  <tr className={selectedId === row.id ? "selected" : ""}>
+                  <tr
+                    className={expanded === row.id ? "selected interval-row" : "interval-row"}
+                    onClick={(event) => {
+                      if (!(event.target as Element).closest("button, a, input, select"))
+                        toggle(row.id);
+                    }}
+                  >
                     <td>
-                      <button className="ws-row-link" onClick={() => onSelect?.(row.id)}>
+                      <button
+                        className="ws-row-link"
+                        onClick={() => toggle(row.id)}
+                        aria-expanded={expanded === row.id}
+                        aria-controls={`interval-${row.id}`}
+                      >
                         {clock(row.timestamp_utc, zone)}
                       </button>
                     </td>
@@ -108,8 +127,7 @@ export function IntervalResultsTable({
                           className="ws-row-link"
                           aria-expanded={expanded === row.id}
                           onClick={() => {
-                            setExpanded(expanded === row.id ? undefined : row.id);
-                            onSelect?.(row.id);
+                            toggle(row.id);
                           }}
                         >
                           {row.orders.length === 1
@@ -135,7 +153,7 @@ export function IntervalResultsTable({
                   </tr>
                   {expanded === row.id && (
                     <tr>
-                      <td colSpan={columns.length + 2}>
+                      <td id={`interval-${row.id}`} colSpan={columns.length + 2}>
                         <IntervalOrderDetails row={row} onEditOrder={onEditOrder} />
                       </td>
                     </tr>
