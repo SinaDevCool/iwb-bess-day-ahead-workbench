@@ -27,20 +27,37 @@ def default_run_display_name(request: SimulationRequest) -> str:
         direction = "Higher" if battery.target_soc_mwh > DEFAULT_BATTERY.target_soc_mwh else "Lower"
         return f"{direction} end-of-day reserve"
     if battery.grid_limit_mw != DEFAULT_BATTERY.grid_limit_mw:
-        direction = "Expanded" if battery.grid_limit_mw > DEFAULT_BATTERY.grid_limit_mw else "Restricted"
+        direction = (
+            "Expanded" if battery.grid_limit_mw > DEFAULT_BATTERY.grid_limit_mw else "Restricted"
+        )
         return f"{direction} grid connection"
     if battery.max_charge_power_mw != DEFAULT_BATTERY.max_charge_power_mw:
-        direction = "Higher" if battery.max_charge_power_mw > DEFAULT_BATTERY.max_charge_power_mw else "Restricted"
+        direction = (
+            "Higher"
+            if battery.max_charge_power_mw > DEFAULT_BATTERY.max_charge_power_mw
+            else "Restricted"
+        )
         return f"{direction} charge power"
     if battery.max_discharge_power_mw != DEFAULT_BATTERY.max_discharge_power_mw:
-        direction = "Higher" if battery.max_discharge_power_mw > DEFAULT_BATTERY.max_discharge_power_mw else "Restricted"
+        direction = (
+            "Higher"
+            if battery.max_discharge_power_mw > DEFAULT_BATTERY.max_discharge_power_mw
+            else "Restricted"
+        )
         return f"{direction} discharge power"
-    if (battery.min_soc_mwh, battery.max_soc_mwh) != (DEFAULT_BATTERY.min_soc_mwh, DEFAULT_BATTERY.max_soc_mwh):
+    if (battery.min_soc_mwh, battery.max_soc_mwh) != (
+        DEFAULT_BATTERY.min_soc_mwh,
+        DEFAULT_BATTERY.max_soc_mwh,
+    ):
         baseline_width = DEFAULT_BATTERY.max_soc_mwh - DEFAULT_BATTERY.min_soc_mwh
         width = battery.max_soc_mwh - battery.min_soc_mwh
         return f"{'Wider' if width > baseline_width else 'Tighter'} SoC window"
     if battery.max_equivalent_cycles != DEFAULT_BATTERY.max_equivalent_cycles:
-        direction = "Higher" if battery.max_equivalent_cycles > DEFAULT_BATTERY.max_equivalent_cycles else "Restricted"
+        direction = (
+            "Higher"
+            if battery.max_equivalent_cycles > DEFAULT_BATTERY.max_equivalent_cycles
+            else "Restricted"
+        )
         return f"{direction} cycle budget"
     if request.forecast.source_type != "illustrative":
         return "Manual price forecast"
@@ -50,4 +67,6 @@ def default_run_display_name(request: SimulationRequest) -> str:
 
 
 def legacy_run_display_name(payload: dict) -> str:
-    return str(payload.get("display_name") or f"Saved run {str(payload.get('simulation_id', ''))[-8:]}")
+    return str(
+        payload.get("display_name") or f"Saved run {str(payload.get('simulation_id', ''))[-8:]}"
+    )

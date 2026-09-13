@@ -3,11 +3,35 @@ from __future__ import annotations
 import math
 from zoneinfo import ZoneInfo
 
-from backend.domain.models import MarketConfig, PricePoint
 from backend.domain.delivery_grid import delivery_grid
+from backend.domain.models import MarketConfig, PricePoint
 
-
-HOURLY_PRICES = [55, 50, 45, 40, 38, 35, 32, 45, 60, 75, 82, 70, 60, 55, 48, 45, 58, 90, 120, 105, 80, 68, 60, 52]
+HOURLY_PRICES = [
+    55,
+    50,
+    45,
+    40,
+    38,
+    35,
+    32,
+    45,
+    60,
+    75,
+    82,
+    70,
+    60,
+    55,
+    48,
+    45,
+    58,
+    90,
+    120,
+    105,
+    80,
+    68,
+    60,
+    52,
+]
 
 
 def build_demo_forecast(delivery_date: str, market: MarketConfig) -> list[PricePoint]:
@@ -21,16 +45,20 @@ def build_demo_forecast(delivery_date: str, market: MarketConfig) -> list[PriceP
         base = HOURLY_PRICES[hour]
         sub = local.minute / 60
         price = base + 2.5 * math.sin(sub * math.pi * 2)
-        points.append(PricePoint(
-            timestamp_utc=cursor,
-            price_eur_mwh=round(price, 2),
-            low_eur_mwh=round(price - 10, 2),
-            high_eur_mwh=round(price + 12, 2),
-        ))
+        points.append(
+            PricePoint(
+                timestamp_utc=cursor,
+                price_eur_mwh=round(price, 2),
+                low_eur_mwh=round(price - 10, 2),
+                high_eur_mwh=round(price + 12, 2),
+            )
+        )
     return points
 
 
-def apply_scenario(points: list[PricePoint], multiplier: float, peak_reduction: float, conservative: bool) -> list[PricePoint]:
+def apply_scenario(
+    points: list[PricePoint], multiplier: float, peak_reduction: float, conservative: bool
+) -> list[PricePoint]:
     result = []
     for point in points:
         price = point.price_eur_mwh * multiplier

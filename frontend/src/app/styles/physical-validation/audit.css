@@ -1,0 +1,245 @@
+/* physical-validation: audit. Ordered by the parent manifest. */
+.checks {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+.checks li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: #f7faf9;
+  border: 1px solid var(--line);
+  padding: 8px;
+  border-radius: 7px;
+  font-size: 11px;
+}
+.checks svg {
+  color: var(--success);
+}
+.scenario-callout {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  background: #edf5f3;
+  padding: 11px 13px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.scenario-callout span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.compare {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.compare-row {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(3, 1fr);
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.compare-row > span {
+  display: flex;
+  flex-direction: column;
+  font-weight: 800;
+}
+.compare-row small {
+  display: none;
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.compare-head {
+  background: #f4f8f7;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.delta.positive {
+  color: var(--success);
+}
+.delta.negative {
+  color: var(--error);
+}
+.delta.neutral {
+  color: var(--muted);
+}
+.audit-page {
+  padding: 40px 34px 64px;
+  max-width: 1320px;
+  margin: auto;
+}
+.audit-page h1 {
+  font-size: 30px;
+  margin: 0 0 5px;
+}
+.audit-page > p {
+  color: var(--muted);
+  margin: 0;
+  max-width: 720px;
+  line-height: 1.6;
+}
+.audit-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 24px;
+}
+.audit-eyebrow {
+  color: var(--teal);
+}
+.audit-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 10px;
+  min-width: 430px;
+}
+.audit-stat {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px 14px;
+}
+.audit-stat span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+}
+.audit-stat strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+}
+.audit-tools {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.audit-search {
+  position: relative;
+  flex: 1;
+}
+.audit-search svg {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  color: #617a77;
+  pointer-events: none;
+}
+.audit-tools .audit-search input {
+  width: 100%;
+  padding-left: 36px;
+}
+.audit-tools input,
+.audit-tools select {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 7px;
+  padding: 9px;
+  min-height: 40px;
+}
+.audit-tools input {
+  flex: 1;
+}
+.event-tag {
+  font-size: 10px;
+  font-weight: 800;
+  background: #edf4f2;
+  padding: 4px 7px;
+  border-radius: 4px;
+}
+.event-tag.failed {
+  background: #fff0ed;
+  color: var(--error);
+}
+.run-cell {
+  min-width: 170px;
+}
+.run-cell strong,
+.run-cell span {
+  display: block;
+}
+.run-cell span,
+.run-outcome small {
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 3px;
+}
+.run-outcome strong {
+  display: block;
+  color: var(--success);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.run-events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.event-step {
+  border: 1px solid #d6e4e1;
+  background: #f5f9f8;
+  color: #315f5d;
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 9px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.audit-page code {
+  font-size: 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.audit-page details summary {
+  color: var(--teal);
+  cursor: pointer;
+}
+.evidence[open] {
+  min-width: 360px;
+}
+.evidence pre {
+  max-width: 620px;
+  max-height: 280px;
+  overflow: auto;
+  margin: 10px 0 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #f4f8f7;
+  color: #244c4f;
+  white-space: pre-wrap;
+}
+.evidence pre code {
+  white-space: inherit;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 28px 18px;
+  color: var(--muted);
+  font-size: 10px;
+}

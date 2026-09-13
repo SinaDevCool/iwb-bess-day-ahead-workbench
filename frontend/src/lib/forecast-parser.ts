@@ -24,9 +24,7 @@ export function parseForecast(
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const timed = lines.some((line) =>
-    /^(\d\d:\d\d|\d{4}-\d\d-\d\dT)/.test(line),
-  );
+  const timed = lines.some((line) => /^(\d\d:\d\d|\d{4}-\d\d-\d\dT)/.test(line));
   const values: number[] = [];
   const errors: ForecastParseError[] = [];
   const seen = new Set<string>();
@@ -35,9 +33,7 @@ export function parseForecast(
     if (/(?:[,;]\s*[,;]|^[,;]|[,;]$|\n\s*\n)/.test(text))
       return {
         values: [],
-        errors: [
-          { row: 0, message: "Blank forecast cells are not valid prices." },
-        ],
+        errors: [{ row: 0, message: "Blank forecast cells are not valid prices." }],
       };
     const tokens = text.split(/[\s,;]+/).filter(Boolean);
     tokens.forEach((token, index) => {
@@ -84,10 +80,7 @@ export function parseForecast(
         }
         slot = clocks.indexOf(clock);
       } else if (/(?:Z|[+-]\d\d:\d\d)$/.test(clock)) {
-        slot =
-          grid?.findIndex(
-            (x) => Date.parse(x.timestamp_utc) === Date.parse(clock),
-          ) ?? -1;
+        slot = grid?.findIndex((x) => Date.parse(x.timestamp_utc) === Date.parse(clock)) ?? -1;
       }
       if (slot < 0) {
         errors.push({
@@ -114,8 +107,7 @@ export function parseForecast(
       if (parts.length !== 2) {
         errors.push({
           row: index + 1,
-          message:
-            "Use exactly one timestamp and one price per row (decimal point).",
+          message: "Use exactly one timestamp and one price per row (decimal point).",
         });
         return;
       }
@@ -133,8 +125,7 @@ export function parseForecast(
         });
       else mapped.set(slot, value);
     });
-    for (let i = 0; i < expectedCount; i++)
-      if (mapped.has(i)) values.push(mapped.get(i)!);
+    for (let i = 0; i < expectedCount; i++) if (mapped.has(i)) values.push(mapped.get(i)!);
   }
   if (!errors.length && values.length !== expectedCount)
     errors.push({

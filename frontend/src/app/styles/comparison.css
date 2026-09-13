@@ -1,0 +1,6 @@
+/* Cascade ownership manifest. Keep import order; responsive overrides are intentional. */
+@import "./comparison/picker.css";
+@import "./comparison/selection.css";
+@import "./comparison/outcomes.css";
+@import "./comparison/inspector.css";
+@import "./comparison/responsive.css";

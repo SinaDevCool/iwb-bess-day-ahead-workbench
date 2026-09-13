@@ -7,7 +7,10 @@ def test_interval_economics_reconciles_for_buy_and_sell():
     buy = calculate_interval("BUY", 50, 1, 40, battery)
     sell = calculate_interval("SELL", 50, 1, 100, battery)
     for result in (buy, sell):
-        assert result.contribution_eur == result.sales_revenue_eur - result.purchase_cost_eur - result.degradation_cost_eur
+        assert (
+            result.contribution_eur
+            == result.sales_revenue_eur - result.purchase_cost_eur - result.degradation_cost_eur
+        )
         assert result.grid_energy_mwh == 50
         assert result.battery_energy_mwh > 0
     assert buy.soc_delta_mwh > 0

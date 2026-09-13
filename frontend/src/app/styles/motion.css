@@ -1,0 +1,14 @@
+/* One owner for the shared loading icon, including its accessibility override. */
+.spin {
+  animation: ws-spin 1s linear infinite;
+}
+@keyframes ws-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}

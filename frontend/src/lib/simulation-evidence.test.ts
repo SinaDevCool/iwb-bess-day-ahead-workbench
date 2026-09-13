@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { OrderSimulation } from "@/types/api";
+import { describe, expect, it } from "vitest";
 import { simulationChecks } from "./simulation-evidence";
 
 function fixture(): OrderSimulation {
@@ -27,9 +27,7 @@ function fixture(): OrderSimulation {
         action: "charge",
       },
     ],
-    forecast_points: [
-      { timestamp_utc: "2026-09-09T00:00:00Z", price_eur_mwh: 30 },
-    ],
+    forecast_points: [{ timestamp_utc: "2026-09-09T00:00:00Z", price_eur_mwh: 30 }],
     summary: {
       equivalent_cycles: 0.1,
       final_soc_mwh: 70,
@@ -48,15 +46,13 @@ describe("saved simulation evidence", () => {
       margin: 30,
       status: "Headroom",
     });
-    expect(
-      checks.find((c) => c.label === "Minimum state of charge"),
-    ).toMatchObject({ observed: 50, margin: 40, status: "Headroom" });
-    expect(checks.find((c) => c.label === "Energy balance")?.status).toBe(
-      "Verified",
-    );
-    expect(checks.find((c) => c.label === "Ramp rate")?.status).toBe(
-      "Not evaluated",
-    );
+    expect(checks.find((c) => c.label === "Minimum state of charge")).toMatchObject({
+      observed: 50,
+      margin: 40,
+      status: "Headroom",
+    });
+    expect(checks.find((c) => c.label === "Energy balance")?.status).toBe("Verified");
+    expect(checks.find((c) => c.label === "Ramp rate")?.status).toBe("Not evaluated");
   });
   it("uses the grid-constrained effective power limit", () => {
     const r = fixture();
@@ -79,12 +75,8 @@ describe("saved simulation evidence", () => {
     r.dispatch[0].timestamp_utc = "2026-09-09T01:00:00Z";
     r.dispatch[0].soc_mwh = 80;
     const checks = simulationChecks(r);
-    expect(checks.find((c) => c.label === "Interval coverage")?.status).toBe(
-      "Issue",
-    );
-    expect(checks.find((c) => c.label === "Energy balance")?.status).toBe(
-      "Issue",
-    );
+    expect(checks.find((c) => c.label === "Interval coverage")?.status).toBe("Issue");
+    expect(checks.find((c) => c.label === "Energy balance")?.status).toBe("Issue");
   });
   it("reports a reserve shortfall separately from executed-order count", () => {
     const r = fixture();
@@ -95,8 +87,6 @@ describe("saved simulation evidence", () => {
       margin: -10,
       status: "Issue",
     });
-    expect(
-      checks.find((c) => c.label === "Submitted order feasibility")?.status,
-    ).toBe("Issue");
+    expect(checks.find((c) => c.label === "Submitted order feasibility")?.status).toBe("Issue");
   });
 });

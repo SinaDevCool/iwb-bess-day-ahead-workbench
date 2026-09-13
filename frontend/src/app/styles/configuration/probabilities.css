@@ -1,0 +1,133 @@
+/* configuration: probabilities. Ordered by the parent manifest. */
+.probability-rows label {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  margin: 0;
+  border-bottom: 1px solid #e5ecea;
+}
+.probability-rows label:last-child {
+  border-bottom: 0;
+}
+.probability-key {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+}
+.probability-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.probability-copy strong {
+  color: var(--ink);
+  font-size: 11px;
+}
+.probability-copy small {
+  color: #637a7d;
+  font-size: 9px;
+  font-weight: 450;
+}
+.probability-input {
+  position: relative;
+  display: block;
+}
+.probability-input input {
+  width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: 6px 25px 6px 8px;
+  border: 1px solid #c4d5d2;
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.probability-input input:focus-visible {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(36, 166, 161, 0.12);
+  outline: 0;
+}
+.probability-input input:out-of-range {
+  border-color: #d17b6e;
+  background: #fff7f5;
+}
+.probability-input > span {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  color: #637a7d;
+  font-size: 10px;
+  pointer-events: none;
+}
+.probability-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 18px;
+  margin-top: 8px;
+  color: #237e60;
+  font-size: 10px;
+  font-weight: 700;
+}
+.probability-editor.invalid .probability-status {
+  color: #a74737;
+}
+.inputs label,
+.edit-fields label {
+  display: block;
+  font-size: 12px;
+  font-weight: 720;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.inputs input,
+.inputs select,
+.inputs textarea,
+.edit-fields input {
+  width: 100%;
+  border: 1px solid #c4d5d2;
+  background: #fbfcfc;
+  color: var(--ink);
+  border-radius: 7px;
+  padding: 9px 10px;
+  margin-top: 5px;
+  min-height: 40px;
+}
+.inputs textarea {
+  resize: vertical;
+  line-height: 1.45;
+  font: inherit;
+}
+.inputs input:focus,
+.inputs select:focus,
+.edit-fields input:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(36, 166, 161, 0.12);
+  outline: 0;
+}
+.inputs label > small,
+.edit-fields label > small {
+  display: block;
+  font-weight: 450;
+  line-height: 1.35;
+  margin-top: 4px;
+  color: #637a7d;
+}
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  align-items: stretch;
+}
+.field-grid > label {
+  display: grid;
+  grid-template-rows: 44px 40px 34px;
+  align-content: start;
+  margin-bottom: 0;
+  min-width: 0;
+}

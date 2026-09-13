@@ -8,7 +8,9 @@ from backend.domain.models import BatteryConfig, MarketConfig
 
 def effective_transaction_fee(market: MarketConfig) -> float:
     """Return only configured marginal costs used by the dispatch decision."""
-    exchange = market.exchange_fee_eur_per_mwh if market.exchange_fee_policy == "configured" else 0.0
+    exchange = (
+        market.exchange_fee_eur_per_mwh if market.exchange_fee_policy == "configured" else 0.0
+    )
     return exchange + market.clearing_fee_eur_per_mwh
 
 
@@ -34,8 +36,9 @@ def calculate_interval(
 ) -> IntervalEconomics:
     """Return the canonical grid, battery and financial values for one interval.
 
-    Costs and revenues are positive magnitudes. Contribution is always
-    revenue minus purchases, battery degradation and per-MWh transaction fees.
+    Sales and purchases retain the price sign: negative prices make a BUY
+    purchase cost negative (a cash inflow). Contribution is always sales minus
+    purchases, battery-side degradation and grid-side transaction fees.
     """
     if side not in {"BUY", "SELL"}:
         raise ValueError("Side must be BUY or SELL")

@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { scheduleChartData } from "./dispatch-chart";
 import type { Battery, Dispatch } from "@/types/api";
+import { describe, expect, it } from "vitest";
+import { scheduleChartData } from "./dispatch-chart";
 describe("schedule time boundaries", () => {
   for (const minutes of [15, 60])
     it("preserves initial and final energy at " + minutes + " minutes", () => {

@@ -1,0 +1,229 @@
+@media (min-width: 1200px) and (max-width: 1679px) {
+  .workspace {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  }
+  .workspace.sidebar-collapsed {
+    grid-template-columns: var(--sidebar-rail-width) minmax(0, 1fr);
+  }
+}
+@media (max-width: 1199px) {
+  .workspace {
+    grid-template-columns: var(--sidebar-rail-width) minmax(0, 1fr);
+    padding-inline: 16px;
+  }
+  .workspace:not(.sidebar-collapsed) .inputs {
+    position: fixed;
+    z-index: 51;
+    top: calc(var(--topbar-height) + 12px);
+    bottom: 12px;
+    left: 12px;
+    width: min(390px, calc(100vw - 24px));
+    max-height: none;
+    box-shadow: 0 22px 65px rgba(9, 44, 47, 0.24);
+  }
+  .workspace.sidebar-collapsed {
+    grid-template-columns: var(--sidebar-rail-width) minmax(0, 1fr);
+  }
+  .configuration-scrim {
+    display: block;
+    position: fixed;
+    z-index: 50;
+    inset: 0;
+    border: 0;
+    background: rgba(8, 37, 40, 0.32);
+    cursor: default;
+  }
+  .main-column {
+    grid-column: 2;
+  }
+  .field-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .edit-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+  .before-after {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .reason {
+    grid-column: 1/-1;
+  }
+  .check-label {
+    margin-top: 0 !important;
+  }
+  .proof-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  .topbar {
+    padding: 8px 14px;
+    flex-wrap: wrap;
+  }
+  .header-status {
+    justify-content: flex-start;
+    overflow: auto;
+    width: 100%;
+  }
+  .brand-copy > span,
+  .desktop-only {
+    display: none;
+  }
+  .safety {
+    justify-content: flex-start;
+  }
+  .context-bar {
+    padding: 18px;
+    align-items: flex-start;
+  }
+  .context-bar h1 {
+    font-size: 23px;
+  }
+  .workspace {
+    padding: 12px;
+    grid-template-columns: 1fr;
+  }
+  .tabs button {
+    flex: 1;
+    padding-inline: 7px;
+  }
+  .tab-full {
+    display: none;
+  }
+  .tab-compact {
+    display: inline;
+  }
+  .workspace.sidebar-collapsed {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .main-column {
+    grid-column: 1;
+  }
+  .inputs.collapsed {
+    padding: 4px;
+  }
+  .field-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  .kpi strong {
+    font-size: 17px;
+  }
+  .tabs {
+    padding: 0;
+  }
+  .result-panel {
+    padding: 14px;
+  }
+  .section-head {
+    flex-direction: column;
+  }
+  .before-after {
+    grid-template-columns: 1fr;
+  }
+  .value-drivers-head {
+    align-items: flex-start;
+  }
+  .value-driver {
+    grid-template-columns: minmax(130px, 1fr) minmax(140px, 1.4fr);
+  }
+  .value-driver-cases {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .edit-fields {
+    grid-template-columns: 1fr;
+  }
+  .approval-bar,
+  .scenario-callout {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .actions {
+    width: 100%;
+    flex-direction: column;
+  }
+  .actions button {
+    width: 100%;
+  }
+  .validation-summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .validation-summary > small {
+    width: 100%;
+    margin-left: 37px;
+    white-space: normal;
+  }
+  .proof-grid,
+  .checks {
+    grid-template-columns: 1fr;
+  }
+  .constraint-map-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .constraint-counts {
+    text-align: left;
+  }
+  .constraint-row {
+    grid-template-columns: minmax(140px, 1fr) 1.5fr;
+    gap: 8px 14px;
+  }
+  .constraint-margin {
+    grid-column: 1;
+  }
+  .validation-state {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .constraint-evidence {
+    grid-template-columns: 1fr;
+  }
+  .constraint-evidence dl {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .compare-head {
+    display: none;
+  }
+  .compare-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .compare-row > strong {
+    grid-column: 1/-1;
+  }
+  .compare-row small {
+    display: block;
+  }
+  .audit-page {
+    padding: 22px 14px;
+  }
+  .audit-tools {
+    flex-direction: column;
+  }
+  .audit-intro {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .audit-summary {
+    min-width: 0;
+  }
+  footer {
+    flex-direction: column;
+    gap: 5px;
+  }
+}
+
+/* Refined minimal workbench and analytical chart */
+body {
+  background: #f6f8f7;
+}
+.context-bar {
+  padding: 16px 32px;
+  background: #114f52;
+}

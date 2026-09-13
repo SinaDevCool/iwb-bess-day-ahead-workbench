@@ -1,0 +1,126 @@
+/* simulator-legacy: tables-and-responsive. Ordered by the parent manifest. */
+.execution-table td > small {
+  display: block;
+  max-width: 260px;
+  margin-top: 3px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.execution-table .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.execution-status {
+  display: inline-flex;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: #e8f5ef;
+  color: #177147;
+  font-size: 8px;
+  font-weight: 850;
+  text-transform: capitalize;
+}
+.execution-status.not_executed {
+  background: #edf1f0;
+  color: #667875;
+}
+.execution-status.physically_infeasible {
+  background: #fff0ed;
+  color: var(--error);
+}
+.validation-findings {
+  padding: 12px 16px;
+  background: #fff8f6;
+}
+.validation-findings strong {
+  color: var(--error);
+  font-size: 10px;
+}
+.validation-findings p {
+  margin: 5px 0 0;
+  color: #74453d;
+  font-size: 10px;
+}
+.banner.error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 13px;
+  border: 1px solid #ecc8c1;
+  border-radius: 8px;
+  background: #fff3f0;
+  color: var(--error);
+  font-size: 11px;
+}
+@media (max-width: 1250px) {
+  .order-simulator-page {
+    padding-inline: 18px;
+  }
+  .simulator-layout {
+    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  }
+  .order-entry-row {
+    grid-template-columns: 25px repeat(3, minmax(0, 1fr));
+  }
+  .order-entry-row .market-condition,
+  .order-entry-row > label:nth-of-type(5) {
+    grid-column: 2/4;
+  }
+  .order-entry-row .remove-order {
+    grid-column: 4;
+    grid-row: 2;
+    justify-self: end;
+  }
+}
+@media (max-width: 900px) {
+  .simulator-layout {
+    grid-template-columns: 1fr;
+  }
+  .simulator-inputs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .simulator-hero,
+  .simulation-action,
+  .result-verdict {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .mode-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+  .simulator-inputs {
+    grid-template-columns: 1fr;
+  }
+  .forecast-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .order-entry-row {
+    grid-template-columns: 25px repeat(2, minmax(0, 1fr));
+  }
+  .order-entry-row .remove-order {
+    grid-column: 3;
+  }
+  .simulation-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .result-checks {
+    grid-template-columns: 1fr;
+  }
+  .execution-table {
+    min-width: 720px;
+  }
+}
+@media (max-width: 700px) {
+  .run-context {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .run-context button {
+    margin-left: 0;
+  }
+}

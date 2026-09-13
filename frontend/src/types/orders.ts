@@ -1,0 +1,57 @@
+/** orders API contracts. Values here are validated by the backend, not by TypeScript. */
+export type Order = {
+  order_id: string;
+  delivery_start_utc: string;
+  delivery_end_utc: string;
+  delivery_local: string;
+  product: string;
+  side: "BUY" | "SELL";
+  volume_mw: number;
+  energy_mwh: number;
+  limit_price_eur_mwh: number;
+  expected_price_eur_mwh: number;
+  expected_contribution_eur: number;
+  break_even_price_eur_mwh: number;
+  margin_to_break_even_eur_mwh: number;
+  pricing_posture: "execution" | "balanced" | "margin";
+  sales_revenue_eur: number;
+  purchase_cost_eur: number;
+  degradation_cost_eur: number;
+  transaction_fee_eur: number;
+  confidence: string;
+  status: string;
+  explanation: string;
+};
+export type SubmittedOrderType = "MARKET" | "LIMIT";
+export type OrderExecutionStatus = "EXECUTED" | "NOT_EXECUTED" | "PHYSICALLY_INFEASIBLE";
+export type SubmittedOrder = {
+  client_order_id: string;
+  delivery_start_utc: string;
+  side: "BUY" | "SELL";
+  order_type: SubmittedOrderType;
+  volume_mw: number;
+  limit_price_eur_mwh?: number | null;
+};
+export type SimulatedOrderResult = {
+  submitted_order: SubmittedOrder;
+  forecast_price_eur_mwh: number;
+  execution_status: OrderExecutionStatus;
+  executed_volume_mw: number;
+  execution_price_eur_mwh?: number | null;
+  reason_code: string;
+  reason: string;
+  soc_before_mwh: number;
+  soc_after_mwh: number;
+  contribution_eur: number;
+  sales_revenue_eur: number;
+  purchase_cost_eur: number;
+  degradation_cost_eur: number;
+  transaction_fee_eur: number;
+  price_condition_operator?: "<=" | ">=" | null;
+  price_condition_passed: boolean | null;
+  price_margin_eur_mwh?: number | null;
+  soc_evidence_scope?: "delivery_interval";
+  interval_order_count?: number;
+  executed_energy_mwh: number;
+  soc_delta_mwh: number;
+};

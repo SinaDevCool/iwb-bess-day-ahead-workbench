@@ -1,0 +1,184 @@
+/* configuration: sections. Ordered by the parent manifest. */
+.inputs-content > .config-group {
+  --section-accent: #267f7a;
+  --section-tint: #f2f8f7;
+  min-width: 0;
+  margin: 0;
+  padding: 0 12px 13px;
+  border: 1px solid #dce8e6;
+  border-top: 3px solid var(--section-accent);
+  border-radius: 9px;
+  background: linear-gradient(180deg, var(--section-tint) 0, #fff 76px);
+}
+.inputs-content > .policy-config {
+  --section-accent: #6171a4;
+  --section-tint: #f5f6fb;
+}
+.inputs-content > .battery-config {
+  --section-accent: #347a5f;
+  --section-tint: #f2f8f4;
+}
+.inputs-content > .config-group > legend {
+  width: calc(100% + 2px);
+  margin-left: -1px;
+  padding: 10px 1px 8px;
+  color: var(--ink);
+}
+.inputs-content > .config-group > legend,
+.config-legend-copy {
+  display: flex;
+  align-items: center;
+}
+.inputs-content > .config-group > legend {
+  gap: 9px;
+}
+.config-step {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: none;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--section-accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+.config-legend-copy {
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+.config-legend-copy strong {
+  font-size: 12px;
+  font-weight: 820;
+  text-wrap: balance;
+}
+.config-legend-copy small {
+  margin-top: 2px;
+  color: #637a7d;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.section-intro {
+  margin: 0 0 13px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5ecea;
+  color: #637a7d;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.fee-policy {
+  padding: 9px 10px;
+  margin: 4px 0 12px;
+  border: 1px solid #d8e7e4;
+  border-radius: 8px;
+  background: #f6faf9;
+}
+.fee-policy .check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--ink);
+}
+.fee-policy .check-label input {
+  width: 16px;
+  min-height: 16px;
+  margin: 0;
+}
+.fee-policy > small {
+  display: block;
+  margin: 5px 0 0 24px;
+  color: #637a7d;
+  line-height: 1.35;
+}
+.derived-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 4px 0 14px;
+}
+.derived-strip span {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  border-radius: 7px;
+  background: #f1f7f6;
+  color: #637a7d;
+  font-size: 9px;
+  line-height: 1.3;
+}
+.derived-strip b {
+  color: var(--ink);
+  font-size: 11px;
+}
+.subsection-label {
+  margin: 16px 0 10px;
+  padding-top: 13px;
+  border-top: 1px solid #e6edeb;
+  color: #3e6566;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+.probability-editor {
+  margin: 3px 0 12px;
+  padding: 12px;
+  border: 1px solid #d8e7e4;
+  border-radius: 8px;
+  background: #f8fbfa;
+}
+.probability-editor.invalid {
+  border-color: #dfa095;
+  background: #fff9f7;
+}
+.probability-editor-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+.probability-editor-heading strong {
+  color: #237e60;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.probability-editor-heading strong.invalid {
+  color: #a74737;
+}
+.probability-editor > p {
+  margin: 3px 0 10px;
+  color: #637a7d;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.probability-bar {
+  display: flex;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5ecea;
+}
+.probability-segment.downside,
+.probability-key.downside {
+  background: #b76b55;
+}
+.probability-segment.expected,
+.probability-key.expected {
+  background: #248b86;
+}
+.probability-segment.upside,
+.probability-key.upside {
+  background: #6375af;
+}
+.probability-rows {
+  margin-top: 8px;
+}

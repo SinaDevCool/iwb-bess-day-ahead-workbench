@@ -4,10 +4,10 @@ Interview prototype for a 100 MWh / 50 MW battery participating in a configurabl
 
 ## Homework workflow
 
-1. Enter or edit the hourly Day-Ahead price forecast.
+1. Use **Load forecast** to upload a complete Day-Ahead price forecast (CSV), paste CSV data, or preview the illustrative demo. Review and apply the validated preview. **Edit intervals** makes targeted adjustments afterwards.
 2. Enter BUY/SELL orders and choose `Market` or `Limit` for every order. Market orders have no limit-price condition; Limit orders pass the price condition only when the entered forecast crosses their side-specific limit. Every price-accepted order remains subject to physical feasibility.
 3. Run the simulation to process orders chronologically through the battery state of charge.
-4. Inspect executed, price-rejected and physically infeasible orders alongside separate, time-aligned price, power and state-of-charge charts, economics and validation findings.
+4. Inspect the aligned price, power, state-of-charge and contribution tracks using the shared interval inspector (hover, click to pin, or arrow keys). Interval Detail combines the schedule and order outcomes in one table; expand Orders for individual execution reasons. The Columns menu limits the table to five selectable values plus Delivery and Orders.
 5. Optionally generate an optimization proposal, review it, and explicitly apply it to the editable orders. Applying is reversible; generating alone never replaces the draft. Re-run the simulation to evaluate the applied orders.
 6. Use Compare Runs for saved order simulations or explicitly scoped optimizer proposals. Saved history restores complete simulation inputs and evidence. Physical Validation inspects the saved executed schedule, including headroom and failed checks.
 
@@ -16,6 +16,17 @@ The entered forecast is deliberately used as the simulated auction clearing and 
 Inputs and their last result share one session-persisted workspace. Editing inputs marks prior results stale; late responses do not validate a newer draft. The canonical UTC delivery grid handles 23/25-hour daylight-saving days as well as normal days. Blank prices are not interpreted as zero.
 
 Implementation and verification details are in [docs/WORKSPACE_IMPLEMENTATION.md](docs/WORKSPACE_IMPLEMENTATION.md).
+
+For a file-by-file reading path, module ownership and mathematical conventions, see
+[docs/CODE_GUIDE.md](docs/CODE_GUIDE.md).
+
+### Forecast import and History
+
+CSV imports are validated by `POST /api/forecast/import`, not just parsed in the browser. Files use UTF-8, a decimal point and the exact header `delivery_start,price_eur_mwh`. Timestamps must include a UTC offset. All selected-day intervals must occur exactly once, chronologically, including daylight-saving 23/25-hour days. The maximum file size is 256 KB. Download the date-specific blank template in Load forecast; a filled mock example is `tests/fixtures/da-forecast-2026-09-09.csv`. Manual changes also pass backend validation before applying.
+
+Snapshots retain forecast source/version, content hash and import/edit provenance. Loading or editing never changes a previously saved result: re-simulate to update the evidence. The provider catalogue identifies the demo as available and Volue/Montel as **not connected**. Live provider adapters and credentials are not included; commercial data may currently be imported as CSV. No disconnected provider silently falls back to demo prices.
+
+**History** is the single entry point for saved simulations, proposals, exact inputs and recorded activity. The former `/audit` URL redirects there. Viewing a snapshot does not restore it; use the explicit Restore simulation/Open proposal action.
 
 Simulate orders reconstructs dispatch deterministically from the trader's entered orders. Generate proposal solves dispatch as a mixed-integer linear program with SciPy/HiGHS. Both operations reuse the same domain economics and physical-validation modules. Optimization settings affect proposal generation only; changing them does not reinterpret an already simulated order portfolio.
 
@@ -33,7 +44,7 @@ Simulate orders reconstructs dispatch deterministically from the trader's entere
 - End-of-day energy can use the hard minimum reserve alone, a configured terminal value, an illustrative next-day forecast proxy, or a multi-day opportunity-value policy. Cash contribution and continuation value remain separate.
 - Every generated order exposes an efficiency-, wear- and fee-adjusted break-even price. Decision sensitivity fully re-optimizes feasible operating levers (reserve, cycle budget, operating power, SoC window and availability) under the saved forecast; fixed asset facts such as nominal capacity, efficiency and degradation assumptions remain model inputs rather than trader controls.
 - Exchange fees distinguish an unconfigured/excluded contract value from a confirmed numeric zero. The ECC clearing fee remains a documented public-tariff assumption.
-- New decision records use audit schema v5 and preserve assumption provenance, the full forecast snapshot, scenario probabilities, forecast version, optimizer version and validation version.
+- Optimization records use audit schema v5; order-simulation records use v6. Saved records preserve the forecast and relevant model/input provenance for their workflow.
 - Executable orders are checked against strict SoC boundaries after market-increment rounding. Numerical solver tolerance, energy-balance tolerance and display precision are deliberately separate concepts.
 
 ## Safety boundary
@@ -46,12 +57,13 @@ Simulate orders reconstructs dispatch deterministically from the trader's entere
 
 ```powershell
 # Backend
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 python -m uvicorn backend.api.main:app --host 127.0.0.1 --port 8100
 
 # Frontend (second terminal)
 cd frontend
-npm install
+npm ci
+$env:NEXT_PUBLIC_API_BASE_URL = "http://127.0.0.1:8100"
 npm run dev
 ```
 
@@ -74,8 +86,14 @@ free Render instance and can be lost whenever the service sleeps or redeploys.
 
 ```powershell
 python -m pytest tests
+python -m ruff check backend tests
+python -m ruff format --check backend tests
 cd frontend
+npm run format:check
+npm run check:structure
+npm run typecheck
 npm run lint
+npm test
 npm run build
 ```
 

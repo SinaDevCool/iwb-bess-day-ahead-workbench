@@ -1,7 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
 import type { OrderSimulation } from "@/types/api";
+import { useSimulationComparison } from "./use-simulation-comparison";
 const money = (n: number) =>
   new Intl.NumberFormat("en-CH", {
     style: "currency",
@@ -11,41 +10,21 @@ const money = (n: number) =>
 const name = (r: OrderSimulation) => "Run " + r.simulation_id.slice(-6);
 
 export function SimulationComparison() {
-  const [runs, setRuns] = useState<OrderSimulation[]>([]);
-  const [ids, setIds] = useState<string[]>([]);
-  const [inspected, setInspected] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    let active = true;
-    api<{ items: OrderSimulation[] }>("/api/order-simulations")
-      .then(({ items }) => {
-        if (!active) return;
-        setRuns(items);
-        setIds(items.slice(0, 2).map((r) => r.simulation_id));
-        setInspected(items[0]?.simulation_id ?? "");
-      })
-      .catch((e) => {
-        if (active) setError(String(e));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [attempt]);
-  const selected = ids
-    .map((id) => runs.find((r) => r.simulation_id === id))
-    .filter((r): r is OrderSimulation => Boolean(r));
-  const reference = selected[0];
-  const detail =
-    selected.find((r) => r.simulation_id === inspected) ?? reference;
-  const extent = Math.max(
-    1,
-    ...selected.map((r) => Math.abs(r.summary.net_contribution_eur)),
-  );
+  const {
+    runs,
+    ids,
+    setIds,
+    setInspected,
+    error,
+    setError,
+    loading,
+    setLoading,
+    setAttempt,
+    selected,
+    reference,
+    detail,
+    extent,
+  } = useSimulationComparison();
   return (
     <section className="ws-card">
       <div className="ws-section-head">
@@ -74,9 +53,9 @@ export function SimulationComparison() {
         </details>
       </div>
       <p className="ws-help">
-        Each result uses its own saved forecast and orders. Differences are not
-        necessarily caused by a single parameter. Select a run to inspect its
-        inputs; the first selected run is the reference.
+        Each result uses its own saved forecast and orders. Differences are not necessarily caused
+        by a single parameter. Select a run to inspect its inputs; the first selected run is the
+        reference.
       </p>
       {loading && <p role="status">Loading simulations…</p>}
       {error && (
@@ -97,13 +76,8 @@ export function SimulationComparison() {
       {!loading && !error && !runs.length && (
         <p>No saved order simulations. Simulate orders to create one.</p>
       )}
-      {!!runs.length && !selected.length && (
-        <p>Select up to four runs above.</p>
-      )}
-      <div
-        className="uw-comparison-bars"
-        aria-label="Net contribution in euros"
-      >
+      {!!runs.length && !selected.length && <p>Select up to four runs above.</p>}
+      <div className="uw-comparison-bars" aria-label="Net contribution in euros">
         {selected.map((r) => (
           <button
             key={r.simulation_id}
@@ -119,18 +93,10 @@ export function SimulationComparison() {
                 style={{
                   left:
                     r.summary.net_contribution_eur < 0
-                      ? 50 -
-                        (Math.abs(r.summary.net_contribution_eur) / extent) *
-                          50 +
-                        "%"
+                      ? 50 - (Math.abs(r.summary.net_contribution_eur) / extent) * 50 + "%"
                       : "50%",
-                  width:
-                    (Math.abs(r.summary.net_contribution_eur) / extent) * 50 +
-                    "%",
-                  background:
-                    r.summary.net_contribution_eur < 0
-                      ? "var(--error)"
-                      : "var(--teal)",
+                  width: (Math.abs(r.summary.net_contribution_eur) / extent) * 50 + "%",
+                  background: r.summary.net_contribution_eur < 0 ? "var(--error)" : "var(--teal)",
                 }}
               />
             </span>
@@ -141,9 +107,7 @@ export function SimulationComparison() {
       {!!selected.length && (
         <div className="table-scroll">
           <table>
-            <caption className="sr-only">
-              Saved order simulation comparison
-            </caption>
+            <caption className="sr-only">Saved order simulation comparison</caption>
             <thead>
               <tr>
                 <th>Run</th>
@@ -158,10 +122,7 @@ export function SimulationComparison() {
               {selected.map((r) => (
                 <tr key={r.simulation_id}>
                   <td>
-                    <button
-                      className="ws-row-link"
-                      onClick={() => setInspected(r.simulation_id)}
-                    >
+                    <button className="ws-row-link" onClick={() => setInspected(r.simulation_id)}>
                       {name(r)}
                     </button>
                   </td>
@@ -170,20 +131,14 @@ export function SimulationComparison() {
                     {r === reference
                       ? "Reference"
                       : money(
-                          r.summary.net_contribution_eur -
-                            reference.summary.net_contribution_eur,
+                          r.summary.net_contribution_eur - reference.summary.net_contribution_eur,
                         )}
                   </td>
                   <td>
-                    {r.summary.executed_order_count}/
-                    {r.summary.submitted_order_count}
+                    {r.summary.executed_order_count}/{r.summary.submitted_order_count}
                   </td>
                   <td>{r.summary.final_soc_mwh} MWh</td>
-                  <td>
-                    {r.executed_schedule_feasible
-                      ? "Feasible"
-                      : "Needs attention"}
-                  </td>
+                  <td>{r.executed_schedule_feasible ? "Feasible" : "Needs attention"}</td>
                 </tr>
               ))}
             </tbody>
@@ -204,24 +159,21 @@ export function SimulationComparison() {
             <div>
               <dt>Forecast</dt>
               <dd>
-                {detail.forecast.source_name} · {detail.forecast_points.length}{" "}
-                prices
+                {detail.forecast.source_name} · {detail.forecast_points.length} prices
               </dd>
             </div>
             <div>
               <dt>Battery</dt>
               <dd>
-                {detail.battery.capacity_mwh} MWh · charge{" "}
-                {detail.battery.max_charge_power_mw} MW · discharge{" "}
-                {detail.battery.max_discharge_power_mw} MW
+                {detail.battery.capacity_mwh} MWh · charge {detail.battery.max_charge_power_mw} MW ·
+                discharge {detail.battery.max_discharge_power_mw} MW
               </dd>
             </div>
             <div>
               <dt>SoC</dt>
               <dd>
-                {detail.battery.min_soc_mwh}–{detail.battery.max_soc_mwh} MWh ·
-                initial {detail.battery.initial_soc_mwh} · reserve{" "}
-                {detail.battery.target_soc_mwh}
+                {detail.battery.min_soc_mwh}–{detail.battery.max_soc_mwh} MWh · initial{" "}
+                {detail.battery.initial_soc_mwh} · reserve {detail.battery.target_soc_mwh}
               </dd>
             </div>
           </dl>

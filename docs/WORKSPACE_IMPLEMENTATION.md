@@ -4,8 +4,8 @@
 
 The primary workflow is forecast input + explicit Market/Limit order input -> deterministic simulation -> graphical battery schedule. The original MILP remains an optional proposal generator and advanced analysis tool. Neither workflow sends orders to an exchange.
 
-- `frontend/src/components/workspace/order-workspace.tsx` owns draft, result snapshot, stale-state handling, forecast/settings dialogs and explicit proposal apply/undo.
-- `workspace/order-evidence.tsx` reuses one order editor and simulation-evidence presentation.
+- `frontend/src/components/workspace/order-workspace.tsx` composes the views. `use-workbench.ts` connects one shared state owner to snapshot validation, session persistence and explicit action hooks.
+- `workspace/order-evidence.tsx` provides the order editor; `simulation-results.tsx` owns simulation-evidence presentation. Battery and cost editors are independent staged forms.
 - `workspace/workspace-history.tsx` restores saved inputs and results by run type.
 - `app/page.tsx` now mounts only `UnifiedWorkbench`; the old advanced-page controller and mode switch are removed. Auction Orders, Dispatch & Economics, Physical Validation and Compare Runs share that controller.
 - `workspace/simulation-validation.tsx` and `lib/simulation-evidence.ts` present observed/allowed values from the immutable order-simulation snapshot, with explicit headroom, issues and not-evaluated states. Backend validation remains authoritative.
@@ -24,7 +24,10 @@ Each submitted order has exactly one outcome. Price-condition evidence survives 
 
 Cash contribution excludes continuation value. Risk postures compare candidate schedules; they must not be described as a globally robust stochastic optimum. Next-day/multi-day continuation assumptions are proxies, not a full multi-day dispatch simulation. The two-hour task assumption is 100 MWh / 50 MW nominal charge or discharge duration.
 
-## Verification
+## Earlier workflow verification
+
+The counts below describe the earlier workflow implementation, not the current
+suite size. See `CODE_GUIDE.md` for refactoring boundaries and README for current commands.
 
 - Backend: 115 pytest tests passed, including exact grids, DST, naive/off-grid timestamps, batch evidence, terminal failure, cash reconciliation, proposal round-trip, typed history filtering and no-duplicate sensitivity history.
 - Frontend: 36 Vitest tests passed, covering draft preservation, explicit proposal apply/undo, stale in-flight results, blank/ambiguous forecast input, chart timing, legacy URL mapping and saved-snapshot validation/headroom.

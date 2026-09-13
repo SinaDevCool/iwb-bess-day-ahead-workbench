@@ -4,7 +4,6 @@ import json
 import sqlite3
 from pathlib import Path
 
-
 DB_PATH = Path(__file__).resolve().parents[2] / "data" / "iwb_workbench.sqlite"
 
 
@@ -17,11 +16,17 @@ def initialize():
         connection.execute(
             "CREATE TABLE IF NOT EXISTS audit_events (event_id INTEGER PRIMARY KEY AUTOINCREMENT, simulation_id TEXT NOT NULL, created_at TEXT NOT NULL, event_type TEXT NOT NULL, payload TEXT NOT NULL)"
         )
-        connection.execute("CREATE INDEX IF NOT EXISTS idx_audit_simulation ON audit_events(simulation_id, event_id)")
-        connection.execute("CREATE INDEX IF NOT EXISTS idx_simulation_created ON simulations(created_at DESC)")
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_audit_simulation ON audit_events(simulation_id, event_id)"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_simulation_created ON simulations(created_at DESC)"
+        )
 
 
-def save_simulation_with_event(payload: dict, created_at: str, event_type: str, event_payload: dict):
+def save_simulation_with_event(
+    payload: dict, created_at: str, event_type: str, event_payload: dict
+):
     """Persist a decision revision and its governance evidence atomically."""
     initialize()
     with sqlite3.connect(DB_PATH) as connection:
@@ -32,7 +37,12 @@ def save_simulation_with_event(payload: dict, created_at: str, event_type: str, 
         )
         connection.execute(
             "INSERT INTO audit_events(simulation_id, created_at, event_type, payload) VALUES (?, ?, ?, ?)",
-            (payload["simulation_id"], created_at, event_type, json.dumps(event_payload, default=str)),
+            (
+                payload["simulation_id"],
+                created_at,
+                event_type,
+                json.dumps(event_payload, default=str),
+            ),
         )
 
 
@@ -48,17 +58,25 @@ def save_simulation(payload: dict):
 def get_simulation(simulation_id: str):
     initialize()
     with sqlite3.connect(DB_PATH) as connection:
-        row = connection.execute("SELECT payload FROM simulations WHERE simulation_id = ?", (simulation_id,)).fetchone()
+        row = connection.execute(
+            "SELECT payload FROM simulations WHERE simulation_id = ?", (simulation_id,)
+        ).fetchone()
     return json.loads(row[0]) if row else None
 
 
-def list_simulations(limit: int = 30, run_type: str | None = None):
+def list_simulations(limit: int = 30, run_type: str | None = None, offset: int = 0):
     initialize()
     with sqlite3.connect(DB_PATH) as connection:
         if run_type:
-            rows = connection.execute("SELECT payload FROM simulations WHERE COALESCE(json_extract(payload, '$.run_type'), 'OPTIMIZATION') = ? ORDER BY created_at DESC LIMIT ?", (run_type, limit)).fetchall()
+            rows = connection.execute(
+                "SELECT payload FROM simulations WHERE COALESCE(json_extract(payload, '$.run_type'), 'OPTIMIZATION') = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (run_type, limit, offset),
+            ).fetchall()
         else:
-            rows = connection.execute("SELECT payload FROM simulations ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+            rows = connection.execute(
+                "SELECT payload FROM simulations ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (limit, offset),
+            ).fetchall()
     return [json.loads(row[0]) for row in rows]
 
 
@@ -71,11 +89,22 @@ def add_audit_event(simulation_id: str, created_at: str, event_type: str, payloa
         )
 
 
-def list_audit_events(limit: int = 100):
+def list_audit_events(limit: int = 100, simulation_id: str | None = None):
     initialize()
     with sqlite3.connect(DB_PATH) as connection:
         rows = connection.execute(
-            "SELECT event_id, simulation_id, created_at, event_type, payload FROM audit_events ORDER BY event_id DESC LIMIT ?",
-            (limit,),
+            "SELECT event_id, simulation_id, created_at, event_type, payload FROM audit_events "
+            + ("WHERE simulation_id = ? " if simulation_id else "")
+            + "ORDER BY event_id DESC LIMIT ?",
+            (simulation_id, limit) if simulation_id else (limit,),
         ).fetchall()
-    return [{"event_id": row[0], "simulation_id": row[1], "created_at": row[2], "event_type": row[3], "payload": json.loads(row[4])} for row in rows]
+    return [
+        {
+            "event_id": row[0],
+            "simulation_id": row[1],
+            "created_at": row[2],
+            "event_type": row[3],
+            "payload": json.loads(row[4]),
+        }
+        for row in rows
+    ]

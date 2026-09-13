@@ -1,0 +1,232 @@
+/* physical-validation: evidence. Ordered by the parent manifest. */
+.constraint-evidence > div {
+  display: flex;
+  flex-direction: column;
+}
+.constraint-evidence > div span,
+.constraint-evidence dt {
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.constraint-evidence > div strong {
+  margin-top: 3px;
+  font-size: 13px;
+}
+.constraint-evidence dl {
+  display: grid;
+  grid-template-columns: 1.3fr 1.4fr 1fr;
+  gap: 18px;
+  margin: 0;
+}
+.constraint-evidence dd {
+  margin: 3px 0 0;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.constraint-empty {
+  padding: 24px 20px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+.exact-validation {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.exact-validation > summary {
+  padding: 11px 2px;
+  color: var(--teal-dark);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.exact-validation .validation-table {
+  margin-bottom: 12px;
+}
+.validation-state {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 800;
+}
+.validation-state.binding {
+  background: #fff2df;
+  color: var(--warning);
+}
+.validation-state.failed {
+  background: #fff0ed;
+  color: var(--error);
+}
+.validation-state.passed {
+  background: #e7f6ef;
+  color: var(--success);
+}
+.proof-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 9px;
+  margin-top: 12px;
+}
+.proof {
+  background: #f5f8f7;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.proof span {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 800;
+}
+.proof strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.solver-explainer {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.72fr) minmax(0, 1.7fr);
+  gap: 12px;
+  margin-top: 13px;
+}
+.solver-outcome {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 15px;
+  border: 1px solid #cfe4da;
+  border-radius: 9px;
+  background: #f1f8f5;
+}
+.solver-outcome svg {
+  flex: 0 0 auto;
+  color: var(--success);
+}
+.solver-outcome div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.solver-outcome span {
+  color: var(--success);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.55px;
+  text-transform: uppercase;
+}
+.solver-outcome strong {
+  margin: 3px 0;
+  font-size: 14px;
+}
+.solver-outcome small,
+.solver-metrics small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+.solver-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  overflow: hidden;
+}
+.solver-metrics > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 13px 14px;
+  border-left: 1px solid var(--line);
+}
+.solver-metrics > div:first-child {
+  border-left: 0;
+}
+.solver-metrics dt {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.45px;
+  text-transform: uppercase;
+}
+.solver-metrics dd {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+.solver-metrics code {
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: #edf3f2;
+  color: #496568;
+  font-size: 9px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.model-safeguards {
+  margin-top: 16px;
+}
+.model-safeguards > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+}
+.model-safeguards h4 {
+  margin: 0;
+  font-size: 13px;
+}
+.model-safeguards p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.model-safeguards ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.model-safeguards li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #dde7e5;
+  border-radius: 7px;
+  background: #fafcfb;
+}
+.model-safeguards li > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--success);
+}
+.model-safeguards li > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.model-safeguards li strong {
+  font-size: 11px;
+}
+.model-safeguards li small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+}

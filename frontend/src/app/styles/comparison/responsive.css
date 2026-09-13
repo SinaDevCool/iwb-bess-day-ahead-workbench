@@ -1,0 +1,220 @@
+/* comparison: responsive. Ordered by the parent manifest. */
+@media (max-width: 1199px) {
+  .solver-explainer {
+    grid-template-columns: 1fr;
+  }
+}
+@media (min-width: 1680px) {
+  :root {
+    --sidebar-width: 360px;
+    --workspace-gap: 22px;
+  }
+  .context-bar > div {
+    max-width: 1836px;
+    margin-inline: auto;
+  }
+  .plot-area {
+    height: 155px;
+  }
+  .plot-area.large {
+    height: 250px;
+  }
+  .economics-area {
+    height: 225px;
+  }
+  .order-area {
+    height: 250px;
+  }
+  .scenario-area {
+    height: 220px;
+  }
+}
+@media (max-width: 700px) {
+  .workspace.sidebar-collapsed {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .inputs.collapsed {
+    padding: 10px 12px;
+  }
+  .inputs.collapsed .panel-title {
+    justify-content: space-between;
+  }
+  .inputs.collapsed .panel-title > .collapsed-context {
+    display: flex !important;
+    flex: 1;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .collapsed-context strong {
+    color: var(--ink);
+    font-size: 13px;
+  }
+  .panel-title > .collapsed-context span {
+    display: block;
+    width: auto;
+    height: auto;
+    overflow: hidden;
+    place-items: initial;
+    border-radius: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .inline-evidence dl,
+  .risk-outcomes {
+    grid-template-columns: 1fr;
+  }
+  .risk-outcomes > div {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+  .risk-outcomes > div:first-child {
+    border-top: 0;
+  }
+  .robustness-heading {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .audit-desktop {
+    display: none;
+  }
+  .audit-mobile {
+    display: grid;
+    gap: 10px;
+  }
+  .comparison-section-heading,
+  .comparison-toolbar,
+  .inspector-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .outcome-explainer {
+    grid-template-columns: 1fr;
+  }
+  .outcome-explainer > div {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+  .outcome-explainer > div:first-child {
+    border-top: 0;
+  }
+  .run-picker {
+    width: 100%;
+  }
+  .run-picker > summary {
+    justify-content: center;
+  }
+  .run-picker-panel {
+    position: fixed;
+    z-index: 60;
+    top: auto;
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    width: auto;
+    max-height: 78vh;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .run-filters,
+  .configuration-diff > dl,
+  .configuration-groups {
+    grid-template-columns: 1fr;
+  }
+  .metric-switch {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .metric-switch button {
+    min-height: 36px;
+  }
+  .run-comparison-chart {
+    padding-inline: 8px;
+  }
+  .run-comparison-chart figcaption {
+    flex-direction: column;
+  }
+  .configuration-diff > dl > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .configuration-diff dd {
+    flex-wrap: wrap;
+  }
+  .chart-overview {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .chart-facts {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .chart-facts > span {
+    align-items: flex-start;
+  }
+  .plot-area {
+    height: 135px;
+  }
+  .plot-area.large {
+    height: 230px;
+  }
+  .chart-foot {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .context-bar {
+    padding: 15px 18px;
+  }
+  .economics-chart figcaption,
+  .order-timeline figcaption,
+  .scenario-chart figcaption {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .chart-legend {
+    justify-content: flex-start;
+  }
+  .interval-table-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .column-picker summary {
+    justify-content: center;
+  }
+  .column-menu {
+    position: fixed;
+    top: auto;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: auto;
+  }
+  .interval-table-scroll {
+    max-height: 430px;
+  }
+  .solver-metrics,
+  .model-safeguards ul {
+    grid-template-columns: 1fr;
+  }
+  .solver-metrics > div {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+  .solver-metrics > div:first-child {
+    border-top: 0;
+  }
+  .model-safeguards > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+}

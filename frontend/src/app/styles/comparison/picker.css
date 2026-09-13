@@ -1,0 +1,194 @@
+/* comparison: picker. Ordered by the parent manifest. */
+.run-selection,
+.comparison-visual,
+.run-inspector {
+  min-width: 0;
+}
+.comparison-section-heading,
+.comparison-toolbar,
+.inspector-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.comparison-section-heading h3,
+.comparison-toolbar h3,
+.inspector-heading h3 {
+  margin: 3px 0 0;
+  color: var(--ink);
+  font-size: 16px;
+  text-wrap: balance;
+}
+.comparison-subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+.comparison-section-heading h3 small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+.run-picker {
+  position: relative;
+  z-index: 20;
+}
+.run-picker > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid #bdd2cf;
+  border-radius: 7px;
+  background: #fff;
+  color: var(--teal-dark);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  list-style: none;
+}
+.run-picker > summary::-webkit-details-marker {
+  display: none;
+}
+.run-picker > summary:hover {
+  border-color: var(--teal);
+  background: #f1f8f6;
+}
+.run-picker > summary:focus-visible,
+.run-option:focus-within,
+.run-chip-focus:focus-visible,
+.run-chip-remove:focus-visible,
+.metric-switch button:focus-visible,
+.comparison-results-table tr:focus-visible,
+.configuration-groups summary:focus-visible {
+  outline: 3px solid rgba(22, 134, 127, 0.24);
+  outline-offset: 2px;
+}
+.run-picker-panel {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  width: min(520px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 16px 38px rgba(17, 56, 58, 0.18);
+}
+.run-picker-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+.run-picker-title strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+.run-picker-title span,
+.picker-empty {
+  color: var(--muted);
+  font-size: 10px;
+}
+.run-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+}
+.run-search:focus-within {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(22, 134, 127, 0.12);
+}
+.run-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+}
+.run-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 8px 0;
+}
+.run-filters select {
+  width: 100%;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 10px;
+}
+.run-options {
+  max-height: 310px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--line);
+}
+.run-option {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 56px;
+  padding: 8px 5px;
+  border-bottom: 1px solid #edf1f0;
+  cursor: pointer;
+}
+.run-option:hover,
+.run-option.selected {
+  background: #f1f8f6;
+}
+.run-option:has(input:disabled) {
+  color: #94a3a1;
+  cursor: not-allowed;
+}
+.run-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--teal);
+}
+.run-option > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.run-option strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.run-option small {
+  color: var(--muted);
+  font-size: 9px;
+}
+.run-option b {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.picker-empty {
+  margin: 13px 4px 3px;
+}
+.run-chips {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  overflow-x: auto;
+  padding: 2px 2px 5px;
+  scrollbar-width: thin;
+}

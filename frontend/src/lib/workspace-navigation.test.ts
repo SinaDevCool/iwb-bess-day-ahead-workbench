@@ -16,9 +16,7 @@ describe("unified navigation", () => {
   });
   it("removes split-workbench routing without losing saved-run references", () => {
     const url = workspaceUrl(
-      new URL(
-        "https://example.test/?mode=optimize&workspace=inputs&runs=a,b&reference=a",
-      ),
+      new URL("https://example.test/?mode=optimize&workspace=inputs&runs=a,b&reference=a"),
       "schedule",
     );
     expect(url.searchParams.get("mode")).toBeNull();

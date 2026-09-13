@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UnifiedWorkbench } from "./workspace/order-workspace";
 
@@ -114,22 +114,12 @@ describe("OrderSimulatorWorkbench", () => {
   }
   it("shows the compact forecast and all four orders, with only one editor", async () => {
     await ready();
-    expect(
-      screen.getByRole("heading", { name: "BESS Day-Ahead Workbench" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getAllByRole("button", { name: /Edit .* order/ }),
-    ).toHaveLength(4);
-    expect(
-      screen.queryByLabelText("Volume for order 1"),
-    ).not.toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Edit 05:00 BUY order" }),
-    );
+    expect(screen.getByRole("heading", { name: "BESS Day-Ahead Workbench" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(4);
+    expect(screen.queryByLabelText("Volume for order 1")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit 05:00 BUY order" }));
     expect(screen.getByLabelText("Volume for order 1")).toHaveValue(20);
-    expect(
-      screen.queryByLabelText("Limit price for order 1"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Limit price for order 1")).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Type for order 1"), {
       target: { value: "LIMIT" },
     });
@@ -146,27 +136,46 @@ describe("OrderSimulatorWorkbench", () => {
     expect(screen.getByLabelText("Volume for order 5")).toHaveValue(12.3);
     cleanup();
     await ready();
+    expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(5);
+  });
+  it("shows one actionable volume error instead of duplicate helper text", async () => {
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: "Edit 05:00 BUY order" }));
+    fireEvent.change(screen.getByLabelText("Volume for order 1"), { target: { value: "-1" } });
+    expect(screen.getByText("Enter a positive volume.")).toBeInTheDocument();
+    expect(screen.queryByText("Enter a positive volume in MW")).not.toBeInTheDocument();
+  });
+  it("explains the invalid terminal setting without sending a proposal request", async () => {
+    await ready();
+    fireEvent.click(screen.getByText("Optimization Settings"));
+    fireEvent.change(screen.getByLabelText("End-of-day policy"), {
+      target: { value: "terminal_value" },
+    });
+    fireEvent.change(screen.getByLabelText("Terminal value €/MWh"), { target: { value: "-1" } });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    fireEvent.click(screen.getByRole("button", { name: "Generate proposal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
     expect(
-      screen.getAllByRole("button", { name: /Edit .* order/ }),
-    ).toHaveLength(5);
+      within(screen.getByRole("dialog")).getByText(
+        /Terminal value must be a finite number of zero or more/,
+      ),
+    ).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
   it("does not apply blank forecast cells or treat them as zero", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Edit prices" }));
-    fireEvent.change(
-      screen.getByLabelText("Price " + points[0].timestamp_utc),
-      { target: { value: "" } },
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit intervals" }));
+    fireEvent.change(screen.getByLabelText("Price " + points[0].timestamp_utc), {
+      target: { value: "" },
+    });
     expect(screen.getByRole("button", { name: "Apply prices" })).toBeDisabled();
-    fireEvent.change(
-      screen.getByLabelText("Price " + points[0].timestamp_utc),
-      { target: { value: "-20" } },
-    );
+    fireEvent.change(screen.getByLabelText("Price " + points[0].timestamp_utc), {
+      target: { value: "-20" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Apply prices" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit prices" }));
-    expect(
-      screen.getByLabelText("Price " + points[0].timestamp_utc),
-    ).toHaveValue(-20);
+    fireEvent.click(screen.getByRole("button", { name: "Edit intervals" }));
+    expect(screen.getByLabelText("Price " + points[0].timestamp_utc)).toHaveValue(-20);
   });
   it("marks a pending simulation result stale when inputs changed during the request", async () => {
     await ready();
@@ -183,9 +192,7 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Simulate orders" }));
     fireEvent.click(screen.getByRole("button", { name: "Add order" }));
     resolve(response(result));
-    expect(
-      await screen.findByText(/Inputs changed. The displayed result/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Inputs changed. The displayed result/)).toBeInTheDocument();
     expect(screen.getByText("Schedule charts")).toBeInTheDocument();
   });
   it("requires explicit proposal application and supports undo", async () => {
@@ -218,17 +225,11 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Generate proposal" }));
     fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
     await screen.findByRole("button", { name: "Apply proposal" });
-    expect(
-      screen.getAllByRole("button", { name: /Edit .* order/, hidden: true }),
-    ).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: /Edit .* order/, hidden: true })).toHaveLength(4);
     fireEvent.click(screen.getByRole("button", { name: "Apply proposal" }));
-    expect(
-      screen.getAllByRole("button", { name: /Edit .* order/ }),
-    ).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-    expect(
-      screen.getAllByRole("button", { name: /Edit .* order/ }),
-    ).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(4);
   });
   it("shows a recoverable backend failure", async () => {
     vi.stubGlobal(
@@ -238,34 +239,20 @@ describe("OrderSimulatorWorkbench", () => {
       }),
     );
     render(<UnifiedWorkbench />);
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Workbench unavailable",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Workbench unavailable");
     expect(screen.getByRole("button", { name: "Retry Loading" })).toBeEnabled();
   });
   it("confirms and cancels example replacement without a blocking browser dialog", async () => {
     await ready();
     fireEvent.click(screen.getByRole("button", { name: "Add order" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Load example inputs" }),
-    );
-    expect(
-      screen.getByRole("dialog", { name: "Confirm input replacement" }),
-    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Load example inputs" }));
+    expect(screen.getByRole("dialog", { name: "Confirm input replacement" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancel replacement" }));
-    expect(
-      screen.getAllByRole("button", { name: /Edit .* order/ }),
-    ).toHaveLength(5);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Load example inputs" }),
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Confirm replacement" }),
-    );
+    expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(5);
+    fireEvent.click(screen.getByRole("button", { name: "Load example inputs" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm replacement" }));
     await screen.findByRole("button", { name: "Undo" });
-    expect(
-      screen.getAllByRole("button", { name: /Edit .* order/ }),
-    ).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(4);
     expect(window.confirm).not.toHaveBeenCalled();
   });
   it("does not overwrite newer input edits with a delayed example response", async () => {
@@ -280,18 +267,12 @@ describe("OrderSimulatorWorkbench", () => {
           }),
       ),
     );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Load example inputs" }),
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Confirm replacement" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Load example inputs" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm replacement" }));
     fireEvent.click(screen.getByRole("button", { name: "Add order" }));
     resolve(response({ points }));
     await screen.findByText(/Inputs changed while loading/);
-    expect(
-      screen.getAllByRole("button", { name: /Edit .* order/ }),
-    ).toHaveLength(5);
+    expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(5);
   });
   it("keeps battery labels stable and associates validation descriptions", async () => {
     await ready();
@@ -300,63 +281,59 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.change(field, { target: { value: "-1" } });
     expect(field).toHaveAccessibleName("Charge limit MW");
     expect(field).toHaveAccessibleDescription("Charge power must be positive.");
-    expect(
-      screen.getByRole("button", { name: "Apply settings" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Apply settings" })).toBeDisabled();
     fireEvent.change(field, { target: { value: "50" } });
-    expect(
-      screen.getByRole("button", { name: "Apply settings" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Apply settings" })).toBeEnabled();
   });
   it("shows percentage efficiency but keeps the backend ratio and stages cancellation", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", {name: "Battery settings"}));
-    expect(screen.getByRole("group", {name: "Battery & connection"})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Battery settings" }));
+    expect(screen.getByRole("group", { name: "Battery & connection" })).toBeInTheDocument();
     expect(screen.getByLabelText("Round-trip efficiency %")).toHaveValue(90);
-    fireEvent.change(screen.getByLabelText("Round-trip efficiency %"), {target: {value: "95"}});
-    fireEvent.click(screen.getByRole("button", {name: "Cancel"}));
-    fireEvent.click(screen.getByRole("button", {name: "Battery settings"}));
+    fireEvent.change(screen.getByLabelText("Round-trip efficiency %"), { target: { value: "95" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Battery settings" }));
     expect(screen.getByLabelText("Round-trip efficiency %")).toHaveValue(90);
-    fireEvent.change(screen.getByLabelText("Round-trip efficiency %"), {target: {value: "95"}});
-    fireEvent.click(screen.getByRole("button", {name: "Apply settings"}));
+    fireEvent.change(screen.getByLabelText("Round-trip efficiency %"), { target: { value: "95" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply settings" }));
     const fetchMock = vi.fn(async () => response(result));
     vi.stubGlobal("fetch", fetchMock);
-    fireEvent.click(screen.getByRole("button", {name: "Simulate orders"}));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate orders" }));
     await screen.findByText("Schedule charts");
     const init = fetchMock.mock.calls[0] as unknown as [unknown, RequestInit];
     expect(JSON.parse(String(init[1].body)).battery.round_trip_efficiency).toBe(0.95);
   });
   it("keeps forecast actions in the shared footer and discards cancelled edits", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", {name: "Edit prices"}));
+    fireEvent.click(screen.getByRole("button", { name: "Edit intervals" }));
     const field = screen.getByLabelText("Price " + points[0].timestamp_utc);
-    fireEvent.change(field, {target: {value: ""}});
+    fireEvent.change(field, { target: { value: "" } });
     expect(field).toHaveAttribute("aria-invalid", "true");
     expect(field).toHaveAccessibleDescription(/Required/);
-    expect(screen.getByRole("button", {name: "Apply prices"}).closest(".ws-dialog-footer-slot")).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", {name: "Cancel"}));
-    fireEvent.click(screen.getByRole("button", {name: "Edit prices"}));
+    expect(
+      screen.getByRole("button", { name: "Apply prices" }).closest(".ws-dialog-footer-slot"),
+    ).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit intervals" }));
     expect(screen.getByLabelText("Price " + points[0].timestamp_utc)).toHaveValue(30);
   });
   it("ignores a hidden terminal value when switching to minimum reserve", async () => {
     await ready();
     const bodies: string[] = [];
-    const fetchMock = vi.fn(
-      async (_input: RequestInfo | URL, init?: RequestInit) => {
-        bodies.push(String(init?.body));
-        return response({
-          proposal: {
-            simulation_id: "p",
-            summary: {
-              expected_contribution_eur: 0,
-              proposal_terminal_soc_mwh: 50,
-            },
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      bodies.push(String(init?.body));
+      return response({
+        proposal: {
+          simulation_id: "p",
+          summary: {
+            expected_contribution_eur: 0,
+            proposal_terminal_soc_mwh: 50,
           },
-          orders: [],
-          pricing_policy: "Forecast-derived",
-        });
-      },
-    );
+        },
+        orders: [],
+        pricing_policy: "Forecast-derived",
+      });
+    });
     vi.stubGlobal("fetch", fetchMock);
     fireEvent.click(screen.getByText("Optimization Settings"));
     fireEvent.change(screen.getByLabelText("End-of-day policy"), {

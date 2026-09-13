@@ -1,0 +1,67 @@
+/* unified: responsive. Ordered by the parent manifest. */
+@media (max-width: 1199px) {
+  .uw-layout {
+    grid-template-columns: 250px minmax(0, 1fr);
+    gap: 16px;
+  }
+  .uw-config {
+    padding: 12px;
+  }
+  .uw-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .uw-content .ws-order-editor .order-entry-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .uw-content .ws-order-editor .order-delivery,
+  .uw-content .ws-order-editor .order-price,
+  .uw-content .ws-order-editor .market-condition {
+    grid-column: 1 / -1;
+  }
+  .uw-tabs a {
+    padding: 12px 10px;
+    font-size: 13px;
+  }
+}
+@media (max-width: 850px) {
+  .order-workspace {
+    padding: 0 14px 24px;
+  }
+  .uw-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .uw-config {
+    position: static;
+    max-height: none;
+  }
+  .ws-header .ws-actions {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .uw-tabs {
+    margin-top: 8px;
+  }
+  .uw-content .constraint-row {
+    grid-template-columns: minmax(120px, 1fr) 1fr;
+  }
+  .uw-content .ws-section-head {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 480px) {
+  .uw-toolbar > span {
+    width: 100%;
+    order: 3;
+  }
+  .uw-kpis > div {
+    padding: 12px;
+  }
+  .uw-run-detail dl {
+    grid-template-columns: 1fr;
+  }
+  .uw-comparison-bars button {
+    grid-template-columns: 100px minmax(40px, 1fr) 95px;
+    gap: 6px;
+    font-size: 12px;
+  }
+}

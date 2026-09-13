@@ -1,0 +1,164 @@
+/* unified: results. Ordered by the parent manifest. */
+.uw-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.uw-kpis > div {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  padding: 16px;
+  min-width: 0;
+}
+.uw-kpis span,
+.uw-kpis small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+.uw-kpis strong {
+  display: block;
+  font-size: clamp(18px, 1.6vw, 26px);
+  margin: 8px 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.uw-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 18px;
+  overflow-x: auto;
+}
+.uw-tabs a {
+  white-space: nowrap;
+  text-decoration: none;
+  padding: 14px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  border-bottom: 3px solid transparent;
+  color: var(--muted);
+}
+.uw-tabs a[aria-current] {
+  color: var(--teal);
+  border-color: var(--teal);
+}
+.uw-tabs a:hover {
+  background: #e9f2f0;
+}
+.uw-content .ws-order-layout.editing {
+  grid-template-columns: minmax(0, 1fr);
+}
+.uw-content .ws-order-editor {
+  position: static;
+  border-top: 3px solid var(--teal);
+}
+.uw-content .ws-order-editor .order-entry-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(100px, 1fr)) 36px;
+  grid-template-areas: none;
+  gap: 12px;
+}
+/* Own placement here instead of inheriting the former sidebar editor's spans. */
+.uw-content .ws-order-editor .order-entry-row > * {
+  grid-area: auto;
+  min-width: 0;
+}
+.uw-content .ws-order-editor .row-number {
+  display: none;
+}
+.uw-content .constraint-row {
+  display: grid;
+}
+.uw-content .constraint-list > .constraint-evidence {
+  display: block;
+}
+.uw-comparison-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.uw-comparison-switch [aria-pressed="true"] {
+  background: #e0eeeb;
+  border-color: var(--teal);
+}
+.uw-run-picker {
+  position: relative;
+  font-size: 13px;
+}
+.uw-run-picker > div {
+  position: absolute;
+  z-index: 30;
+  right: 0;
+  width: min(380px, 80vw);
+  max-height: 320px;
+  overflow: auto;
+  background: white;
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 24px #1234;
+  padding: 12px;
+}
+.uw-run-picker label {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+}
+.uw-comparison-bars button {
+  display: grid;
+  grid-template-columns: 140px minmax(100px, 1fr) 120px;
+  width: 100%;
+  gap: 12px;
+  padding: 14px 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.uw-comparison-bars button[aria-pressed="true"] {
+  background: #f0f7f5;
+}
+.uw-diverging {
+  height: 18px;
+  position: relative;
+  background: linear-gradient(
+    to right,
+    transparent calc(50% - 1px),
+    #9ab1ad 50%,
+    transparent calc(50% + 1px)
+  );
+}
+.uw-diverging i {
+  position: absolute;
+  top: 5px;
+  height: 8px;
+  border-radius: 3px;
+}
+.uw-run-detail {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 16px;
+}
+.uw-run-detail dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.uw-run-detail dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.uw-run-detail dd {
+  margin: 4px 0;
+  font-size: 13px;
+}
+.uw-run-detail pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.uw-content .ws-orders th:last-child,
+.uw-content .ws-orders td:last-child {
+  text-align: left;
+}

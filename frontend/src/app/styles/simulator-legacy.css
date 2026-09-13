@@ -1,0 +1,5 @@
+/* Cascade ownership manifest. Keep import order; responsive overrides are intentional. */
+@import "./simulator-legacy/shell.css";
+@import "./simulator-legacy/inputs.css";
+@import "./simulator-legacy/execution.css";
+@import "./simulator-legacy/tables-and-responsive.css";

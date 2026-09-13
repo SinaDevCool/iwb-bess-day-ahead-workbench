@@ -1,9 +1,5 @@
+import { ArrowRight, Check, History } from "lucide-react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Check,
-  History,
-} from "lucide-react";
 import "./present.css";
 
 const workflow = [
@@ -11,31 +7,31 @@ const workflow = [
     "01",
     "Configure",
     "Configure market & battery",
-    "Capacity, power, efficiency, availability and cycle budget.",
+    "Load or edit the Day-Ahead price forecast and configure battery limits.",
   ],
   [
     "02",
-    "Optimize",
-    "Optimize dispatch",
-    "Maximize expected contribution after losses, degradation and transaction fees.",
+    "Enter orders",
+    "Enter Market & Limit orders",
+    "Choose BUY or SELL, delivery interval, volume and an optional price limit.",
   ],
   [
     "03",
-    "Generate",
-    "Generate Day-Ahead orders",
-    "Convert the dispatch into clear BUY and SELL instructions.",
+    "Optimize optionally",
+    "Generate a proposal",
+    "Optionally optimize net contribution, review the proposal and apply its orders.",
   ],
   [
     "04",
-    "Validate",
-    "Validate feasibility",
-    "Check SoC, power, throughput, outages and terminal energy.",
+    "Simulate",
+    "Inspect the battery schedule",
+    "Simulate entered orders against forecast prices and inspect power, SoC and validation.",
   ],
   [
     "05",
     "Compare",
-    "Compare scenarios",
-    "Measure how changed prices and availability affect the recommendation.",
+    "Compare saved results",
+    "Inspect saved inputs and compare simulation results or optimization proposals.",
   ],
 ] as const;
 
@@ -44,11 +40,7 @@ export default function ProductOverview() {
     <main className="overview">
       <div className="overview-shell">
         <header className="overview-nav">
-          <Link
-            className="overview-brand"
-            href="/"
-            aria-label="IWB BESS workbench"
-          >
+          <Link className="overview-brand" href="/" aria-label="IWB BESS workbench">
             <span className="overview-logo" translate="no">
               IWB
             </span>
@@ -57,21 +49,19 @@ export default function ProductOverview() {
               <small>Day-Ahead decision support</small>
             </span>
           </Link>
-          <Link className="overview-audit" href="/audit/">
+          <Link className="overview-audit" href="/?workspace=history">
             <History size={16} aria-hidden="true" />
-            Decision Log
+            History
           </Link>
         </header>
         <section className="overview-hero">
           <div className="hero-copy">
-            <span className="overview-eyebrow">
-              BATTERY TRADING · DAY-AHEAD
-            </span>
+            <span className="overview-eyebrow">BATTERY TRADING · DAY-AHEAD</span>
             <h1>Turn Tomorrow’s Prices Into Feasible Battery Orders</h1>
             <p>
-              Optimize a 100&nbsp;MWh battery against the Day-Ahead forecast,
-              validate every physical constraint, and create a trader-ready
-              order proposal.
+              Enter Market and Limit orders for a 100&nbsp;MWh battery, simulate them against a
+              Day-Ahead price forecast, and inspect the resulting schedule and configured
+              constraints.
             </p>
             <div className="hero-actions">
               <Link className="overview-primary" href="/">
@@ -88,9 +78,18 @@ export default function ProductOverview() {
             <h2 id="baseline-title">100 MWh · 50 MW</h2>
             <p>2-hour battery system</p>
             <dl>
-              <div><dt>Optimize</dt><dd>Net contribution</dd></div>
-              <div><dt>Validate</dt><dd>Physical feasibility</dd></div>
-              <div><dt>Control</dt><dd>Trader approval</dd></div>
+              <div>
+                <dt>Optimize</dt>
+                <dd>Net contribution</dd>
+              </div>
+              <div>
+                <dt>Validate</dt>
+                <dd>Physical feasibility</dd>
+              </div>
+              <div>
+                <dt>Control</dt>
+                <dd>Editable orders</dd>
+              </div>
             </dl>
             <small>All assumptions remain configurable in the workbench.</small>
           </aside>
@@ -99,22 +98,26 @@ export default function ProductOverview() {
           <div className="workflow-heading">
             <span>HOW IT WORKS</span>
             <h2>One continuous decision path</h2>
-            <p>From market assumptions to an explainable order proposal.</p>
+            <p>
+              One shared forecast and battery configuration, from entered orders to saved results.
+            </p>
           </div>
           <div className="workflow-grid">
             {workflow.map(([number, label, title, description]) => (
               <article key={number}>
                 <span>{number}</span>
-                <div><small>{label}</small><h3>{title}</h3><p>{description}</p></div>
+                <div>
+                  <small>{label}</small>
+                  <h3>{title}</h3>
+                  <p>{description}</p>
+                </div>
               </article>
             ))}
           </div>
         </section>
         <footer className="overview-footer">
-          <span>Illustrative market data</span>
-          <span>
-            Swiss auction parameters require configuration confirmation.
-          </span>
+          <span>Demo or user-supplied forecast data</span>
+          <span>Swiss auction parameters require configuration confirmation.</span>
         </footer>
       </div>
     </main>

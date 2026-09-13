@@ -1,0 +1,4 @@
+/* Cascade ownership manifest. Keep import order; responsive overrides are intentional. */
+@import "./physical-validation/headroom.css";
+@import "./physical-validation/evidence.css";
+@import "./physical-validation/audit.css";

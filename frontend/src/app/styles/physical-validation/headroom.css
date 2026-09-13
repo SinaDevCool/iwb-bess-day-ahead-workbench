@@ -1,0 +1,226 @@
+/* physical-validation: headroom. Ordered by the parent manifest. */
+.validation-summary {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  background: #e7f6ef;
+  color: var(--success);
+  padding: 13px;
+  border-radius: 8px;
+  margin-bottom: 13px;
+}
+.validation-summary.warning {
+  background: #fff4e6;
+  color: var(--warning);
+}
+.validation-summary.failed {
+  background: #fff0ed;
+  color: var(--error);
+}
+.validation-summary > div {
+  display: flex;
+  flex-direction: column;
+}
+.validation-summary span {
+  font-size: 11px;
+}
+.validation-summary > small {
+  margin-left: auto;
+  color: currentColor;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.validation-table {
+  margin-top: 0;
+}
+.validation-table th[scope="row"] {
+  color: var(--ink);
+  background: #fff;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  position: static;
+}
+.constraint-map {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+.constraint-map-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px 14px;
+}
+.constraint-map-head h3 {
+  margin: 3px 0 2px;
+  font-size: 17px;
+}
+.constraint-map-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.constraint-counts {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  column-gap: 18px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.constraint-counts strong {
+  font-size: 15px;
+  color: var(--ink);
+}
+.constraint-counts span {
+  grid-row: 2;
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.constraint-filters {
+  display: flex;
+  gap: 5px;
+  padding: 0 20px 14px;
+  overflow-x: auto;
+}
+.constraint-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.constraint-filters button span {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.constraint-filters button:hover,
+.constraint-filters button.active {
+  border-color: var(--teal);
+  color: var(--teal-dark);
+  background: #edf7f5;
+}
+.constraint-filters button:focus-visible,
+.constraint-row:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -2px;
+}
+.constraint-group {
+  border-top: 1px solid var(--line);
+}
+.constraint-group h4 {
+  margin: 0;
+  padding: 10px 20px 7px;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.constraint-list {
+  display: grid;
+}
+.constraint-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(170px, 1.2fr) minmax(180px, 2fr) minmax(115px, 0.8fr) 112px;
+  align-items: center;
+  gap: 16px;
+  min-height: 54px;
+  padding: 8px 20px;
+  border: 0;
+  border-top: 1px solid #edf1f0;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+}
+.constraint-row:hover,
+.constraint-row.selected {
+  background: #f3f8f7;
+}
+.constraint-name,
+.constraint-margin {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.constraint-name strong,
+.constraint-margin strong {
+  font-size: 11px;
+}
+.constraint-name small,
+.constraint-margin small {
+  color: var(--muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.constraint-track {
+  position: relative;
+  height: 7px;
+  border-radius: 999px;
+  background: #e4ecea;
+  overflow: visible;
+}
+.constraint-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teal);
+  min-width: 2px;
+}
+.constraint-track > i {
+  position: absolute;
+  top: -4px;
+  right: 0;
+  width: 2px;
+  height: 15px;
+  background: #526965;
+}
+.constraint-row.fully-used .constraint-track > span {
+  background: #d98600;
+}
+.constraint-row.issue .constraint-track > span {
+  background: var(--error);
+}
+.constraint-row.not-evaluated .constraint-track {
+  background: repeating-linear-gradient(135deg, #e5eae9 0 4px, #f7f9f8 4px 8px);
+}
+.validation-state {
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+  white-space: nowrap;
+}
+.validation-state.fully-used {
+  background: #fff2df;
+  color: #875600;
+}
+.validation-state.headroom,
+.validation-state.verified {
+  background: #e7f6ef;
+  color: var(--success);
+}
+.validation-state.issue {
+  background: #fff0ed;
+  color: var(--error);
+}
+.validation-state.not-evaluated {
+  background: #edf1f0;
+  color: #52635f;
+}
+.constraint-evidence {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 20px;
+  padding: 16px 20px;
+  border-top: 2px solid var(--teal);
+  background: #f3f8f7;
+}

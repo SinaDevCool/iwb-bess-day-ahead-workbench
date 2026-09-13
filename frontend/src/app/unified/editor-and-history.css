@@ -1,0 +1,157 @@
+/* unified: editor-and-history. Ordered by the parent manifest. */
+.forecast-upload {
+  border: 1px dashed #a5c8c3;
+  border-radius: 10px;
+  padding: 20px;
+  background: #f6faf9;
+}
+.forecast-upload input {
+  display: block;
+  margin: 12px 0;
+  max-width: 100%;
+}
+.forecast-loader {
+  display: grid;
+  gap: 18px;
+}
+.provider-row,
+.history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+}
+.history-inputs {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+}
+.history-inputs > div {
+  border-bottom: 1px solid #dce6e4;
+  padding-bottom: 10px;
+}
+.history-inputs dt {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.history-inputs dd {
+  margin: 0;
+  color: #50686b;
+}
+.order-entry-row[data-side="BUY"] {
+  border-left: 3px solid #1d9c98;
+}
+.order-entry-row[data-side="SELL"] {
+  border-left: 3px solid #db7c13;
+}
+.schedule-inspector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  padding: 14px;
+  min-height: 68px;
+  background: #f0f7f6;
+  border: 1px solid #cde1dd;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.schedule-track-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+.schedule-track-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 400;
+}
+.schedule-track-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.schedule-inspector:focus-visible {
+  outline: 2px solid #087d78;
+  outline-offset: 3px;
+}
+@media (min-width: 900px) {
+  .schedule-inspector {
+    position: sticky;
+    top: 8px;
+    z-index: 4;
+    box-shadow: 0 2px 8px #153e4310;
+  }
+}
+.interval-order-details {
+  padding: 14px;
+  background: #f6faf9;
+  white-space: normal;
+}
+.interval-order-details article {
+  border-top: 1px solid #dce6e4;
+  padding: 12px 0;
+}
+.interval-order-details p {
+  margin: 6px 0;
+}
+.interval-results-table {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.interval-results-table td {
+  vertical-align: middle;
+}
+.interval-results-table .selected {
+  background: #e9f4f1;
+}
+.interval-results-table small {
+  display: block;
+}
+.column-menu label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+}
+.economics-summary-only .economics-bridge {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+}
+.economics-summary-only .economics-bridge > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  border: 0;
+}
+.economics-summary-only .economics-bridge small {
+  grid-column: 1/-1;
+}
+.history-detail {
+  border-top: 1px solid #dce6e4;
+  margin-top: 20px;
+  padding-top: 16px;
+}
+.history-detail pre {
+  max-height: 400px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 14px;
+  background: #f6faf9;
+}
+.history-detail h3 {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .economics-summary-only .economics-bridge {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

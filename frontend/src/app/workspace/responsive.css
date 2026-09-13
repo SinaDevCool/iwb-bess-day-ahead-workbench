@@ -1,0 +1,111 @@
+/* workspace: responsive. Ordered by the parent manifest. */
+@media (max-width: 1100px) {
+  .order-workspace {
+    padding: 0 18px 24px;
+  }
+  .ws-order-layout.editing {
+    grid-template-columns: minmax(0, 1fr) 245px;
+  }
+  .ws-header {
+    padding: 14px 0;
+  }
+  .ws-schedule-plot {
+    height: 155px;
+  }
+}
+@media (max-width: 760px) {
+  .ws-order-layout.editing {
+    grid-template-columns: 1fr;
+  }
+  .ws-header > span {
+    font-size: 11px;
+  }
+  .ws-header h1 {
+    font-size: 15px;
+  }
+  .ws-header .logo {
+    display: none;
+  }
+  .ws-context {
+    gap: 8px;
+    font-size: 12px;
+  }
+  .ws-context button {
+    margin-left: 0;
+  }
+  .ws-nav {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .ws-nav nav button {
+    padding: 9px 6px;
+  }
+  .ws-actions {
+    gap: 6px;
+  }
+  .ws-card {
+    padding: 14px;
+  }
+  .ws-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ws-price-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ws-metrics {
+    grid-template-columns: 1fr;
+  }
+  .ws-availability {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ws-dialog {
+    padding: 0;
+  }
+  .order-workspace .result-checks {
+    grid-template-columns: 1fr;
+  }
+  .order-workspace th,
+  .order-workspace td {
+    padding: 9px;
+  }
+  .ws-schedule-plot {
+    height: 165px;
+  }
+}
+.ws-validation-line {
+  font-size: 12px;
+  color: #536f74;
+  padding: 0 2px;
+}
+.ws-validation-line .field-error {
+  display: block;
+  margin-top: 5px;
+}
+.order-workspace main {
+  scroll-margin-top: 70px;
+}
+.order-workspace td,
+.ws-metrics strong,
+.order-workspace .sim-kpi strong {
+  font-variant-numeric: tabular-nums;
+}
+.ws-dialog {
+  overscroll-behavior: contain;
+}
+.order-workspace .execution-table tr {
+  content-visibility: auto;
+}
+.order-workspace .ws-context input {
+  border: 1px solid #bfd1cf;
+  border-radius: 6px;
+  padding: 8px;
+  background: white;
+}
+.order-workspace .ws-row-link:hover,
+.ws-text-button:hover {
+  color: #045b57;
+}
+.order-workspace .ws-nav button,
+.order-workspace .ws-context button {
+  min-height: 36px;
+}

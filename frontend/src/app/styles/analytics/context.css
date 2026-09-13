@@ -1,0 +1,120 @@
+/* analytics: context. Ordered by the parent manifest. */
+.collapsed-context {
+  display: none;
+  min-width: 0;
+}
+.executable-status > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.executable-status > div > span {
+  color: var(--muted);
+}
+.inline-evidence {
+  margin-top: 5px;
+}
+.inline-evidence summary {
+  width: max-content;
+  color: var(--teal);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+.inline-evidence dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 9px 0 0;
+}
+.inline-evidence dl > div {
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+}
+.inline-evidence dt {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+.inline-evidence dd {
+  margin: 3px 0 0;
+  color: var(--ink);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.portfolio-robustness {
+  margin: 0 0 14px;
+  padding: 15px;
+  border: 1px solid #cfe0dd;
+  border-left: 3px solid var(--teal);
+  border-radius: 8px;
+  background: #f5f9f8;
+}
+.robustness-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.robustness-heading h3,
+.subsection-heading h3 {
+  margin: 3px 0 0;
+  color: var(--ink);
+  font-size: 16px;
+}
+.portfolio-robustness > p {
+  margin: 8px 0 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.posture-badge {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #dff0ed;
+  color: var(--teal-dark);
+  font-size: 9px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+.risk-outcomes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+  background: #fff;
+}
+.risk-outcomes > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 12px;
+  border-left: 1px solid var(--line);
+}
+.risk-outcomes > div:first-child {
+  border-left: 0;
+}
+.risk-outcomes span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+.risk-outcomes strong {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.subsection-heading {
+  margin: 18px 0 9px;
+}
+.audit-mobile {
+  display: none;
+}
+.saved-comparison {
+  display: grid;
+  gap: 18px;
+}

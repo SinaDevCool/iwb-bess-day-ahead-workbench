@@ -1,0 +1,212 @@
+/* results-and-orders: dispatch-and-orders. Ordered by the parent manifest. */
+.dispatch-figure {
+  margin: 0;
+}
+.dispatch-figure figcaption {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 10px 48px;
+}
+.dispatch-figure figcaption strong {
+  font-size: 13px;
+}
+.dispatch-figure figcaption span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.chart-tip {
+  background: #fff;
+  border: 1px solid #bfd2ce;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 45, 45, 0.12);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+}
+.chart-tip strong {
+  margin-bottom: 5px;
+}
+.data-table-toggle,
+.solver-details {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.data-table-toggle summary,
+.solver-details summary {
+  cursor: pointer;
+  color: var(--teal);
+  font-weight: 750;
+  font-size: 12px;
+}
+.solver-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
+}
+.solver-details > summary::-webkit-details-marker {
+  display: none;
+}
+.solver-details > summary::before {
+  content: "›";
+  font-size: 18px;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 140ms ease;
+}
+.solver-details[open] > summary::before {
+  transform: rotate(90deg);
+}
+.solver-details > summary small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+.table-scroll {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 10px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+th {
+  text-align: left;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.45px;
+  text-transform: uppercase;
+  background: #f5f8f7;
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+td {
+  padding: 10px;
+  border-bottom: 1px solid #e9efed;
+  white-space: nowrap;
+}
+.table-scroll tbody tr {
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+.table-scroll tbody tr:hover,
+.table-scroll tbody tr:focus-within {
+  background: #eef7f5;
+}
+.numeric {
+  text-align: right;
+}
+.order-table tr.selected {
+  background: #eef8f6;
+  box-shadow: inset 3px 0 var(--teal);
+}
+.order-table tbody tr {
+  cursor: pointer;
+}
+.order-table tbody tr:hover {
+  background: #e7f4f1;
+  color: #073f3d;
+}
+.order-table tbody tr:focus-visible {
+  position: relative;
+  z-index: 2;
+  outline: 3px solid rgba(8, 125, 120, 0.3);
+  outline-offset: -3px;
+}
+.row-select {
+  color: var(--ink);
+  display: block;
+}
+.order-table tbody tr:hover .row-select strong,
+.order-table tbody tr:focus-visible .row-select strong {
+  color: var(--teal);
+}
+.row-select small {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+  margin-top: 2px;
+}
+.side {
+  padding: 4px 7px;
+  border-radius: 4px;
+  font-weight: 900;
+  font-size: 10px;
+}
+.side.buy {
+  background: #dff5f2;
+  color: #087d78;
+}
+.side.sell {
+  background: #fff0df;
+  color: #a95308;
+}
+.positive {
+  color: var(--success) !important;
+}
+.negative {
+  color: var(--error) !important;
+}
+.status-tag {
+  background: #edf3f2;
+  border: 1px solid #d3e0de;
+  padding: 3px 6px;
+  border-radius: 99px;
+  font-size: 10px;
+}
+.edit-drawer {
+  margin-top: 14px;
+  border: 1px solid #bcd4d0;
+  border-left: 4px solid var(--teal);
+  border-radius: 9px;
+  padding: 15px;
+  background: #f8fbfa;
+}
+.drawer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.drawer-head > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.drawer-head h3 {
+  font-size: 15px;
+  margin: 0;
+}
+.before-after {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 14px 0;
+}
+.before-after > span {
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 10px;
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+}
+.before-after small {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 750;
+}

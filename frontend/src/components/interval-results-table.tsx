@@ -1,205 +1,150 @@
 "use client";
-
+import { intervalEvidence } from "@/lib/interval-evidence";
+import type { OrderSimulation, Simulation } from "@/types/api";
 import { Columns3 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import type { Dispatch, Simulation, OrderSimulation } from "@/types/api";
-
-type OptionalColumn =
-  "power" | "soc" | "energy" | "revenue" | "purchases" | "degradation" | "fees";
-
-const OPTIONAL_COLUMNS: Array<{ id: OptionalColumn; label: string }> = [
-  { id: "power", label: "Power (MW)" },
-  { id: "soc", label: "State of charge (MWh)" },
-  { id: "energy", label: "Order energy (MWh)" },
-  { id: "revenue", label: "Revenue (€)" },
-  { id: "purchases", label: "Purchases (€)" },
-  { id: "degradation", label: "Degradation (€)" },
-  { id: "fees", label: "Transaction fees (€)" },
-];
-const DEFAULT_COLUMNS: OptionalColumn[] = ["power", "soc"];
-
-const money = (value: number) =>
-  new Intl.NumberFormat("en-CH", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(value);
-const number = (value: number, digits = 1) =>
-  new Intl.NumberFormat("en-CH", {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  }).format(value);
-const time = (value: string) =>
-  new Intl.DateTimeFormat("en-CH", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Zurich",
-  }).format(new Date(value));
+import { Fragment, useState } from "react";
+import { choices, clock, defaults, n, type Column } from "./interval-table/columns";
+import { IntervalOrderDetails } from "./interval-table/order-details";
+import { useColumns } from "./interval-table/use-columns";
 
 export function IntervalResultsTable({
   result,
+  selectedId,
+  onSelect,
 }: {
   result: Simulation | OrderSimulation;
+  selectedId?: string;
+  onSelect?: (id: string) => void;
 }) {
-  const [selected, setSelected] = useState<OptionalColumn[]>(() => {
-    if (typeof window === "undefined") return DEFAULT_COLUMNS;
-    const saved = sessionStorage.getItem("iwb-interval-columns");
-    if (!saved) return DEFAULT_COLUMNS;
-    try {
-      const parsed = JSON.parse(saved) as OptionalColumn[];
-      const valid = parsed.filter((id) =>
-        OPTIONAL_COLUMNS.some((column) => column.id === id),
-      );
-      return valid.length ? valid.slice(0, 2) : DEFAULT_COLUMNS;
-    } catch {
-      return DEFAULT_COLUMNS;
-    }
-  });
-  const [maxOptional, setMaxOptional] = useState(2);
-
-  useEffect(() => {
-    const media = window.matchMedia("(max-width: 700px)");
-    const applyWidthLimit = () => {
-      const nextMaximum = media.matches ? 1 : 2;
-      setMaxOptional(nextMaximum);
-      setSelected((current) => current.slice(0, nextMaximum));
-    };
-    applyWidthLimit();
-    media.addEventListener("change", applyWidthLimit);
-    return () => media.removeEventListener("change", applyWidthLimit);
-  }, []);
-  useEffect(() => {
-    sessionStorage.setItem("iwb-interval-columns", JSON.stringify(selected));
-  }, [selected]);
-
-  const rows = useMemo(
-    () =>
-      ("proposal" in result ? result.proposal?.implied_dispatch : undefined) ??
-      result.dispatch,
-    [result],
-  );
-
-  const toggleColumn = (column: OptionalColumn) => {
-    setSelected((current) => {
-      if (current.includes(column))
-        return current.filter((item) => item !== column);
-      return current.length < maxOptional ? [...current, column] : current;
-    });
-  };
-
+  const { columns, update } = useColumns();
+  const [expanded, setExpanded] = useState<string>();
+  const rows = intervalEvidence(result);
+  const leading = columns.filter((c) => c === "forecast" || c === "action");
+  const trailing = columns.filter((c) => c !== "forecast" && c !== "action");
   return (
-    <section
-      className="interval-results"
-      aria-labelledby="interval-results-title"
-    >
+    <section className="interval-results" aria-labelledby="interval-results-title">
       <div className="interval-table-heading">
         <div>
-          <span className="chart-kicker">INTERVAL DETAIL</span>
-          <h3 id="interval-results-title">
-            Dispatch &amp; Economics by Delivery Interval
-          </h3>
-          <p>
-            One reconciled view of the simulated schedule and generated order
-            economics.
-          </p>
+          <h3 id="interval-results-title">Battery schedule &amp; order outcomes</h3>
+          <p>One row per interval. Expand Orders for execution evidence.</p>
         </div>
         <details className="column-picker">
-          <summary aria-label="Choose interval table columns">
-            <Columns3 size={15} aria-hidden="true" />
-            Columns · {4 + selected.length}/{4 + maxOptional}
+          <summary>
+            <Columns3 size={15} aria-hidden="true" /> Columns · {2 + columns.length}/7
           </summary>
           <div className="column-menu">
-            <strong>Additional columns</strong>
-            <span>
-              Choose up to {maxOptional}. Core decision columns stay visible.
-            </span>
-            {OPTIONAL_COLUMNS.map((column) => {
-              const checked = selected.includes(column.id);
-              return (
-                <label className="column-option" key={column.id}>
-                  <input
-                    type="checkbox"
-                    aria-label={column.label}
-                    checked={checked}
-                    disabled={!checked && selected.length >= maxOptional}
-                    onChange={() => toggleColumn(column.id)}
-                  />
-                  <span>{column.label}</span>
-                </label>
-              );
-            })}
+            <strong>Choose up to 5 value columns</strong>
+            <span>Delivery and Orders stay visible. Deselect a column to replace it.</span>
+            {(Object.keys(choices) as Column[]).map((c) => (
+              <label key={c}>
+                <input
+                  type="checkbox"
+                  checked={columns.includes(c)}
+                  disabled={!columns.includes(c) && columns.length === 5}
+                  onChange={() =>
+                    update(columns.includes(c) ? columns.filter((x) => x !== c) : [...columns, c])
+                  }
+                />
+                {choices[c]}
+              </label>
+            ))}
+            <button className="secondary" onClick={() => update(defaults)}>
+              Reset recommended columns
+            </button>
           </div>
         </details>
       </div>
       <div className="table-scroll interval-table-scroll">
         <table className="interval-results-table">
-          <caption className="sr-only">
-            Simulated dispatch and auction-order economics by delivery interval
-          </caption>
+          <caption className="sr-only">Saved schedule and simulated order outcomes</caption>
           <thead>
             <tr>
               <th>Delivery</th>
-              <th className="numeric">DA Forecast (€/MWh)</th>
-              <th>Action</th>
-              {selected.map((column) => (
-                <th className="numeric" key={column}>
-                  {columnHeading(column)}
+              {leading.map((c) => (
+                <th key={c}>{choices[c]}</th>
+              ))}
+              <th>Orders</th>
+              {trailing.map((c) => (
+                <th className="numeric" key={c}>
+                  {choices[c]}
                 </th>
               ))}
-              <th className="numeric">Net Contribution (€)</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.interval}>
-                <td>{time(row.timestamp_utc)}</td>
-                <td className="numeric">{money(row.price_eur_mwh)}</td>
-                <td>
-                  <span className={`interval-action ${row.action}`}>
-                    {row.action}
-                  </span>
-                </td>
-                {selected.map((column) => (
-                  <td className="numeric" key={column}>
-                    {columnValue(column, row)}
-                  </td>
-                ))}
-                <td
-                  className={`numeric contribution ${row.interval_pnl_eur < 0 ? "negative" : row.interval_pnl_eur > 0 ? "positive" : ""}`}
-                >
-                  {money(row.interval_pnl_eur)}
-                </td>
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const values: Record<Column, string> = {
+                forecast: n(row.price_eur_mwh),
+                action: row.action,
+                power: n(row.power_mw, 1),
+                soc: n(row.soc_mwh),
+                net: n(row.interval_pnl_eur),
+                energy: n(row.grid_energy_mwh),
+                revenue: n(row.sales_revenue_eur),
+                purchases: n(row.purchase_cost_eur),
+                fees: n(row.transaction_fee_eur),
+                degradation: n(row.degradation_cost_eur),
+              };
+              return (
+                <Fragment key={row.id}>
+                  <tr className={selectedId === row.id ? "selected" : ""}>
+                    <td>
+                      <button className="ws-row-link" onClick={() => onSelect?.(row.id)}>
+                        {clock(row.timestamp_utc, result.market.timezone)}
+                      </button>
+                    </td>
+                    {leading.map((c) => (
+                      <td key={c} className={c === "forecast" ? "numeric" : ""}>
+                        {values[c]}
+                      </td>
+                    ))}
+                    <td>
+                      {row.orders.length ? (
+                        <button
+                          className="ws-row-link"
+                          aria-expanded={expanded === row.id}
+                          onClick={() => {
+                            setExpanded(expanded === row.id ? undefined : row.id);
+                            onSelect?.(row.id);
+                          }}
+                        >
+                          {row.orders.length === 1
+                            ? `${row.orders[0].submitted_order.side} ${row.orders[0].submitted_order.order_type}`
+                            : `${row.orders.length} orders`}
+                          <small>
+                            {row.orders.filter((o) => o.execution_status === "EXECUTED").length}{" "}
+                            executed · {expanded === row.id ? "Hide" : "Details"}
+                          </small>
+                        </button>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    {trailing.map((c) => (
+                      <td
+                        key={c}
+                        className={`numeric ${c === "net" ? (row.interval_pnl_eur < 0 ? "negative" : "positive") : ""}`}
+                      >
+                        {values[c]}
+                      </td>
+                    ))}
+                  </tr>
+                  {expanded === row.id && (
+                    <tr>
+                      <td colSpan={columns.length + 2}>
+                        <IntervalOrderDetails row={row} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
       <p className="interval-table-note">
-        Delivery time: Europe/Zurich. Values reconcile to the saved simulation.
+        {result.market.timezone} · quantities and contribution reconcile to this saved result.
       </p>
     </section>
   );
-}
-
-function columnHeading(column: OptionalColumn) {
-  return OPTIONAL_COLUMNS.find((item) => item.id === column)?.label ?? column;
-}
-
-function columnValue(column: OptionalColumn, row: Dispatch) {
-  switch (column) {
-    case "power":
-      return `${number(row.power_mw)} MW`;
-    case "soc":
-      return `${number(row.soc_mwh)} MWh`;
-    case "energy":
-      return `${number(row.grid_energy_mwh, 2)} MWh`;
-    case "revenue":
-      return money(row.sales_revenue_eur);
-    case "purchases":
-      return money(row.purchase_cost_eur);
-    case "degradation":
-      return money(row.degradation_cost_eur);
-    case "fees":
-      return money(row.transaction_fee_eur);
-  }
 }

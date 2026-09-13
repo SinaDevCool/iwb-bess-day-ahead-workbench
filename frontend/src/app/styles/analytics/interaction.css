@@ -1,0 +1,171 @@
+/* analytics: interaction. Ordered by the parent manifest. */
+.chart-caption-main > span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.chart-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.chart-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.chart-legend b {
+  color: #536d70;
+  font-size: 9px;
+  letter-spacing: 0.55px;
+  text-transform: uppercase;
+}
+.legend-block.scenario {
+  background: #16867f;
+}
+.plot-area .recharts-cartesian-axis-tick-value {
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.plot-area .recharts-surface {
+  overflow: visible;
+}
+.economics-area {
+  height: 220px;
+}
+.order-area {
+  height: 240px;
+}
+.interactive-chart .order-chart-bar {
+  transition:
+    opacity 140ms ease,
+    filter 140ms ease;
+}
+.interactive-chart .order-chart-bar:hover {
+  filter: brightness(0.9) saturate(1.08);
+}
+.scenario-area {
+  height: 210px;
+}
+.economics-bridge {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fbfcfc;
+  padding: 10px 15px;
+}
+.economics-bridge > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e7edeb;
+  font-variant-numeric: tabular-nums;
+}
+.economics-bridge span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.economics-bridge strong {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.economics-bridge .bridge-total {
+  margin-top: auto;
+  border: 0;
+  border-top: 2px solid #bfd4d0;
+}
+.economics-bridge .bridge-total span,
+.economics-bridge .bridge-total strong {
+  color: var(--ink);
+  font-weight: 850;
+}
+.economics-bridge .bridge-total strong {
+  font-size: 18px;
+}
+.economics-bridge > small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+.interval-results {
+  border-top: 1px solid var(--line);
+  margin-top: 22px;
+  padding-top: 20px;
+}
+.interval-table-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+.interval-table-heading h3 {
+  margin: 3px 0;
+  font-size: 17px;
+}
+.interval-table-heading p,
+.interval-table-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+.column-picker {
+  position: relative;
+  flex: 0 0 auto;
+}
+.column-picker summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #bdd2cf;
+  border-radius: 7px;
+  background: #fff;
+  color: var(--teal-dark);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  list-style: none;
+  user-select: none;
+}
+.column-picker summary::-webkit-details-marker {
+  display: none;
+}
+.column-picker summary:hover {
+  background: #f1f8f6;
+  border-color: var(--teal);
+}
+.column-picker summary:focus-visible {
+  outline: 3px solid rgba(22, 134, 127, 0.24);
+  outline-offset: 2px;
+}
+.column-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 7px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: 270px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(17, 56, 58, 0.16);
+}

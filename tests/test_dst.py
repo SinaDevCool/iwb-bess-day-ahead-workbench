@@ -14,4 +14,3 @@ def test_autumn_dst_has_25_hourly_products():
 
 def test_quarter_hour_normal_day_has_96_products():
     assert len(build_demo_forecast("2026-09-09", MarketConfig(product_minutes=15))) == 96
-

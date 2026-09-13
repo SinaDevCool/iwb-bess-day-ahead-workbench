@@ -1,0 +1,211 @@
+/* workspace: shell-and-orders. Ordered by the parent manifest. */
+.order-workspace {
+  max-width: 1600px;
+  margin: auto;
+  padding: 0 28px 36px;
+  color: var(--ink);
+}
+.ws-header,
+.ws-context,
+.ws-nav,
+.ws-actions,
+.ws-brand,
+.ws-section-head,
+.ws-section-head > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.ws-header {
+  justify-content: space-between;
+  padding: 20px 0;
+  border-bottom: 1px solid #d9e5e3;
+}
+.ws-header h1 {
+  font-size: 19px;
+  margin: 0;
+}
+.ws-header > span,
+.ws-context,
+.ws-help {
+  font-size: 13px;
+  color: #536f74;
+}
+.ws-context {
+  padding: 14px 0;
+  flex-wrap: wrap;
+}
+.ws-context input {
+  width: 150px;
+}
+.ws-context button {
+  margin-left: auto;
+}
+.ws-nav {
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #f3f7f6;
+  padding: 10px 0;
+  border-bottom: 1px solid #d4e1df;
+  margin-bottom: 20px;
+}
+.ws-nav nav {
+  display: flex;
+  gap: 8px;
+}
+.ws-nav nav button {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 10px 14px;
+  color: #526c71;
+}
+.ws-nav nav button[aria-current] {
+  color: #087d78;
+  border-color: #087d78;
+  font-weight: 700;
+}
+.order-workspace button,
+.ws-dialog button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.order-workspace .compact {
+  width: auto;
+  min-width: 115px;
+  margin: 0;
+}
+.ws-card {
+  background: white;
+  border: 1px solid #d8e4e2;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 18px;
+  min-width: 0;
+}
+.ws-section-head {
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.ws-section-head h2,
+.ws-card > h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.ws-section-head h3 {
+  font-size: 15px;
+  margin: 0;
+}
+.ws-section-head small {
+  font-weight: 400;
+  color: #536f74;
+  margin-left: 6px;
+}
+.ws-section-head > div {
+  gap: 10px;
+  font-size: 12px;
+  color: #536f74;
+}
+.ws-forecast-plot {
+  height: 180px;
+  width: 100%;
+  min-width: 0;
+}
+.ws-help {
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
+.ws-order-layout {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.ws-order-layout.editing {
+  grid-template-columns: minmax(0, 1fr) 280px;
+}
+.ws-order-editor {
+  background: #f5f9f8;
+  border: 1px solid #dce7e5;
+  border-radius: 8px;
+  padding: 14px;
+}
+.order-workspace .order-entry-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.order-workspace .order-entry-row label {
+  min-width: 0;
+}
+.order-workspace .order-entry-row .row-number {
+  display: none;
+}
+.order-workspace .order-entry-row .order-delivery,
+.order-workspace .order-entry-row .order-price,
+.order-workspace .order-entry-row .market-condition {
+  grid-column: 1/-1;
+}
+.order-workspace .order-entry-row .remove-order {
+  width: 36px;
+  grid-column: 2;
+  justify-self: end;
+}
+.order-workspace .order-entry-row input,
+.order-workspace .order-entry-row select {
+  height: 38px;
+}
+.order-workspace table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.order-workspace th {
+  padding: 10px 12px;
+  font-size: 11px;
+  text-align: left;
+  color: #526c71;
+  background: #f4f8f7;
+}
+.order-workspace td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #e5edeb;
+}
+.order-workspace td small {
+  display: block;
+  color: #647b80;
+  font-size: 11px;
+  margin-top: 3px;
+}
+.order-workspace tr.selected {
+  background: #edf7f5;
+}
+.order-workspace .table-scroll {
+  max-width: 100%;
+  overflow: auto;
+}
+.ws-row-link,
+.ws-text-button {
+  border: 0;
+  background: none;
+  color: #087d78;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.ws-row-link {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.ws-text-button {
+  font-size: 13px;
+  padding: 8px;
+}

@@ -1,9 +1,9 @@
-from backend.domain.models import SimulationRequest
-from backend.services.simulation_service import run_simulation
-from backend.domain.models import BatteryConfig, MarketConfig, PricePoint
-from backend.optimization.milp_optimizer import optimize_dispatch
-from backend.validation.validators import validate_dispatch
 from datetime import datetime, timedelta, timezone
+
+from backend.domain.models import BatteryConfig, MarketConfig, PricePoint, SimulationRequest
+from backend.optimization.milp_optimizer import optimize_dispatch
+from backend.services.simulation_service import run_simulation
+from backend.validation.validators import validate_dispatch
 
 
 def test_iwb_case_is_feasible_and_profitable():
@@ -14,44 +14,89 @@ def test_iwb_case_is_feasible_and_profitable():
     assert all(10 <= row.soc_mwh <= 90 for row in result.dispatch)
     assert all(abs(row.power_mw) <= 50.001 for row in result.dispatch)
     assert result.dispatch[-1].soc_mwh >= 50
-    assert round(sum(row.interval_pnl_eur for row in result.dispatch), 2) == result.summary["optimized_contribution_eur"]
+    assert (
+        round(sum(row.interval_pnl_eur for row in result.dispatch), 2)
+        == result.summary["optimized_contribution_eur"]
+    )
     for row in result.dispatch:
-        assert round(row.sales_revenue_eur - row.purchase_cost_eur - row.degradation_cost_eur - row.transaction_fee_eur, 2) == row.interval_pnl_eur
-    assert round(sum(order.expected_contribution_eur for order in result.orders), 2) == result.summary["expected_contribution_eur"]
+        assert (
+            round(
+                row.sales_revenue_eur
+                - row.purchase_cost_eur
+                - row.degradation_cost_eur
+                - row.transaction_fee_eur,
+                2,
+            )
+            == row.interval_pnl_eur
+        )
+    assert (
+        round(sum(order.expected_contribution_eur for order in result.orders), 2)
+        == result.summary["expected_contribution_eur"]
+    )
     for order in result.orders:
-        assert round(order.sales_revenue_eur - order.purchase_cost_eur - order.degradation_cost_eur - order.transaction_fee_eur, 2) == order.expected_contribution_eur
+        assert (
+            round(
+                order.sales_revenue_eur
+                - order.purchase_cost_eur
+                - order.degradation_cost_eur
+                - order.transaction_fee_eur,
+                2,
+            )
+            == order.expected_contribution_eur
+        )
 
 
 def test_fees_are_optimized_and_reconciled_across_product_durations():
     for duration in (15, 60):
-        market = MarketConfig(product_minutes=duration, exchange_fee_eur_per_mwh=0.08, clearing_fee_eur_per_mwh=0.015)
+        market = MarketConfig(
+            product_minutes=duration, exchange_fee_eur_per_mwh=0.08, clearing_fee_eur_per_mwh=0.015
+        )
         result = run_simulation(SimulationRequest(market=market))
         traded_grid_mwh = result.summary["charged_grid_mwh"] + result.summary["discharged_grid_mwh"]
         assert abs(result.summary["transaction_fee_eur"] - traded_grid_mwh * 0.095) < 0.1
-        assert result.summary["proposal_transaction_fee_eur"] == round(sum(order.transaction_fee_eur for order in result.orders), 2)
+        assert result.summary["proposal_transaction_fee_eur"] == round(
+            sum(order.transaction_fee_eur for order in result.orders), 2
+        )
         assert "transaction fees" in result.optimization["objective"]
 
 
 def test_unconfirmed_exchange_fee_is_not_applied_as_a_real_cost():
-    excluded = run_simulation(SimulationRequest(market=MarketConfig(exchange_fee_eur_per_mwh=5, exchange_fee_policy="excluded")))
-    configured = run_simulation(SimulationRequest(market=MarketConfig(exchange_fee_eur_per_mwh=5, exchange_fee_policy="configured")))
+    excluded = run_simulation(
+        SimulationRequest(
+            market=MarketConfig(exchange_fee_eur_per_mwh=5, exchange_fee_policy="excluded")
+        )
+    )
+    configured = run_simulation(
+        SimulationRequest(
+            market=MarketConfig(exchange_fee_eur_per_mwh=5, exchange_fee_policy="configured")
+        )
+    )
     assert excluded.summary["transaction_fee_eur"] < configured.summary["transaction_fee_eur"]
-    assert excluded.summary["expected_contribution_eur"] >= configured.summary["expected_contribution_eur"]
+    assert (
+        excluded.summary["expected_contribution_eur"]
+        >= configured.summary["expected_contribution_eur"]
+    )
 
 
 def test_custom_scenario_probabilities_are_used_in_expected_value():
-    request = SimulationRequest(scenario_probabilities={"downside": .5, "expected": .3, "upside": .2})
+    request = SimulationRequest(
+        scenario_probabilities={"downside": 0.5, "expected": 0.3, "upside": 0.2}
+    )
     result = run_simulation(request)
-    assert [outcome.probability for outcome in result.risk.outcomes] == [.5, .3, .2]
+    assert [outcome.probability for outcome in result.risk.outcomes] == [0.5, 0.3, 0.2]
     expected = sum(item.probability * item.contribution_eur for item in result.risk.outcomes)
-    assert abs(result.risk.expected_contribution_eur - expected) < .02
+    assert abs(result.risk.expected_contribution_eur - expected) < 0.02
 
 
 def test_flat_prices_do_not_create_unprofitable_cycles():
     request = SimulationRequest()
     points = request.model_copy().prices
     from backend.services.forecast_service import build_demo_forecast
-    points = [p.model_copy(update={"price_eur_mwh": 50}) for p in build_demo_forecast(request.delivery_date, request.market)]
+
+    points = [
+        p.model_copy(update={"price_eur_mwh": 50})
+        for p in build_demo_forecast(request.delivery_date, request.market)
+    ]
     result = run_simulation(request.model_copy(update={"prices": points}))
     assert result.summary["expected_contribution_eur"] == 0
     assert not result.orders
@@ -67,16 +112,22 @@ def test_unavailable_interval_is_idle():
 
 def test_downside_scenario_compresses_expected_contribution():
     base = run_simulation(SimulationRequest())
-    downside = run_simulation(SimulationRequest(
-        scenario_name="Downside",
-        strategy="conservative",
-        peak_reduction_eur_mwh=15,
-    ))
+    downside = run_simulation(
+        SimulationRequest(
+            scenario_name="Downside",
+            strategy="conservative",
+            peak_reduction_eur_mwh=15,
+        )
+    )
     assert downside.summary["expected_contribution_eur"] < base.summary["expected_contribution_eur"]
 
 
 def test_price_case_does_not_silently_change_risk_posture():
-    result = run_simulation(SimulationRequest(scenario_name="Downside", peak_reduction_eur_mwh=15, risk_posture="balanced"))
+    result = run_simulation(
+        SimulationRequest(
+            scenario_name="Downside", peak_reduction_eur_mwh=15, risk_posture="balanced"
+        )
+    )
     assert result.risk.posture == "balanced"
 
 
@@ -92,7 +143,9 @@ def test_rounded_orders_remain_executable_at_tight_power_limits():
 
 
 def test_terminal_value_is_reported_separately_from_cash_contribution():
-    result = run_simulation(SimulationRequest(horizon_policy="terminal_value", terminal_value_eur_per_mwh=100))
+    result = run_simulation(
+        SimulationRequest(horizon_policy="terminal_value", terminal_value_eur_per_mwh=100)
+    )
     assert result.horizon.terminal_value_eur_per_mwh == 100
     assert result.summary["total_decision_value_eur"] == round(
         result.summary["expected_contribution_eur"] + result.summary["terminal_energy_value_eur"], 2
@@ -114,8 +167,26 @@ def test_risk_posture_changes_the_selected_executable_portfolio():
 
 def test_milp_retains_value_when_throughput_constraint_binds():
     values = [50, 70, 10, 100, 130, 20, 0, 0]
-    points = [PricePoint(timestamp_utc=datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(hours=i), price_eur_mwh=value) for i, value in enumerate(values)]
-    battery = BatteryConfig(capacity_mwh=20, max_charge_power_mw=10, max_discharge_power_mw=10, initial_soc_mwh=10, min_soc_mwh=0, max_soc_mwh=20, target_soc_mwh=10, round_trip_efficiency=.9, degradation_cost_eur_per_mwh=0, max_equivalent_cycles=.5, grid_limit_mw=10)
+    points = [
+        PricePoint(
+            timestamp_utc=datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(hours=i),
+            price_eur_mwh=value,
+        )
+        for i, value in enumerate(values)
+    ]
+    battery = BatteryConfig(
+        capacity_mwh=20,
+        max_charge_power_mw=10,
+        max_discharge_power_mw=10,
+        initial_soc_mwh=10,
+        min_soc_mwh=0,
+        max_soc_mwh=20,
+        target_soc_mwh=10,
+        round_trip_efficiency=0.9,
+        degradation_cost_eur_per_mwh=0,
+        max_equivalent_cycles=0.5,
+        grid_limit_mw=10,
+    )
     _, metadata = optimize_dispatch(points, battery, MarketConfig(product_minutes=60))
     assert metadata["solver_status"] == "optimal"
     assert metadata["objective_value_eur"] > 1200
@@ -127,7 +198,10 @@ def test_dispatch_validation_independently_detects_energy_balance_breaks():
     broken[3] = broken[3].model_copy(update={"soc_mwh": broken[3].soc_mwh + 2})
     validation = validate_dispatch(broken, result.battery)
     assert validation.status == "failed"
-    assert any(finding.code == "energy_balance" and finding.interval == 3 for finding in validation.findings)
+    assert any(
+        finding.code == "energy_balance" and finding.interval == 3
+        for finding in validation.findings
+    )
 
 
 def test_dispatch_validation_detects_action_power_mismatch():

@@ -1,0 +1,285 @@
+/* 2026 usability pass: progressive disclosure, readable density and resilient layouts */
+.inputs-content > .config-group > legend button {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.inputs-content > .config-group > legend button svg {
+  flex: none;
+  margin-left: auto;
+  color: var(--section-accent);
+  transition: transform 0.18s ease;
+}
+.inputs-content > .config-group.active > legend button svg {
+  transform: rotate(180deg);
+}
+.inputs-content > .config-group > legend button:hover .config-legend-copy strong {
+  color: var(--section-accent);
+}
+.inputs-content > .config-group > legend button:focus-visible {
+  outline: 3px solid rgba(22, 134, 127, 0.24);
+  outline-offset: 4px;
+  border-radius: 5px;
+}
+.inputs-content > .config-group.collapsed {
+  padding-bottom: 0;
+  background: var(--section-tint);
+}
+.inputs-content > .config-group.collapsed > :not(legend) {
+  display: none !important;
+}
+.inputs-content > .config-group.collapsed > legend {
+  padding-block: 10px;
+}
+.inputs-content > .config-group.collapsed .config-legend-copy small {
+  max-width: 225px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+.inputs-content > .run-button {
+  position: sticky;
+  z-index: 3;
+  bottom: -1px;
+  margin-top: 2px;
+  box-shadow: 0 -10px 18px #fff;
+}
+.main-column.empty-run .kpis {
+  display: none;
+}
+.main-column.empty-run .result-panel {
+  min-height: 300px;
+}
+.main-column.empty-run .tabs {
+  margin-top: 0;
+}
+
+/* Supporting copy remains legible on laptops and presentation displays. */
+.config-legend-copy small,
+.assumption,
+.field-grid label > small,
+.inputs label > small,
+.constraint-counts span,
+.constraint-meta,
+.value-driver small,
+.sensitivity-summary-findings article > span,
+.sensitivity-summary-findings article small,
+.run-card-meta,
+.run-option small {
+  font-size: 10px;
+  line-height: 1.35;
+}
+.order-entry-row > label,
+.forecast-grid label,
+.execution-table,
+.execution-table td > small,
+.status-check small,
+.sim-kpi span,
+.sim-kpi small {
+  font-size: 11px;
+  line-height: 1.35;
+}
+.market-condition span,
+.market-condition small,
+.field-error,
+.condition-preview,
+.execution-table th,
+.execution-status {
+  font-size: 10px !important;
+}
+.execution-table td {
+  font-size: 11px;
+}
+
+/* Keep audit content inside the viewport at every supported width. */
+.audit-page,
+.audit-intro,
+.audit-summary,
+.audit-tools,
+.audit-mobile,
+.run-card {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.audit-page {
+  overflow-x: clip;
+}
+.audit-summary {
+  width: min(430px, 100%);
+}
+.evidence pre {
+  max-width: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.evidence-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+}
+.evidence-toolbar span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.evidence-toolbar button {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--teal-dark);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
+.evidence-toolbar button:hover {
+  border-color: var(--teal);
+  background: #f1f8f6;
+}
+.evidence-toolbar button:focus-visible {
+  outline: 3px solid rgba(22, 134, 127, 0.24);
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  .order-entry-row {
+    grid-template-columns: 25px minmax(92px, 0.8fr) minmax(96px, 1fr) 44px;
+    grid-template-areas:
+      "number delivery side remove"
+      ". type volume volume"
+      ". price price price";
+    gap: 9px;
+  }
+  .order-entry-row .row-number {
+    grid-area: number;
+  }
+  .order-entry-row .order-delivery {
+    grid-area: delivery;
+  }
+  .order-entry-row .order-side {
+    grid-area: side;
+  }
+  .order-entry-row .order-type {
+    grid-area: type;
+    min-width: 96px;
+  }
+  .order-entry-row .order-volume {
+    grid-area: volume;
+  }
+  .order-entry-row .order-price,
+  .order-entry-row .market-condition {
+    grid-area: price;
+  }
+  .order-entry-row .remove-order {
+    grid-area: remove;
+    grid-column: auto;
+    grid-row: auto;
+    width: 44px !important;
+    min-width: 44px;
+  }
+  .audit-page {
+    width: 100%;
+    padding-inline: 12px;
+  }
+  .audit-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .audit-stat {
+    min-width: 0;
+    padding: 10px 8px;
+  }
+  .audit-stat span {
+    overflow-wrap: anywhere;
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 1199px) {
+  .edit-drawer {
+    position: fixed;
+    z-index: 60;
+    inset: calc(var(--topbar-height) + 12px) 12px 12px auto;
+    width: min(560px, calc(100vw - 24px));
+    margin: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    box-shadow: 0 22px 65px rgba(9, 44, 47, 0.24);
+  }
+  .drawer-action {
+    position: sticky;
+    bottom: 0;
+    min-height: 44px;
+    box-shadow: 0 -10px 18px #f8fbfa;
+  }
+}
+
+@media (max-width: 600px) {
+  .edit-drawer {
+    inset: auto 0 0;
+    width: 100%;
+    max-height: 88dvh;
+    border-right: 0;
+    border-bottom: 0;
+    border-radius: 14px 14px 0 0;
+    padding-bottom: calc(15px + env(safe-area-inset-bottom));
+  }
+}
+.context-bar.completed-run {
+  padding-block: 11px;
+}
+.context-bar.completed-run .eyebrow {
+  display: none;
+}
+.context-bar.completed-run h1 {
+  margin: 0 0 2px;
+  font-size: 20px;
+}
+.context-bar.completed-run p {
+  font-size: 12px;
+}
+.context-bar h1 {
+  font-size: 24px;
+  letter-spacing: -0.35px;
+}
+.workspace {
+  gap: 16px;
+}
+.panel,
+.kpi {
+  box-shadow: none;
+}
+.result-panel {
+  border-color: #dbe5e3;
+}
+.kpis {
+  gap: 10px;
+}
+.kpi {
+  min-height: 92px;
+  padding: 12px 14px;
+}
+.status-message.success {
+  background: #f0f8f4;
+  border-color: #d3e9dd;
+}
+.tabs button {
+  letter-spacing: 0.05px;
+}
+.dispatch-figure {
+  margin: 0;
+}

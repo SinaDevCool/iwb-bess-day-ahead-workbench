@@ -1,0 +1,175 @@
+/* results-and-orders: sensitivities. Ordered by the parent manifest. */
+.value-driver-list {
+  display: grid;
+  gap: 1px;
+  margin: 10px 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--line);
+}
+.value-driver {
+  display: grid;
+  grid-template-columns: minmax(155px, 0.9fr) minmax(220px, 2fr) minmax(150px, 0.8fr);
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  background: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.value-driver-label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.value-driver-label strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.value-driver small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.sensitivity-plot {
+  position: relative;
+  height: 12px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #f7eeec 0 50%, #edf7f1 50% 100%);
+  overflow: hidden;
+}
+.sensitivity-plot i {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 99px;
+}
+.sensitivity-plot .gain {
+  background: #25845b;
+}
+.sensitivity-plot .loss {
+  background: #b85b49;
+}
+.sensitivity-zero {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: #566b6c;
+}
+.value-driver-cases {
+  display: grid;
+  gap: 3px;
+}
+.value-driver-cases small {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: #f5f8f7;
+}
+.value-driver-cases b {
+  font-size: 11px;
+  text-align: right;
+}
+.sensitivity-picker .column-menu {
+  width: 310px;
+}
+.sensitivity-options {
+  display: grid;
+  gap: 2px;
+}
+.sensitivity-options > small {
+  margin: 8px 7px 2px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.sensitivity-reset {
+  margin-top: 8px;
+  min-height: 34px;
+  border: 1px solid #bdd2cf;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--teal-dark);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+.sensitivity-reset:hover {
+  background: #f1f8f6;
+  border-color: var(--teal);
+}
+.sensitivity-reset:focus-visible {
+  outline: 3px solid rgba(22, 134, 127, 0.24);
+  outline-offset: 2px;
+}
+.sensitivity-empty {
+  margin: 10px 0 7px;
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  text-align: center;
+}
+.reason {
+  grid-column: auto;
+}
+.check-label {
+  min-height: 40px;
+  margin-top: 23px !important;
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.check-label input {
+  width: auto !important;
+  margin: 0 !important;
+  min-height: auto !important;
+}
+.drawer-action {
+  margin-left: auto;
+  display: flex;
+}
+.edit-guidance {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 10px 0;
+}
+.edit-guidance.invalid {
+  color: var(--error);
+}
+.edit-drawer input:disabled {
+  background: #edf2f1;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.approval-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: #f3f7f6;
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  border-radius: 9px;
+  margin-top: 14px;
+}
+.approval-bar > div:first-child {
+  display: flex;
+  flex-direction: column;
+}
+.approval-bar span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}

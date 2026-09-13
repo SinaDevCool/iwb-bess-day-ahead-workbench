@@ -1,0 +1,216 @@
+/* comparison: outcomes. Ordered by the parent manifest. */
+.metric-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f3f7f6;
+}
+.metric-switch button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 750;
+}
+.metric-switch button:hover {
+  color: var(--ink);
+}
+.metric-switch button.active {
+  background: #fff;
+  color: var(--teal-dark);
+  box-shadow: 0 1px 4px rgba(17, 56, 58, 0.12);
+}
+.run-comparison-chart {
+  margin: 10px 0;
+  padding: 13px 15px 10px;
+}
+.run-comparison-chart figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 5px;
+}
+.run-comparison-chart .recharts-legend-item-text {
+  color: #506a6c !important;
+  font-size: 10px;
+}
+.comparison-tooltip {
+  display: grid;
+  min-width: 250px;
+  max-width: 340px;
+  gap: 5px;
+  padding: 11px 12px;
+  border: 1px solid #b8ccca;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 9px 24px rgba(17, 56, 58, 0.16);
+  color: var(--ink);
+}
+.comparison-tooltip > strong {
+  font-size: 12px;
+}
+.comparison-tooltip > span,
+.comparison-tooltip > em {
+  color: var(--muted);
+  font-size: 9px;
+  font-style: normal;
+}
+.comparison-tooltip > em {
+  margin-bottom: 3px;
+  color: #315d5e;
+}
+.comparison-tooltip > div {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding-top: 5px;
+  border-top: 1px solid #edf1f0;
+  font-size: 10px;
+}
+.comparison-tooltip > div i {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+}
+.comparison-tooltip > div b {
+  font-variant-numeric: tabular-nums;
+}
+.market-outcome-legend {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 7px 2px 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.market-outcome-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.market-outcome-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.market-outcome-legend .lower {
+  background: #7b8e8c;
+}
+.market-outcome-legend .central {
+  background: #16867f;
+}
+.market-outcome-legend .higher {
+  background: #e67d11;
+}
+.comparison-results-table {
+  margin-top: 9px;
+}
+.comparison-results-table table {
+  font-variant-numeric: tabular-nums;
+}
+.comparison-results-table tbody tr {
+  cursor: pointer;
+}
+.comparison-results-table tbody tr:hover,
+.comparison-results-table tbody tr:focus-visible,
+.comparison-results-table tbody tr.active {
+  background: #eaf6f4;
+}
+.comparison-results-table tbody tr.active td:first-child {
+  box-shadow: inset 3px 0 var(--teal);
+}
+.comparison-results-table td {
+  white-space: nowrap;
+}
+.comparison-results-table td:first-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  white-space: normal;
+}
+.comparison-results-table td:first-child small {
+  margin-top: 2px;
+  color: var(--muted);
+}
+.comparison-results-table .run-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.comparison-results-table .run-title b {
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #dff0ed;
+  color: var(--teal-dark);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+.comparison-results-table th small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 650;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.run-inspector {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fbfcfc;
+}
+.inspector-heading p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.inspector-identity {
+  min-width: 0;
+}
+.rename-button {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  margin-left: 3px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.rename-button:hover {
+  background: #eaf3f1;
+  color: var(--teal-dark);
+}
+.rename-button:focus-visible,
+.rename-form input:focus-visible {
+  outline: 3px solid rgba(22, 134, 127, 0.24);
+  outline-offset: 2px;
+}
+.rename-form {
+  display: grid;
+  gap: 5px;
+  margin-top: 6px;
+}
+.rename-form > label {
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 800;
+}
+.rename-form > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}

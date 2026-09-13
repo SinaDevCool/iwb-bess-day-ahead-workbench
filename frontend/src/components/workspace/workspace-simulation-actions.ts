@@ -1,0 +1,69 @@
+"use client";
+
+import { api } from "@/lib/api";
+import type { OrderSimulation } from "@/types/api";
+
+import type { ActionContext } from "./workspace-action-types";
+import { identity, requestBody } from "./workspace-adapters";
+type SimulationActionContext = Pick<
+  ActionContext,
+  | "draft"
+  | "setResult"
+  | "setResultKey"
+  | "setBusy"
+  | "setError"
+  | "setNotice"
+  | "requestId"
+  | "navigate"
+  | "validate"
+>;
+/** simulation actions preserve explicit snapshots; they never recompute financial results in the UI. */
+export function useSimulationActions(context: SimulationActionContext) {
+  const {
+    draft,
+    setResult,
+    setResultKey,
+    setBusy,
+    setError,
+    setNotice,
+    requestId,
+    navigate,
+    validate,
+  } = context;
+  const simulate = async () => {
+    if (!draft || !validate()) return;
+    const snapshot = draft,
+      key = identity(snapshot),
+      ticket = ++requestId.current;
+    setBusy("Simulating");
+    setError("");
+    try {
+      const next = await api<OrderSimulation>("/api/order-simulations", {
+        method: "POST",
+        body: JSON.stringify({
+          ...requestBody(snapshot),
+          source_proposal_id: snapshot.sourceProposalId,
+          orders: snapshot.orders.map((o) => ({
+            client_order_id: o.id,
+            delivery_start_utc: snapshot.points[o.interval].timestamp_utc,
+            side: o.side,
+            order_type: o.orderType,
+            volume_mw: Number(o.volume),
+            limit_price_eur_mwh: o.orderType === "LIMIT" ? Number(o.limit) : null,
+          })),
+        }),
+      });
+      if (ticket === requestId.current) {
+        setResult(next);
+        setResultKey(key);
+        setNotice("");
+        navigate("schedule");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Simulation failed");
+    } finally {
+      if (ticket === requestId.current) setBusy("");
+    }
+  };
+  return { simulate };
+}

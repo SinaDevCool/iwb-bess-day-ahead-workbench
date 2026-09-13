@@ -1,0 +1,92 @@
+/* workspace: schedule. Ordered by the parent manifest. */
+.ws-schedule-plot {
+  height: 170px;
+  width: 100%;
+  min-width: 0;
+}
+.ws-schedule .plot-heading {
+  padding: 9px 12px;
+  font-size: 12px;
+}
+.ws-schedule .chart-overview {
+  margin-bottom: 12px;
+}
+.ws-schedule .chart-overview h3 {
+  font-size: 16px;
+}
+.ws-schedule .chart-overview p,
+.ws-schedule .chart-foot {
+  font-size: 12px;
+}
+.order-workspace .simulation-results {
+  gap: 16px;
+}
+.order-workspace .simulator-card {
+  padding: 18px;
+  border-radius: 12px;
+}
+.order-workspace .simulation-kpis {
+  margin: 0;
+}
+.order-workspace .sim-kpi {
+  padding: 12px;
+}
+.order-workspace .result-verdict {
+  padding: 14px;
+}
+.order-workspace .step-badge {
+  display: none;
+}
+.order-workspace :focus-visible,
+.ws-dialog :focus-visible {
+  outline: 2px solid #087d78;
+  outline-offset: 3px;
+}
+.ws-dialog .field-error {
+  color: #a5392f;
+}
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 20px;
+  z-index: 100;
+  background: white;
+  padding: 10px;
+}
+.skip-link:focus {
+  top: 10px;
+}
+.ws-cash-details {
+  font-size: 13px;
+  padding: 12px 0;
+}
+.ws-cash-details dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+.ws-cash-details dd {
+  margin: 0;
+}
+.order-workspace .stale-notice {
+  margin-bottom: 12px;
+}
+.ws-chart-orders {
+  font-size: 12px;
+  margin: 10px 0;
+}
+.ws-chart-orders > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0;
+}
+.ws-chart-orders button {
+  border: 1px solid #bfd1cf;
+  background: #fff;
+  border-radius: 5px;
+  padding: 6px;
+}
+.ws-chart-orders button[aria-pressed="true"] {
+  background: #e0f1ec;
+}
