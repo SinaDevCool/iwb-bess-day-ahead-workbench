@@ -76,6 +76,16 @@
   border-color: #ecc8c1;
   background: #fff3f0;
 }
+.result-verdict.neutral {
+  border-color: #c8d7dd;
+  background: #f1f6f8;
+}
+.result-verdict.neutral > div {
+  color: var(--ink);
+}
+.result-verdict svg {
+  flex-shrink: 0;
+}
 .result-verdict > div {
   display: flex;
   align-items: center;

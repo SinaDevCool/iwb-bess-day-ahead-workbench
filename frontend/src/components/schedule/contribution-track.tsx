@@ -10,6 +10,7 @@ export function ContributionTrack({
   cursor,
   rows,
   dt,
+  label = "Net contribution",
 }: {
   trackEvents: ReturnType<typeof useScheduleInspection>["trackEvents"];
   xAxis: React.ReactNode;
@@ -17,12 +18,13 @@ export function ContributionTrack({
   cursor: React.ReactNode;
   rows: Dispatch[];
   dt: number;
+  label?: string;
 }) {
   return (
     <div className="plot-card">
       <div className="plot-heading">
         <span className="schedule-track-legend">
-          Net contribution{" "}
+          {label}{" "}
           <span>
             <i style={{ background: "#237451" }} />
             Positive
@@ -37,7 +39,7 @@ export function ContributionTrack({
       <div
         className="ws-schedule-plot"
         role="img"
-        aria-label="Interval net contribution sharing the battery timeline"
+        aria-label={`${label} by interval, sharing the battery timeline`}
         {...trackEvents}
       >
         <ResponsiveContainer width="100%" height="100%">

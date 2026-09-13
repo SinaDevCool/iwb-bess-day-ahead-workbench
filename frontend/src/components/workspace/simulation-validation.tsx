@@ -2,16 +2,23 @@
 import { simulationChecks, type Check } from "@/lib/simulation-evidence";
 import type { OrderSimulation } from "@/types/api";
 import { Fragment, useState } from "react";
+import { SimulationVerdict, SimulationAssumptions } from "./simulation-verdict";
 const fmt = (value: number) =>
   new Intl.NumberFormat("en-CH", { maximumFractionDigits: 3 }).format(value);
 
-export function SimulationValidation({ result }: { result: OrderSimulation }) {
+export function SimulationValidation({
+  result,
+  stale = false,
+}: {
+  result: OrderSimulation;
+  stale?: boolean;
+}) {
   const [filter, setFilter] = useState("All");
   const [selected, setSelected] = useState("");
   const checks = simulationChecks(result);
   const value = (c: Check) =>
     c.label === "Submitted order feasibility"
-      ? `${fmt(c.observed)} physically rejected orders · schedule ${result.executed_schedule_feasible ? "feasible" : "needs attention"}`
+      ? `${fmt(c.observed)} physically rejected ${c.observed === 1 ? "order" : "orders"} · schedule ${result.executed_schedule_feasible ? "feasible" : "needs attention"}`
       : c.status === "Not evaluated"
         ? "Not configured"
         : fmt(c.observed) + " / " + fmt(c.allowed) + " " + c.unit;
@@ -22,17 +29,8 @@ export function SimulationValidation({ result }: { result: OrderSimulation }) {
         Evidence from this saved order simulation. Fully used means a boundary was reached, not
         exceeded.
       </p>
-      <div className={`result-verdict ${result.executed_schedule_feasible ? "passed" : "failed"}`}>
-        <strong>
-          {result.executed_schedule_feasible
-            ? "Executed schedule is feasible"
-            : "Executed schedule needs attention"}
-        </strong>
-        <span>
-          Submitted portfolio:{" "}
-          {result.submitted_portfolio_feasible ? "feasible" : "needs attention"}
-        </span>
-      </div>
+      <SimulationVerdict result={result} stale={stale} />
+      <SimulationAssumptions result={result} />
       <div className="constraint-filters" aria-label="Filter validation checks">
         {["All", "Issue", "Fully used", "Headroom", "Verified", "Not evaluated"].map((item) => (
           <button
@@ -104,7 +102,16 @@ export function SimulationValidation({ result }: { result: OrderSimulation }) {
           <h3>Backend findings</h3>
           {result.validation.findings.map((f, i) => (
             <p key={i}>
-              {f.interval != null ? "Interval " + (f.interval + 1) + " · " : ""}
+              {f.interval != null && result.dispatch[f.interval]
+                ? new Intl.DateTimeFormat("en-CH", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: result.market.timezone,
+                    timeZoneName: "shortOffset",
+                  }).format(new Date(result.dispatch[f.interval].timestamp_utc)) + " · "
+                : f.interval != null
+                  ? "Interval " + (f.interval + 1) + " · "
+                  : ""}
               {f.message}
             </p>
           ))}

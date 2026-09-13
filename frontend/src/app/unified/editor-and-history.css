@@ -39,12 +39,6 @@
   margin: 0;
   color: #50686b;
 }
-.order-entry-row[data-side="BUY"] {
-  border-left: 3px solid #1d9c98;
-}
-.order-entry-row[data-side="SELL"] {
-  border-left: 3px solid #db7c13;
-}
 .schedule-inspector {
   display: flex;
   flex-wrap: wrap;

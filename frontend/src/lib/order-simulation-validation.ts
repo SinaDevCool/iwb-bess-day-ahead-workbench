@@ -81,7 +81,9 @@ export function priceCondition(side: "BUY" | "SELL", forecast: number, limit: nu
   const marginEurMwh = side === "BUY" ? limit - forecast : forecast - limit;
   return {
     operator: side === "BUY" ? ("≤" as const) : ("≥" as const),
-    passed: marginEurMwh >= -1e-9,
+    // Match Python's inclusive comparison exactly; input tick validation is separate.
+    passed: side === "BUY" ? forecast <= limit : forecast >= limit,
+    atLimit: forecast === limit,
     marginEurMwh,
   };
 }

@@ -1,14 +1,14 @@
 "use client";
-
-import { type DraftOrderInput } from "@/lib/order-simulation-validation";
-import { useEffect, useRef } from "react";
-import { Plus, RotateCcw, X } from "lucide-react";
-import { OrderRow } from "./order-entry-row";
-
+import { useRef } from "react";
+import { Plus, RotateCcw } from "lucide-react";
+import { SimulationAssumptions } from "./simulation-verdict";
+import { OrderTicket } from "./order-ticket";
+import { OrdersTable } from "./orders-table";
+import { useOrderLayout } from "./use-order-layout";
 import type { ReadyWorkbench } from "./use-workbench";
 import { id } from "./workspace-adapters";
-import { clock } from "./workspace-format";
-/** Presentation only: all shared state remains in the workbench controller. */
+
+/** Orchestrates selection only; every edit updates the existing shared case draft. */
 export function OrdersView({
   context,
 }: {
@@ -48,48 +48,73 @@ export function OrdersView({
     loadExample,
     showOrderOnSchedule,
   } = context;
-  const editorRef = useRef<HTMLHeadingElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
+  const addOrderRef = useRef<HTMLButtonElement | null>(null);
   const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  useEffect(() => {
-    if (view !== "orders" || !selected) return;
-    const frame = requestAnimationFrame(() => {
-      editorRef.current?.scrollIntoView?.({ block: "nearest" });
-      editorRef.current?.focus();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [selected, view]);
-  const current = draft.orders.find((o) => o.id === selected);
+  const { layoutRef, wide } = useOrderLayout(view);
+  const current = draft.orders.find((order) => order.id === selected);
+  const ticket = current && (
+    <OrderTicket
+      order={current}
+      rowIndex={draft.orders.indexOf(current)}
+      points={draft.points}
+      prices={draft.prices}
+      market={draft.market}
+      issues={orderIssues}
+      outcome={result?.order_results.find(
+        (outcome) => outcome.submitted_order.client_order_id === current.id,
+      )}
+      stale={Boolean(result) && dirty}
+      close={() => {
+        setSelected("");
+        (rowRefs.current[selected] ?? openerRef.current)?.focus();
+      }}
+      locate={() => showOrderOnSchedule(current.id)}
+      update={(oid, patch) =>
+        change({
+          orders: draft.orders.map((order) => (order.id === oid ? { ...order, ...patch } : order)),
+        })
+      }
+      remove={(order) => {
+        setUndo(draft);
+        change({ orders: draft.orders.filter((item) => item.id !== order.id) });
+        setSelected("");
+        addOrderRef.current?.focus();
+      }}
+    />
+  );
   return (
     view === "orders" && (
       <>
-        <section className="ws-card">
+        <section className="ws-card orders-card">
           <div className="ws-section-head">
             <h2>
               Orders <small>{draft.orders.length}</small>
             </h2>
             <div>
               <button
+                ref={addOrderRef}
                 className="secondary small"
                 onClick={(event) => {
                   openerRef.current = event.currentTarget;
-                  const o: DraftOrderInput = {
+                  const order = {
                     id: id(),
                     interval: 0,
-                    side: "BUY",
-                    orderType: "LIMIT",
+                    side: "BUY" as const,
+                    orderType: "LIMIT" as const,
                     volume: "10",
                     limit: draft.prices[0] ?? "",
                   };
-                  change({ orders: [...draft.orders, o] });
-                  setSelected(o.id);
+                  change({ orders: [...draft.orders, order] });
+                  setSelected(order.id);
                 }}
               >
-                <Plus size={14} />
+                <Plus size={14} aria-hidden="true" />
                 Add order
               </button>
               <button
-                className="secondary small"
+                className="ws-text-button"
+                disabled={Boolean(busy)}
                 onClick={() => {
                   setPreview(undefined);
                   setModal("proposal");
@@ -99,147 +124,30 @@ export function OrdersView({
               </button>
             </div>
           </div>
-          <div className={`ws-order-layout ${current ? "editing" : ""}`}>
-            <div className="table-scroll">
-              <table className="ws-orders">
-                <caption className="sr-only">Entered orders</caption>
-                <thead>
-                  <tr>
-                    <th>Delivery</th>
-                    <th>Side</th>
-                    <th>Type</th>
-                    <th>Volume MW</th>
-                    <th>Limit €/MWh</th>
-                    <th>Simulation status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...draft.orders]
-                    .sort((a, b) => a.interval - b.interval)
-                    .map((o) => (
-                      <tr key={o.id} className={selected === o.id ? "selected" : ""}>
-                        <td>
-                          <button
-                            className="ws-row-link"
-                            ref={(node) => {
-                              rowRefs.current[o.id] = node;
-                            }}
-                            aria-label={`Edit ${clock(draft.points[o.interval].timestamp_utc, draft.market.timezone)} ${o.side} order`}
-                            onClick={(event) => {
-                              openerRef.current = event.currentTarget;
-                              setSelected(o.id);
-                            }}
-                          >
-                            {clock(draft.points[o.interval].timestamp_utc, draft.market.timezone)}–
-                            {clock(
-                              new Date(
-                                Date.parse(draft.points[o.interval].timestamp_utc) +
-                                  draft.market.product_minutes * 60000,
-                              ).toISOString(),
-                              draft.market.timezone,
-                            )}
-                          </button>
-                        </td>
-                        <td>
-                          <span className={`side ${o.side.toLowerCase()}`}>{o.side}</span>
-                        </td>
-                        <td>{o.orderType === "MARKET" ? "Market" : "Limit"}</td>
-                        <td>{o.volume || "—"}</td>
-                        <td>
-                          {o.orderType === "MARKET" ? "No limit" : o.limit || "—"}
-                          {Object.keys(orderIssues).some((k) => k.startsWith(`order.${o.id}.`)) && (
-                            <span className="field-error">Check input</span>
-                          )}
-                        </td>
-                        <td>
-                          {!result
-                            ? "Not simulated"
-                            : dirty
-                              ? "Re-simulate"
-                              : (() => {
-                                  const outcome = result.order_results.find(
-                                    (item) => item.submitted_order.client_order_id === o.id,
-                                  );
-                                  return outcome
-                                    ? outcome.execution_status === "EXECUTED"
-                                      ? "Simulated execution"
-                                      : outcome.execution_status === "NOT_EXECUTED"
-                                        ? "Price condition not met"
-                                        : "Physically infeasible"
-                                    : "Not simulated";
-                                })()}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-              {!draft.orders.length && (
-                <p className="ws-empty">No orders yet. Add an order or generate a proposal.</p>
-              )}
-            </div>
-            {current && (
-              <aside className="ws-order-editor">
-                <div className="ws-section-head">
-                  <h3 ref={editorRef} tabIndex={-1}>
-                    {current.side} ·{" "}
-                    {draft.points[current.interval]
-                      ? clock(draft.points[current.interval].timestamp_utc, draft.market.timezone)
-                      : "Select delivery"}
-                  </h3>
-                  <button
-                    aria-label="Close order editor"
-                    className="icon-button"
-                    onClick={() => {
-                      setSelected("");
-                      (rowRefs.current[selected] ?? openerRef.current)?.focus();
-                    }}
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-                <button
-                  className="secondary small"
-                  disabled={!result || dirty}
-                  onClick={() => showOrderOnSchedule(current.id)}
-                >
-                  View on schedule
-                </button>
-                {(!result || dirty) && (
-                  <p className="ws-help">
-                    Simulate the current orders before locating their execution on the schedule.
-                  </p>
-                )}
-                <OrderRow
-                  order={current}
-                  rowIndex={draft.orders.indexOf(current)}
-                  points={draft.points}
-                  prices={draft.prices}
-                  market={draft.market}
-                  issues={orderIssues}
-                  update={(oid, patch) =>
-                    change({
-                      orders: draft.orders.map((o) => (o.id === oid ? { ...o, ...patch } : o)),
-                    })
-                  }
-                  remove={(o) => {
-                    setUndo(draft);
-                    change({
-                      orders: draft.orders.filter((x) => x.id !== o.id),
-                    });
-                    setSelected("");
-                  }}
-                />
-                <p className="ws-help">
-                  Physical feasibility is checked when simulated. Changes update the draft;
-                  re-simulate to update results.
-                </p>
-              </aside>
-            )}
+          <p className="orders-caption">
+            Entered orders · simulated outcomes · {draft.market.timezone}
+          </p>
+          <div ref={layoutRef} className="orders-layout" data-docked={Boolean(wide && current)}>
+            <OrdersTable
+              draft={draft}
+              result={result}
+              dirty={dirty}
+              selected={selected}
+              issues={orderIssues}
+              ticket={ticket}
+              wide={wide}
+              rowRefs={rowRefs}
+              select={(oid, opener) => {
+                openerRef.current = opener;
+                setSelected(oid);
+              }}
+            />
+            {wide && ticket}
           </div>
           <p className="ws-help">
-            Generate proposal suggests orders. Simulate evaluates your entered orders. Same-interval
-            eligible orders execute as a batch; no partial fills.
+            Generate proposes orders. Simulate evaluates the orders currently entered.
           </p>
+          <SimulationAssumptions />
         </section>
         <button
           className="ws-text-button"
@@ -254,7 +162,7 @@ export function OrdersView({
             })
           }
         >
-          <RotateCcw size={14} />
+          <RotateCcw size={14} aria-hidden="true" />
           {draft.market.product_minutes === 60 ? "Load example inputs" : "Load demo forecast"}
         </button>
       </>

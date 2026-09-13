@@ -11,6 +11,7 @@ from backend.domain.schemas.configuration import BatteryConfig, MarketConfig, Sc
 from backend.domain.schemas.dispatch import DispatchRow, ValidationResult
 from backend.domain.schemas.forecast import ForecastMetadata, PricePoint
 from backend.domain.schemas.orders import Order, OrderExecutionStatus, SubmittedOrder
+from backend.domain.schemas.simulation_assumptions import SimulationAssumptions
 
 
 class MappingModel(BaseModel):
@@ -261,6 +262,8 @@ class OrderSimulationResult(BaseModel):
     audit: dict[str, object]
     submitted_portfolio_feasible: bool
     executed_schedule_feasible: bool
+    # Missing on historical results: never backfill new semantics into old runs.
+    assumptions: SimulationAssumptions | None = None
 
 
 class SimulationRunSummary(BaseModel):

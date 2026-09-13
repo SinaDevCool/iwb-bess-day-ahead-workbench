@@ -117,7 +117,7 @@ describe("OrderSimulatorWorkbench", () => {
     expect(screen.getByRole("heading", { name: "BESS Day-Ahead Workbench" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Edit .* order/ })).toHaveLength(4);
     expect(screen.queryByLabelText("Volume for order 1")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Edit 05:00 BUY order" }));
+    fireEvent.click(screen.getByRole("button", { name: /Edit 05:00–06:00 BUY order/ }));
     expect(screen.getByLabelText("Volume for order 1")).toHaveValue(20);
     expect(screen.queryByLabelText("Limit price for order 1")).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Type for order 1"), {
@@ -140,14 +140,14 @@ describe("OrderSimulatorWorkbench", () => {
   });
   it("shows one actionable volume error instead of duplicate helper text", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Edit 05:00 BUY order" }));
+    fireEvent.click(screen.getByRole("button", { name: /Edit 05:00–06:00 BUY order/ }));
     fireEvent.change(screen.getByLabelText("Volume for order 1"), { target: { value: "-1" } });
     expect(screen.getByText("Enter a positive volume.")).toBeInTheDocument();
     expect(screen.queryByText("Enter a positive volume in MW")).not.toBeInTheDocument();
   });
   it("explains the invalid terminal setting without sending a proposal request", async () => {
     await ready();
-    fireEvent.click(screen.getByText("Optimization Settings"));
+    fireEvent.click(screen.getByText("Proposal settings"));
     fireEvent.change(screen.getByLabelText("End-of-day policy"), {
       target: { value: "terminal_value" },
     });
@@ -165,7 +165,7 @@ describe("OrderSimulatorWorkbench", () => {
   });
   it("does not apply blank forecast cells or treat them as zero", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Edit intervals" }));
+    fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
     fireEvent.change(screen.getByLabelText("Price " + points[0].timestamp_utc), {
       target: { value: "" },
     });
@@ -174,7 +174,7 @@ describe("OrderSimulatorWorkbench", () => {
       target: { value: "-20" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Apply prices" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit intervals" }));
+    fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
     expect(screen.getByLabelText("Price " + points[0].timestamp_utc)).toHaveValue(-20);
   });
   it("marks a pending simulation result stale when inputs changed during the request", async () => {
@@ -256,7 +256,7 @@ describe("OrderSimulatorWorkbench", () => {
       expect.anything(),
     );
     expect(screen.queryAllByRole("button", { name: /Edit .* order/ })).toHaveLength(0);
-    fireEvent.click(screen.getByRole("button", { name: "Edit intervals" }));
+    fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
     expect(screen.getByLabelText("Price " + points[0].timestamp_utc)).toHaveValue(null);
     expect(screen.getByRole("button", { name: "Apply prices" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -298,7 +298,7 @@ describe("OrderSimulatorWorkbench", () => {
   });
   it("keeps battery labels stable and associates validation descriptions", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Battery settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit battery settings" }));
     const field = screen.getByRole("spinbutton", { name: "Charge limit MW" });
     fireEvent.change(field, { target: { value: "-1" } });
     expect(field).toHaveAccessibleName("Charge limit MW");
@@ -309,12 +309,12 @@ describe("OrderSimulatorWorkbench", () => {
   });
   it("shows percentage efficiency but keeps the backend ratio and stages cancellation", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Battery settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit battery settings" }));
     expect(screen.getByRole("group", { name: "Battery & connection" })).toBeInTheDocument();
     expect(screen.getByLabelText("Round-trip efficiency %")).toHaveValue(90);
     fireEvent.change(screen.getByLabelText("Round-trip efficiency %"), { target: { value: "95" } });
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Battery settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit battery settings" }));
     expect(screen.getByLabelText("Round-trip efficiency %")).toHaveValue(90);
     fireEvent.change(screen.getByLabelText("Round-trip efficiency %"), { target: { value: "95" } });
     fireEvent.click(screen.getByRole("button", { name: "Apply settings" }));
@@ -327,7 +327,7 @@ describe("OrderSimulatorWorkbench", () => {
   });
   it("keeps forecast actions in the shared footer and discards cancelled edits", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Edit intervals" }));
+    fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
     const field = screen.getByLabelText("Price " + points[0].timestamp_utc);
     fireEvent.change(field, { target: { value: "" } });
     expect(field).toHaveAttribute("aria-invalid", "true");
@@ -336,7 +336,7 @@ describe("OrderSimulatorWorkbench", () => {
       screen.getByRole("button", { name: "Apply prices" }).closest(".ws-dialog-footer-slot"),
     ).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit intervals" }));
+    fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
     expect(screen.getByLabelText("Price " + points[0].timestamp_utc)).toHaveValue(30);
   });
   it("ignores a hidden terminal value when switching to minimum reserve", async () => {
@@ -357,7 +357,7 @@ describe("OrderSimulatorWorkbench", () => {
       });
     });
     vi.stubGlobal("fetch", fetchMock);
-    fireEvent.click(screen.getByText("Optimization Settings"));
+    fireEvent.click(screen.getByText("Proposal settings"));
     fireEvent.change(screen.getByLabelText("End-of-day policy"), {
       target: { value: "terminal_value" },
     });

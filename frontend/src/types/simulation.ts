@@ -41,4 +41,13 @@ export type OrderSimulation = {
   audit: Record<string, unknown>;
   submitted_portfolio_feasible: boolean;
   executed_schedule_feasible: boolean;
+  /** Absent on historical snapshots; do not infer current semantics for them. */
+  assumptions?: {
+    settlement: "entered_forecast";
+    allocation: "full_if_eligible_and_feasible";
+    price_comparison: "inclusive_exact";
+    auction_allocation_modelled: false;
+    physical_rejection: "exclude_batch_without_clipping";
+    eligibility_order: "price_before_physics";
+  } | null;
 };

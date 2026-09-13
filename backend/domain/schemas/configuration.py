@@ -43,7 +43,7 @@ class MarketConfig(BaseModel):
     currency: str = "EUR"
     timezone: str = "Europe/Zurich"
     product_minutes: Literal[15, 60] = 60
-    gate_closure_local: str = "12:00"
+    gate_closure_local: str = "11:00"
     volume_increment_mw: float = Field(0.1, gt=0)
     price_increment_eur_mwh: float = Field(0.01, gt=0)
     min_price_eur_mwh: float = -500

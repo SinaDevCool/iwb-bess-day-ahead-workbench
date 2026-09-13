@@ -26,6 +26,7 @@ export function DispatchChart({
   selectedInterval,
   onSelectInterval,
   showContribution = false,
+  contributionLabel = "Net contribution",
 }: {
   rows: Dispatch[];
   battery: Battery;
@@ -43,6 +44,7 @@ export function DispatchChart({
   selectedInterval?: string;
   onSelectInterval?: (id: string) => void;
   showContribution?: boolean;
+  contributionLabel?: string;
 }) {
   const { start, end, dt, intervals, soc } = scheduleChartData(rows, battery);
   const zone = "Europe/Zurich";
@@ -136,6 +138,7 @@ export function DispatchChart({
       />
       {showContribution && (
         <ContributionTrack
+          label={contributionLabel}
           trackEvents={trackEvents}
           xAxis={xAxis}
           tip={tip}

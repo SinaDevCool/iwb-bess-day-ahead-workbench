@@ -23,6 +23,7 @@ from backend.validation.validators import validate_dispatch
 
 from backend.services.forecast_resolution import resolve_forecast
 from backend.services.order_schedule import evaluate_schedule
+from backend.domain.schemas.simulation_assumptions import SimulationAssumptions
 from backend.services.order_outcome_evidence import attach_interval_evidence
 
 
@@ -110,14 +111,15 @@ def calculate_order_simulation(
             net_contribution_eur=round(sum(item.contribution_eur for item in executed), 2),
         ),
         audit={
-            "schema_version": 6,
+            "schema_version": 7,
             "input_hash": input_hash,
             "source_proposal_id": request.source_proposal_id,
-            "simulation_engine": "deterministic_order_clearing_v1",
+            "simulation_engine": "deterministic_order_clearing_v2",
             "validation_version": "physical_and_order_validation_v4",
             "clearing_assumption": "Forecast price is used as simulated auction clearing and settlement price; full execution only.",
         },
         submitted_portfolio_feasible=not bool(infeasible) and physical.status != "failed",
         executed_schedule_feasible=physical.status != "failed",
+        assumptions=SimulationAssumptions(),
     )
     return result

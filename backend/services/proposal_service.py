@@ -69,7 +69,7 @@ def proposal_preview(request: SimulationRequest):
         return {
             "proposal": result,
             "orders": drafts,
-            "pricing_policy": "Limit at forecast, rounded outward by side to the configured tick. Simulation still evaluates physical feasibility.",
+            "pricing_policy": "Limits follow forecast prices, rounded outward by side to valid ticks. Auction allocation uncertainty is not optimized. Apply the proposal, then simulate the entered orders to evaluate physical feasibility.",
         }
     except ValueError as error:
         raise ProposalError(status_code=422, detail=str(error)) from error

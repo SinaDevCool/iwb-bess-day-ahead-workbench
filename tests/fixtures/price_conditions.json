@@ -1,0 +1,12 @@
+[
+  {"side":"BUY","forecast":50,"limit":50,"eligible":true},
+  {"side":"SELL","forecast":50,"limit":50,"eligible":true},
+  {"side":"BUY","forecast":50.0000000001,"limit":50,"eligible":false},
+  {"side":"SELL","forecast":49.9999999999,"limit":50,"eligible":false},
+  {"side":"BUY","forecast":-20,"limit":-10,"eligible":true},
+  {"side":"SELL","forecast":-20,"limit":-10,"eligible":false},
+  {"side":"SELL","forecast":-10,"limit":-20,"eligible":true},
+  {"side":"BUY","forecast":-10,"limit":-20,"eligible":false},
+  {"side":"BUY","forecast":0,"limit":0,"eligible":true},
+  {"side":"SELL","forecast":0,"limit":0,"eligible":true}
+]

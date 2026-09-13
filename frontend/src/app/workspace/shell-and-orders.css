@@ -120,48 +120,6 @@
   line-height: 1.5;
   margin: 10px 0 0;
 }
-.ws-order-layout {
-  display: grid;
-  gap: 20px;
-  min-width: 0;
-}
-.ws-order-layout.editing {
-  grid-template-columns: minmax(0, 1fr) 280px;
-}
-.ws-order-editor {
-  background: #f5f9f8;
-  border: 1px solid #dce7e5;
-  border-radius: 8px;
-  padding: 14px;
-}
-.order-workspace .order-entry-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  border: 0;
-  background: transparent;
-  padding: 0;
-}
-.order-workspace .order-entry-row label {
-  min-width: 0;
-}
-.order-workspace .order-entry-row .row-number {
-  display: none;
-}
-.order-workspace .order-entry-row .order-delivery,
-.order-workspace .order-entry-row .order-price,
-.order-workspace .order-entry-row .market-condition {
-  grid-column: 1/-1;
-}
-.order-workspace .order-entry-row .remove-order {
-  width: 36px;
-  grid-column: 2;
-  justify-self: end;
-}
-.order-workspace .order-entry-row input,
-.order-workspace .order-entry-row select {
-  height: 38px;
-}
 .order-workspace table {
   width: 100%;
   border-collapse: collapse;

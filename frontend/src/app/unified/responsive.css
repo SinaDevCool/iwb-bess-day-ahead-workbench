@@ -10,14 +10,6 @@
   .uw-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .uw-content .ws-order-editor .order-entry-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .uw-content .ws-order-editor .order-delivery,
-  .uw-content .ws-order-editor .order-price,
-  .uw-content .ws-order-editor .market-condition {
-    grid-column: 1 / -1;
-  }
   .uw-tabs a {
     padding: 12px 10px;
     font-size: 13px;

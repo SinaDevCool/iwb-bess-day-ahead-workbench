@@ -1,4 +1,5 @@
 "use client";
+import { simulationPresentation } from "@/lib/simulation-presentation";
 import type { Dispatch, OrderSimulation, Simulation } from "@/types/api";
 import {
   Bar,
@@ -73,7 +74,11 @@ export function EconomicsPanel({
         <div>
           <span className="chart-kicker">FINANCIAL RESULT</span>
           <h3 id="economics-title">Where the Contribution Comes From</h3>
-          <p>Interval values reconcile to this saved schedule.</p>
+          <p>
+            {manual
+              ? simulationPresentation(result).scope
+              : "Interval values reconcile to this saved schedule."}
+          </p>
         </div>
       </div>
       <div className={breakdownOnly ? "economics-summary-only" : "economics-grid"}>
@@ -161,7 +166,9 @@ export function EconomicsPanel({
             <strong>− {moneyExact(fees)}</strong>
           </div>
           <div className="bridge-total">
-            <span>Net Contribution</span>
+            <span>
+              {manual ? simulationPresentation(result).contributionLabel : "Net Contribution"}
+            </span>
             <strong>{moneyExact(net)}</strong>
           </div>
           <small>

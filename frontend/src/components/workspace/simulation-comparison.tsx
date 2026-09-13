@@ -1,4 +1,6 @@
 "use client";
+import { simulationPresentation } from "@/lib/simulation-presentation";
+import { SimulationAssumptions } from "./simulation-verdict";
 import type { OrderSimulation } from "@/types/api";
 import { useSimulationComparison } from "./use-simulation-comparison";
 const money = (n: number) =>
@@ -100,7 +102,10 @@ export function SimulationComparison() {
                 }}
               />
             </span>
-            <span>{money(r.summary.net_contribution_eur)}</span>
+            <span>
+              {money(r.summary.net_contribution_eur)}
+              {!r.submitted_portfolio_feasible && <small> · Portfolio needs attention</small>}
+            </span>
           </button>
         ))}
       </div>
@@ -115,7 +120,7 @@ export function SimulationComparison() {
                 <th>Change vs reference</th>
                 <th>Executed orders</th>
                 <th>Final SoC</th>
-                <th>Schedule</th>
+                <th>Portfolio / schedule</th>
               </tr>
             </thead>
             <tbody>
@@ -126,7 +131,12 @@ export function SimulationComparison() {
                       {name(r)}
                     </button>
                   </td>
-                  <td>{money(r.summary.net_contribution_eur)}</td>
+                  <td>
+                    {money(r.summary.net_contribution_eur)}
+                    {r.summary.infeasible_order_count > 0 && (
+                      <small> · Remaining schedule only</small>
+                    )}
+                  </td>
                   <td>
                     {r === reference
                       ? "Reference"
@@ -138,7 +148,13 @@ export function SimulationComparison() {
                     {r.summary.executed_order_count}/{r.summary.submitted_order_count}
                   </td>
                   <td>{r.summary.final_soc_mwh} MWh</td>
-                  <td>{r.executed_schedule_feasible ? "Feasible" : "Needs attention"}</td>
+                  <td>
+                    {simulationPresentation(r).portfolioLabel}
+                    <small>
+                      {" "}
+                      · Schedule {r.executed_schedule_feasible ? "feasible" : "needs attention"}
+                    </small>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -148,6 +164,8 @@ export function SimulationComparison() {
       {detail && (
         <div className="uw-run-detail">
           <h3>{name(detail)} · Saved configuration</h3>
+          <p>{simulationPresentation(detail).scope}</p>
+          <SimulationAssumptions result={detail} />
           <dl>
             <div>
               <dt>Delivery</dt>

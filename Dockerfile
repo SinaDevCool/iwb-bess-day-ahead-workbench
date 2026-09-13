@@ -3,6 +3,8 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
+# Frontend type checking includes the shared price-boundary regression fixture.
+COPY tests/fixtures/price_conditions.json /app/tests/fixtures/price_conditions.json
 RUN npm run build
 
 FROM python:3.12-slim AS runtime

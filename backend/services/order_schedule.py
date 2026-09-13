@@ -43,11 +43,18 @@ class BatchSettlement(NamedTuple):
 
 def eligible_orders(orders, point, soc, interval, order_results, findings):
     """Append non-clearing/conflicting outcomes; return only price-eligible orders."""
-    sides = {order.side for order in orders}
     eligible: list[SubmittedOrder] = []
+    # Conditional opposite-side bids are valid inputs. Only bids that qualify
+    # at this forecast can conflict physically; never net or prioritize them.
+    for order in orders:
+        if _clears(order, point.price_eur_mwh):
+            eligible.append(order)
+        else:
+            order_results.append(_not_executed(order, point.price_eur_mwh, soc))
+    sides = {order.side for order in eligible}
     if len(sides) > 1:
-        reason = "BUY and SELL orders cannot be simulated in the same delivery interval."
-        for order in orders:
+        reason = "Both BUY and SELL orders meet their price conditions in this interval; simultaneous physical execution is not supported. Adjust their limits or volumes."
+        for order in eligible:
             order_results.append(
                 _infeasible(order, point.price_eur_mwh, soc, "CONFLICTING_SIDES", reason)
             )
@@ -56,12 +63,7 @@ def eligible_orders(orders, point, soc, interval, order_results, findings):
                 severity="error", code="conflicting_sides", message=reason, interval=interval
             )
         )
-    else:
-        for order in orders:
-            if _clears(order, point.price_eur_mwh):
-                eligible.append(order)
-            else:
-                order_results.append(_not_executed(order, point.price_eur_mwh, soc))
+        return []
 
     return eligible
 

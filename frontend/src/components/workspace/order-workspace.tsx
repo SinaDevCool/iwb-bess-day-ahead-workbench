@@ -1,4 +1,5 @@
 "use client";
+import { simulationPresentation } from "@/lib/simulation-presentation";
 
 import { LoaderCircle } from "lucide-react";
 import { SimulationResults } from "./simulation-results";
@@ -108,9 +109,13 @@ export function UnifiedWorkbench() {
                 aria-label={dirty ? "Previous simulation metrics" : "Current simulation metrics"}
               >
                 <div>
-                  <span>Simulated net contribution</span>
+                  <span>{simulationPresentation(result).contributionLabel}</span>
                   <strong>{euro(result.summary.net_contribution_eur)}</strong>
-                  <small>Sales − purchases − costs</small>
+                  <small>
+                    {result.submitted_portfolio_feasible
+                      ? "Sales − purchases − costs"
+                      : "Portfolio needs attention · see validation"}
+                  </small>
                 </div>
                 <div>
                   <span>Executed orders</span>
@@ -210,7 +215,7 @@ export function UnifiedWorkbench() {
               ))}
             {view === "proof" &&
               (result ? (
-                <SimulationValidation result={result} />
+                <SimulationValidation result={result} stale={dirty} />
               ) : (
                 <section className="ws-card ws-empty">
                   <h2>Physical Validation</h2>

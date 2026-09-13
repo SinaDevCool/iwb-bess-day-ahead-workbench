@@ -105,16 +105,7 @@
   border-right: 0;
   border-radius: 0;
 }
-.order-workspace .ws-order-editor {
-  align-self: start;
-  position: sticky;
-  top: 76px;
-}
 @media (max-width: 760px) {
-  .order-workspace .ws-order-editor {
-    grid-row: 1;
-    position: static;
-  }
   .ws-dialog-header {
     padding: 14px 18px;
   }

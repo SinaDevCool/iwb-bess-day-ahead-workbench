@@ -76,7 +76,7 @@ export function ConfigurationPanel({
   return (
     <aside className="uw-config" aria-label="Shared case configuration" hidden={!configurationOpen}>
       <div className="ws-section-head">
-        <h2>Configure case</h2>
+        <h2>Case configuration</h2>
         <button
           className="icon-button"
           aria-label="Collapse configuration"
@@ -114,7 +114,7 @@ export function ConfigurationPanel({
         <p className="ws-help">
           {draft.market.bidding_zone} · {draft.market.timezone} · {draft.points.length} intervals
         </p>
-        <div className="uw-input-summary">
+        <div className="uw-input-summary" aria-label="Current Day-Ahead forecast">
           <strong>Day-Ahead price forecast</strong>
           <span>
             {priceIssues.filter((x) => !x).length}/{draft.points.length} valid
@@ -126,16 +126,33 @@ export function ConfigurationPanel({
               : ""}
           </small>
         </div>
-        <button className="primary" onClick={() => setModal("load-forecast")}>
-          Load forecast
-        </button>
-        <button className="secondary" onClick={() => setModal("forecast")}>
-          Edit intervals
-        </button>
+        <div className="uw-forecast-actions">
+          <button
+            className="secondary"
+            disabled={Boolean(busy)}
+            onClick={() => setModal("load-forecast")}
+          >
+            {draft.prices.some((price) => price.trim()) ? "Replace forecast" : "Load forecast"}
+          </button>
+          <button
+            className="ws-text-button"
+            disabled={Boolean(busy)}
+            onClick={() => setModal("forecast")}
+          >
+            {priceIssues.some(Boolean) ? "Review prices" : "Edit prices"}
+          </button>
+        </div>
         <p className="ws-help">Used as the assumed auction clearing price.</p>
         <button className="ws-text-button" onClick={() => setModal("costs")}>
           Transaction costs
         </button>
+        <details className="uw-market-details">
+          <summary>Market assumptions</summary>
+          <p className="ws-help">
+            Case gate closure {draft.market.gate_closure_local} · {draft.market.timezone}. No live
+            order submission.
+          </p>
+        </details>
       </details>
       <details className="uw-config-section battery" open>
         <summary>
@@ -168,12 +185,12 @@ export function ConfigurationPanel({
           {num(draft.battery.max_equivalent_cycles)} EFC budget
         </p>
         <button className="secondary" onClick={() => setModal("battery")}>
-          Battery settings
+          Edit battery settings
         </button>
       </details>
       <details className="uw-config-section policy" ref={policyRef}>
         <summary>
-          <span className="uw-step">3</span>Optimization Settings
+          <span className="uw-step">3</span>Proposal settings
         </summary>
         {reviewSettings && (
           <button

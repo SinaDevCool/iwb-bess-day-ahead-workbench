@@ -3,9 +3,6 @@
   .order-workspace {
     padding: 0 18px 24px;
   }
-  .ws-order-layout.editing {
-    grid-template-columns: minmax(0, 1fr) 245px;
-  }
   .ws-header {
     padding: 14px 0;
   }
@@ -14,9 +11,6 @@
   }
 }
 @media (max-width: 760px) {
-  .ws-order-layout.editing {
-    grid-template-columns: 1fr;
-  }
   .ws-header > span {
     font-size: 11px;
   }

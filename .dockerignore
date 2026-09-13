@@ -11,5 +11,8 @@ frontend/.next
 frontend/out
 dependency-install-backup
 data/*.sqlite
-tests
+tests/*
+!tests/fixtures/
+tests/fixtures/*
+!tests/fixtures/price_conditions.json
 docs

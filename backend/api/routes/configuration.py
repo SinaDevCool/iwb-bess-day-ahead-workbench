@@ -20,7 +20,7 @@ def health():
         "service": "iwb-bess-day-ahead-workbench",
         "api_version": "3.0.0",
         "optimizer_version": "scipy_highs_milp_v1",
-        "order_simulation_version": "market_limit_v1",
+        "order_simulation_version": "market_limit_v2",
         "validation_version": "physical_and_order_validation_v4",
         "submission_mode": "preview_only",
     }

@@ -3,7 +3,8 @@ import { EconomicsPanel } from "@/components/analytics-charts";
 import { DispatchChart } from "@/components/dispatch-chart";
 import { IntervalResultsTable } from "@/components/interval-results-table";
 import type { OrderSimulation } from "@/types/api";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { SimulationVerdict, SimulationAssumptions } from "./simulation-verdict";
+import { simulationPresentation } from "@/lib/simulation-presentation";
 import { useEffect, useMemo, useState } from "react";
 
 export function SimulationResults({
@@ -52,13 +53,6 @@ export function SimulationResults({
   const marketPassed = result.order_results.filter(
     (o) => o.submitted_order.order_type === "MARKET" || o.price_condition_passed === true,
   ).length;
-  const summary = !result.summary.submitted_order_count
-    ? "No orders entered. The simulation shows the idle battery schedule."
-    : result.summary.infeasible_order_count
-      ? `${result.summary.executed_order_count} of ${result.summary.submitted_order_count} orders execute in this simulation; ${result.summary.infeasible_order_count} would violate battery constraints.`
-      : result.summary.not_executed_order_count
-        ? `${result.summary.executed_order_count} of ${result.summary.submitted_order_count} orders executed; ${result.summary.not_executed_order_count} did not meet the price condition.`
-        : `All ${result.summary.executed_order_count} entered orders execute in this simulation.`;
   return (
     <div className="simulation-results">
       {stale && onRestore && (
@@ -78,31 +72,10 @@ export function SimulationResults({
           Interval Detail
         </button>
       </div>
-      <div className={`result-verdict ${result.executed_schedule_feasible ? "passed" : "failed"}`}>
-        <div>
-          {result.executed_schedule_feasible ? (
-            <CheckCircle2 aria-hidden="true" />
-          ) : (
-            <AlertTriangle aria-hidden="true" />
-          )}
-          <span>
-            <strong>
-              {stale ? "Previous simulation — inputs changed. " : ""}
-              {summary}
-            </strong>
-            <small>
-              The resulting battery schedule is{" "}
-              {result.executed_schedule_feasible
-                ? "physically feasible"
-                : "not physically feasible"}
-              .
-            </small>
-          </span>
-        </div>
-      </div>
+      <SimulationVerdict result={result} stale={stale} />
       <details className="ws-validation-line">
         <summary>
-          Execution checks ·{" "}
+          Execution checks & assumptions ·{" "}
           {result.submitted_portfolio_feasible
             ? "submitted portfolio feasible"
             : "submitted portfolio needs attention"}
@@ -113,6 +86,7 @@ export function SimulationResults({
           price-eligible · {result.summary.not_executed_order_count} price-rejected ·{" "}
           {result.summary.infeasible_order_count} would violate battery constraints.
         </p>
+        <SimulationAssumptions result={result} />
       </details>
       {!detailView && (
         <>
@@ -133,6 +107,7 @@ export function SimulationResults({
               selectedInterval={selectedInterval}
               onSelectInterval={setSelectedInterval}
               showContribution
+              contributionLabel={simulationPresentation(result).contributionLabel}
             />
           </div>
           <EconomicsPanel result={result} breakdownOnly />
