@@ -35,7 +35,7 @@ export function ConfigurationMarket({
           onChange={(e) => void changeDate(draft.date, false, Number(e.target.value) as 15 | 60)}
         >
           <option value={60}>60 minutes</option>
-          <option value={15}>15 minutes · simulation</option>
+          <option value={15}>15 minutes</option>
         </select>
       </label>
       <div className="uw-input-summary" aria-label="Current Day-Ahead forecast">
