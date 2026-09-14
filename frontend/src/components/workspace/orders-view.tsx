@@ -110,7 +110,7 @@ export function OrdersView({
               clearRepair?.();
               setSelected("");
               context.setNotice(
-                "Corrections applied. Simulate orders to calculate the revised schedule.",
+                "Corrections applied. Simulate battery dispatch to calculate the revised schedule.",
               );
             }}
             close={() => {
@@ -125,7 +125,7 @@ export function OrdersView({
               setSuggesting(false);
               context.setNotice(
                 replacing
-                  ? "Suggestions updated. Simulate orders to calculate the revised schedule."
+                  ? "Suggestions updated. Simulate battery dispatch to calculate the revised schedule."
                   : `Added ${orders.length} suggested orders. Simulate to update the schedule.`,
               );
             }}

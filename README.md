@@ -1,59 +1,46 @@
 # IWB BESS Day-Ahead Workbench
 
-Interview prototype for a 100 MWh / 50 MW battery participating in a configurable Day-Ahead auction. One unified workbench simulates trader-entered Market and Limit orders against an entered price forecast and graphs the resulting battery schedule. The active UI focuses on manual order entry and simulation; optional optimizer and comparison pages are archived for future reuse.
+Interview prototype for a configurable 100 MWh / 50 MW battery. One editable workspace has two views: **Auction Orders** and **Dispatch & Economics**. React/Next.js renders the frontend; FastAPI provides validation, simulation, optimization and history.
 
 ## Homework workflow
 
-1. Use **Load forecast** (or **Replace forecast**) to upload a complete Day-Ahead price forecast (CSV), paste CSV data, or preview the illustrative demo. Review and apply the validated preview. **Edit prices** makes targeted adjustments afterwards, showing the original forecast, edited prices and interval differences.
-2. Click **Add order** to open a staged ticket. Choose any delivery interval, BUY/SELL, Market/Limit and volume; enter a price for Limit orders. Nothing is inserted until **Add order** confirms the ticket. Cancel leaves the case unchanged. Select an existing row to edit it; changes update the draft and require re-simulation. Market orders have no limit-price condition. Price-accepted orders remain subject to physical feasibility.
-3. Run the simulation to process orders chronologically through the battery state of charge.
-4. Inspect aligned price, power, state-of-charge and contribution tracks with synchronized floating tooltips (hover or arrow keys). Click or press Enter to open interval details, including idle periods. The order editor's **View battery schedule** opens the selected order's current result. Interval Detail combines schedule and order outcomes in one table; the Columns menu limits the table to five selectable values plus Delivery and Orders.
-5. Revise entered orders or forecast prices and re-simulate to evaluate changes. Fresh sessions start without orders; saved drafts are restored and demo inputs require an explicit action.
-6. Saved history restores complete simulation inputs and evidence. The dedicated comparison and validation pages are archived; battery safety checks still run during simulation and issues remain visible in order outcomes.
+1. Select the delivery date and product duration. Configure battery limits and costs.
+2. **Load forecast / Replace forecast** accepts a complete CSV upload, pasted CSV or an explicitly selected illustrative example. Review and **Apply forecast**; **Edit prices** stages targeted edits afterwards.
+3. **Add order** opens a staged Market/Limit BUY/SELL ticket. Confirm to insert it; cancel changes nothing. Existing rows can be edited or removed.
+4. **Simulate battery dispatch** evaluates the entered orders chronologically. It does not optimize or change their quantities.
+5. **Dispatch & Economics** shows aligned forecast, signed power, stored-energy and contribution charts. Hover or arrow keys inspect intervals; click or Enter opens the separate interval evidence. **Interval Detail** shows order outcomes and links back to editing.
+6. Correct an order, then simulate again. Changed inputs mark prior results outdated; old cards are not evidence about the edited portfolio.
+7. **History** is the entry point for saved results and their inputs. Viewing a record does not silently restore it. Fresh sessions have no orders; example inputs require explicit selection.
 
-The entered forecast is deliberately used as the simulated auction clearing and settlement price. Eligible orders in a delivery interval are checked as one all-or-nothing batch; opposing BUY/SELL orders in the same interval are unsupported. The prototype does not model clearing probability, partial fills, price impact, a live market feed or order submission. Interval SoC evidence belongs to the whole batch, not to an invented ordering within that interval.
+A reproducible demonstration, expected results and acceptance record are in [the interview runbook](docs/interview-runbook.md). Module ownership is in [the code guide](docs/CODE_GUIDE.md).
 
-Inputs and their last result share one session-persisted workspace. Editing inputs marks prior results stale; late responses do not validate a newer draft. The canonical UTC delivery grid handles 23/25-hour daylight-saving days as well as normal days. Blank prices are not interpreted as zero.
+## Optional suggestions and repairs
 
-Implementation and verification details are in [docs/WORKSPACE_IMPLEMENTATION.md](docs/WORKSPACE_IMPLEMENTATION.md).
+**Re-optimize** offers the existing suggestion/improvement and portfolio-repair workflows. These use MILP and the shared validation/economics services. They produce previews, not exchange orders. Explicit Apply/Add changes the draft; Undo restores the previous draft. Simulate again to create the updated schedule result.
 
-For a file-by-file reading path, module ownership and mathematical conventions, see
-[docs/CODE_GUIDE.md](docs/CODE_GUIDE.md).
+Manual and protected orders remain unchanged unless revision is permitted. Permission is not a requirement to change an order. Balancing additions permit new orders, but do not force them. See [suggestions](docs/additional-order-suggestions.md), [re-optimization](docs/suggestion-reoptimization.md) and [repair](docs/portfolio-repair.md).
 
-### Forecast import and History
+The former **Generate proposal**, **Proposal settings**, **Physical Validation** and **Compare Runs** screens are archived or legacy functionality, not steps in the active homework journey. Their historical code and release notes remain for reuse; physical checks still run in the current simulator.
 
-CSV imports are validated by `POST /api/forecast/import`, not just parsed in the browser. Files use UTF-8, a decimal point and the exact header `delivery_start,price_eur_mwh`. Timestamps must include a UTC offset. All selected-day intervals must occur exactly once, chronologically, including daylight-saving 23/25-hour days. The maximum file size is 256 KB. Load forecast offers a date-specific blank template and a separate upload-ready illustrative example CSV; fill every price before uploading the blank template. Errors identify the affected rows without replacing the current forecast. A filled mock fixture is also available at `tests/fixtures/da-forecast-2026-09-09.csv`. Manual changes pass backend validation before applying.
+## Forecast format
 
-Snapshots retain forecast source/version, content hash and import/edit provenance. Loading or editing never changes a previously saved result: re-simulate to update the evidence. The provider catalogue identifies the demo as available and Volue/Montel as **not connected**. Live provider adapters and credentials are not included; commercial data may currently be imported as CSV. No disconnected provider silently falls back to demo prices.
+CSV imports use `POST /api/forecast/import`. Use UTF-8, decimal points and the exact header `delivery_start,price_eur_mwh`. Timestamps need a UTC offset. Every interval of the selected local day must occur exactly once, in chronological order: normally 24 hourly or 96 quarter-hourly rows, with DST days handled by the canonical delivery grid. Maximum file size: 256 KB.
 
-**History** is the single entry point for saved simulations, proposals, exact inputs and recorded activity. The former `/audit` URL redirects there. Viewing a snapshot does not restore it; use the explicit Restore simulation/Open proposal action.
+Download the matching blank template or reuse [the illustrative fixture](tests/fixtures/da-forecast-2026-09-09.csv). Blank prices are not zero; zero and negative numbers are valid. Failed validation does not replace the forecast. Imports and edits retain source/provenance, and saved results retain their own inputs.
 
-Simulate orders reconstructs dispatch deterministically from the trader's entered orders. Generate proposal solves dispatch as a mixed-integer linear program with SciPy/HiGHS. Both operations reuse the same domain economics and physical-validation modules. Optimization settings affect proposal generation only; changing them does not reinterpret an already simulated order portfolio.
+Splitting hourly data preserves its profile; it does not create a genuinely new quarter-hour forecast or re-optimize orders. Product conversion requires confirmation; incompatible quarter-hour inputs cannot silently merge.
 
-## Decision semantics
+## Simulation boundary
 
-- `Minimum end-of-day SoC` is a reserve floor, not an exact terminal target.
-- Equivalent full cycles use total battery-side throughput divided by twice nominal capacity.
-- Purchases, degradation and configured per-MWh exchange/clearing fees are deducted from sales to calculate expected net contribution.
-- Expected, downside, upside and peak-compression cases alter illustrative prices only. Asset availability is configured independently using local-time windows that are mapped to the selected product resolution.
-- Proposal changes and their audit evidence are committed in one SQLite transaction.
-- Continuous MILP quantities are floored to the configured auction increment, reconstructed, and repaired until the executable order package passes the physical validator.
-- The scenario view evaluates each candidate's same executable orders under downside, expected and upside prices with explicit illustrative probabilities; the selected decision posture can therefore change the recommended dispatch and order portfolio.
-- The saved-run comparison keeps each completed simulation immutable, supports two to four selected runs and one explicit reference, and reveals the exact market, strategy, battery and availability inputs behind every result.
-- Forecast inputs carry source, version and bidding-zone provenance. A trader can use the built-in illustrative curve or paste a complete 24-hour hourly/quarter-hourly curve; incomplete curves are rejected before optimization.
-- End-of-day energy can use the hard minimum reserve alone, a configured terminal value, an illustrative next-day forecast proxy, or a multi-day opportunity-value policy. Cash contribution and continuation value remain separate.
-- Every generated order exposes an efficiency-, wear- and fee-adjusted break-even price. Decision sensitivity fully re-optimizes feasible operating levers (reserve, cycle budget, operating power, SoC window and availability) under the saved forecast; fixed asset facts such as nominal capacity, efficiency and degradation assumptions remain model inputs rather than trader controls.
-- Exchange fees distinguish an unconfigured/excluded contract value from a confirmed numeric zero. The ECC clearing fee remains a documented public-tariff assumption.
-- Optimization records use audit schema v5; order-simulation records use v6. Saved records preserve the forecast and relevant model/input provenance for their workflow.
-- Executable orders are checked against strict SoC boundaries after market-increment rounding. Numerical solver tolerance, energy-balance tolerance and display precision are deliberately separate concepts.
+This prototype evaluates entered orders using the forecast as the assumed clearing and settlement price. It calculates a simulated battery dispatch schedule; it does not submit orders or control a battery.
 
-## Safety boundary
+Full allocation is assumed for qualifying, physically feasible batches, including at-limit orders. Actual exchange clearing, partial allocation, price impact and opposing-trade netting are not modelled. Physical exclusion is a simulator decision, not an exchange rejection. Live commercial forecast providers are not connected.
 
-- Demonstration and simulation only; no live exchange submission.
-- Swiss market details such as product duration, bidding zone, gate closure, and increments are configuration assumptions and must be confirmed with IWB.
-- Internal timestamps are UTC. The single header selector displays CET/CEST or UTC consistently; it does not change the market delivery calendar, order instants or financial calculations.
+[Order simulation policies](docs/ORDER_SIMULATION_POLICIES.md) are the authoritative execution rules. [Assumptions and boundaries](docs/assumptions-and-boundaries.md) describes configuration defaults and remaining real-world requirements.
 
 ## Run locally
+
+From the repository root, in two terminals:
 
 ```powershell
 # Backend
@@ -67,20 +54,15 @@ $env:NEXT_PUBLIC_API_BASE_URL = "http://127.0.0.1:8100"
 npm run dev
 ```
 
-Open <http://127.0.0.1:3100> and API docs at <http://127.0.0.1:8100/docs>.
+Open <http://localhost:3100> and API docs at <http://127.0.0.1:8100/docs>.
+`npm run build` produces a static export; do not use `next start` to serve it.
+Production serves the export through FastAPI in the Docker image.
 
 ## Deploy on Render
 
-The included multi-stage `Dockerfile` exports the Next.js frontend and serves it
-from the FastAPI backend, so the complete prototype runs as one web service.
+The multi-stage Dockerfile builds the frontend and serves the complete app on Render's PORT (default 10000). The configured service automatically deploys pushes to main. No external forecast credentials are required for illustrative data. Health is exposed at `/health`, APIs at `/api/*`, and the workbench at `/`.
 
-1. Create a Render **Web Service** from this repository.
-2. Select the **Docker** runtime and the **Free** instance type.
-3. No environment variables are required for the illustrative demo dataset.
-
-Render provides `PORT` automatically. The service exposes `/health`, the API at
-`/api/*`, and the workbench UI at `/`. Local SQLite audit data is ephemeral on a
-free Render instance and can be lost whenever the service sleeps or redeploys.
+SQLite history on an ephemeral Render filesystem can be lost on sleep/redeploy; browser draft storage is a convenience, not a durable backup. This deployment is not a production trading service.
 
 ## Verify
 
@@ -97,4 +79,4 @@ npm test
 npm run build
 ```
 
-GitHub Actions repeats these checks and builds the production container on every push and pull request.
+GitHub Actions repeats checks and builds the production container on pushes and pull requests. Use the runbook for the acceptance demonstration; historical audit documents describe their release, not necessarily today's interface.

@@ -64,7 +64,7 @@ export function OrderTicket({ outcome, stale, close, locate, prices, remove, ...
           <small>
             {stale
               ? "Inputs changed — simulate again to view."
-              : "Simulate orders to view the schedule."}
+              : "Simulate battery dispatch to view the schedule."}
           </small>
         )}
       </footer>

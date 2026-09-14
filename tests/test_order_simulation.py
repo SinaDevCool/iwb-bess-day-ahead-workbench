@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 from fastapi.testclient import TestClient
 
 from backend.api.main import app
@@ -6,6 +7,84 @@ from backend.config.defaults import DEFAULT_BATTERY, DEFAULT_MARKET
 from backend.domain.models import OrderSimulationRequest, SubmittedOrder
 from backend.services.forecast_service import build_demo_forecast
 from backend.services.order_simulation_service import run_order_simulation
+
+
+def test_homework_acceptance_csv_reject_correct_and_restore(client):
+    """Runbook journey through existing import/simulation APIs, isolated by conftest."""
+    preview = client.post(
+        "/api/forecast/import?delivery_date=2026-09-09&product_minutes=60",
+        content=(Path(__file__).parent / "fixtures/da-forecast-2026-09-09.csv").read_bytes(),
+        headers={"Content-Type": "text/csv"},
+    )
+    assert preview.status_code == 200
+    data = preview.json()
+    orders = [
+        {
+            **order("accept-buy-market", "BUY", "MARKET", 20),
+            "delivery_start_utc": data["points"][5]["timestamp_utc"],
+        },
+        {
+            **order("accept-buy-limit", "BUY", "LIMIT", 20, 40),
+            "delivery_start_utc": data["points"][6]["timestamp_utc"],
+        },
+        {
+            **order("accept-sell-limit", "SELL", "LIMIT", 15, 130),
+            "delivery_start_utc": data["points"][18]["timestamp_utc"],
+        },
+    ]
+
+    def simulate():
+        response = client.post(
+            "/api/order-simulations",
+            json={
+                "delivery_date": "2026-09-09",
+                "market": {"product_minutes": 60},
+                "prices": data["points"],
+                "forecast": data["forecast"],
+                "orders": orders,
+            },
+        )
+        assert response.status_code == 200, response.text
+        result = response.json()
+        assert result["summary"]["net_contribution_eur"] == pytest.approx(
+            sum(row["interval_pnl_eur"] for row in result["dispatch"]), abs=0.001
+        )
+        assert result["summary"]["final_soc_mwh"] == pytest.approx(
+            result["dispatch"][-1]["soc_mwh"], abs=0.001
+        )
+        assert [
+            {key: saved[key] for key in entered}
+            for saved, entered in zip(result["submitted_orders"], orders)
+        ] == orders
+        return result
+
+    initial = simulate()
+    assert initial["summary"]["net_contribution_eur"] == -1454.44
+    assert initial["summary"]["executed_order_count"] == 2
+    assert initial["summary"]["not_executed_order_count"] == 1
+    assert initial["summary"]["infeasible_order_count"] == 0
+    orders[2]["limit_price_eur_mwh"] = 110
+    corrected = simulate()
+    assert corrected["summary"]["net_contribution_eur"] == 297.91
+    assert corrected["summary"]["final_soc_mwh"] == 72.136
+    assert corrected["summary"]["throughput_mwh"] == 53.759
+    assert corrected["summary"]["executed_order_count"] == 3
+    assert corrected["submitted_portfolio_feasible"]
+    orders[0]["volume_mw"] = 60
+    constrained = simulate()
+    assert constrained["summary"]["net_contribution_eur"] == 1055.13
+    assert constrained["summary"]["infeasible_order_count"] == 1
+    assert not constrained["submitted_portfolio_feasible"]
+    orders[0]["volume_mw"] = 20
+    restored = simulate()
+    assert restored["summary"] == corrected["summary"]
+    for name, result in [
+        ("initial", initial),
+        ("corrected", corrected),
+        ("constrained", constrained),
+        ("restored", restored),
+    ]:
+        print(name, result["summary"])
 
 
 def request_with(orders, prices=None, battery=None):

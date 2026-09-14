@@ -2,6 +2,8 @@
 
 The homework simulator evaluates entered Market/Limit orders, not the exchange order book. The optimizer is an optional source of proposed orders, which enter the same simulation workflow.
 
+**Simulate battery dispatch** evaluates the current entered orders without changing their quantities. Suggestions and repairs are separate previews and require explicit application. Neither operation submits orders to an exchange or controls a physical battery. A physical exclusion below is a simulator decision, not an exchange rejection.
+
 ## Price, allocation and physics
 
 1. The entered interval forecast is the assumed clearing and settlement price.

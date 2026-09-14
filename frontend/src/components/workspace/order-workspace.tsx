@@ -104,7 +104,7 @@ function WorkbenchContent() {
                   {busy}…
                 </>
               ) : (
-                "Simulate orders"
+                "Simulate battery dispatch"
               )}
             </button>
           </div>

@@ -125,7 +125,7 @@ describe("OrderSimulatorWorkbench", () => {
     expect(screen.queryByRole("link", { name: "Compare Runs" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Edit .* order/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add order" })).toBeEnabled();
-    fireEvent.click(screen.getByRole("button", { name: "Simulate orders" }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate battery dispatch" }));
     expect(await screen.findByText(/Add at least one Market or Limit order/)).toBeInTheDocument();
     expect(
       vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith("/api/order-simulations")),
@@ -188,7 +188,7 @@ describe("OrderSimulatorWorkbench", () => {
     });
     expect(screen.getByRole("button", { name: /Edit 03:00–04:00 BUY order/ })).toBeInTheDocument();
     expect(screen.getByLabelText("Volume for order 1")).toHaveValue(20);
-    fireEvent.click(screen.getByRole("button", { name: "Simulate orders" }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate battery dispatch" }));
     await screen.findByText("No orders entered — idle schedule");
     const call = vi
       .mocked(fetch)
@@ -237,7 +237,7 @@ describe("OrderSimulatorWorkbench", () => {
           }),
       ),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Simulate orders" }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate battery dispatch" }));
     fireEvent.change(screen.getByLabelText("Volume for order 1"), { target: { value: "21" } });
     resolve(response(result));
     expect(await screen.findByText(/Previous simulation—inputs changed/)).toBeInTheDocument();
@@ -339,7 +339,7 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply settings" }));
     const fetchMock = vi.fn(async () => response(result));
     vi.stubGlobal("fetch", fetchMock);
-    fireEvent.click(screen.getByRole("button", { name: "Simulate orders" }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate battery dispatch" }));
     await screen.findByText("Schedule charts");
     const init = fetchMock.mock.calls[0] as unknown as [unknown, RequestInit];
     expect(JSON.parse(String(init[1].body)).battery.round_trip_efficiency).toBe(0.95);

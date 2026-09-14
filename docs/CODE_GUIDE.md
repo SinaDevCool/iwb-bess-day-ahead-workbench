@@ -2,7 +2,7 @@
 
 ## Start here
 
-This repository has **one editable workbench**, two calculation workflows and one
+This repository has **one editable workbench**, order simulation plus optional MILP suggestion/repair workflows and one
 shared battery/economics model. The frontend does not dispatch a physical asset or
 submit orders to an exchange.
 
@@ -25,7 +25,7 @@ Read these files in this order:
 | `use-workspace-navigation.ts` | Canonical tab links and browser navigation actions |
 | `workspace-*-actions.ts` | Explicit load/restore, simulate, generate/apply/undo workflows |
 | `workspace-adapters.ts` | Draft identity, request serialization and saved-order mapping |
-| `configuration-panel.tsx`, `orders-view.tsx`, `comparison-view.tsx` | Views of that same controller; no second shared draft |
+| `configuration-panel.tsx`, `orders-view.tsx`, `simulation-results.tsx` | Views of that same controller; no second shared draft |
 | `forecast-loader.tsx`, `forecast-editor.tsx` | Validated complete upload/preview versus targeted staged interval edits |
 | `use-forecast-loader.ts`, `use-forecast-editor.ts`, `use-battery-editor.ts` | Staged editor state and requests; views do not own network workflows |
 | `workspace-draft.ts`, `lib/price-input.ts`, `lib/session-preferences.ts` | Pure provenance updates, blank-aware price checks and optional browser storage |
@@ -35,7 +35,7 @@ Read these files in this order:
 | `components/schedule/` | Shared inspection hook, inspector and price/power/SoC/contribution tracks; one time coordinate system |
 | `components/interval-table/` | Column definitions, optional preference persistence and expanded order evidence |
 | `workspace-history.tsx`, `history-detail.tsx` | History requests/list versus read-only record details |
-| `components/comparison/` | Optimizer comparison controller, chart, table, inspector and formatting |
+| `use-order-suggestions.ts`, `use-portfolio-repair.ts` | Current optional preview/validation/application workflows |
 | `types/` | API contracts grouped into shared, forecast, orders, simulation, optimization and history |
 | `lib/api.ts` | HTTP transport/errors; generic TypeScript types are not runtime validation |
 
@@ -47,6 +47,9 @@ response from replacing a newer run. Proposal generation never implicitly replac
 orders: Apply does that, and Undo restores the previous draft.
 
 ## Backend ownership
+
+The legacy optimization, risk, horizon, proposal approval and comparison services below remain for compatibility/reuse, not as active homework screens. Current optional previews use `order_suggestion_service.py`, `order_repair_service.py`, `suggestion_evidence.py`, `repair_evidence.py` and their optimizer/validation modules. See [suggestions](additional-order-suggestions.md), [re-optimization](suggestion-reoptimization.md) and [repair](portfolio-repair.md).
+
 
 | Location | Responsibility |
 | --- | --- |
@@ -145,30 +148,20 @@ remain true, rather than repeat the code in English.
 
 - Forecast upload: loader view → loader hook → forecast import route/service →
   preview → explicit Apply → shared draft. A preview never edits the saved result.
-- Simulate orders: workspace simulation action → order simulation service →
+- Simulate battery dispatch: workspace simulation action → order simulation service →
   forecast resolution → chronological schedule → outcome evidence → saved result.
-- Generate proposal: proposal action → simulation service → MILP model/solver →
+- Legacy Generate proposal (archived UI): proposal action → simulation service → MILP model/solver →
   executable-order repair/validation → summary. Apply remains a separate action.
 - Inspect a chart interval: shared inspection hook → all four tracks and inspector;
   pure chart-data mapping retains interval starts and energy boundary timestamps.
-- Compare runs: comparison controller loads immutable snapshots; selectors derive
+- Legacy Compare runs (archived UI): comparison controller loads immutable snapshots; selectors derive
   labels/duplicates; picker, chart, table and inspector only present that state.
 
-## Unified journey ownership
+## Current journey ownership
 
-- The editable draft and its last simulated result belong to `workspace-state`.
-  Stale results are labelled at the KPI boundary; comparison does not show those KPIs.
-- Proposal analysis belongs to `use-saved-run-comparison` and follows its focused
-  immutable run. The workbench retains only `sourceProposalId`, not a duplicate
-  proposal object. URL/history changes reload selection with late-response guards.
-- `proposal-key` fingerprints optimizer inputs, excluding entered orders. A preview
-  is read-only until explicit replacement; changed inputs require regeneration.
-- Forecast loading previews a complete replacement; interval editing stages changes
-  against the recorded baseline. Both update the existing draft, preserving orders.
-- `/api/delivery-grid` reuses the canonical DST-aware time grid without generating
-  prices. Changing delivery date/duration clears incompatible inputs with Undo.
-- Order-to-chart navigation carries simulation ID, timestamp and order ID. Editing
-  from saved outcomes is enabled only for the current draft/result pair; stale
-  snapshots offer the existing restore flow instead of editing unrelated orders.
-- Journey regressions live beside the workspace/comparison hooks. The delivery-grid
-  API tests explicitly cover 23-, 24- and 25-hour days for both product durations.
+- The editable draft and last simulation live in workspace-state; changes mark old results stale.
+- Suggestions and repairs use input identity and permission checks to prevent applying outdated previews. Existing shared validation is reused; Apply and Undo change the draft, not an exchange.
+- Forecast loading stages complete replacements; editing stages interval changes. Neither silently changes orders or saved runs.
+- Delivery date/duration conversion uses the canonical delivery grid, explicit confirmation and Undo. Hourly splitting preserves MW and energy; quarter-hour merging rejects incompatible profiles. Conversion is not optimization.
+- Order-to-chart navigation carries simulation ID, timestamp and order ID. Stale snapshots cannot edit unrelated current orders.
+- Execution semantics and limitations are defined in [ORDER_SIMULATION_POLICIES.md](ORDER_SIMULATION_POLICIES.md); the [runbook](interview-runbook.md) contains the current acceptance journey. Archived screens and historical audits are not current navigation instructions.
