@@ -5,6 +5,7 @@ import type { RevisionRow } from "./suggestion-revision";
 import { revisionBaseline } from "./suggestion-revision";
 import { deliveryLabel, orderNumber } from "./order-presentation";
 import { useDisplayTimezone } from "./time-preference";
+import { repairSummary } from "./repair-presentation";
 
 export function SuggestionRevisionTable({
   draft,
@@ -25,13 +26,15 @@ export function SuggestionRevisionTable({
   const zone = useDisplayTimezone();
   const protectedOrders = revisionBaseline(draft).orders;
   const changed = rows.filter((r) => r.change !== "Unchanged");
-  const pricesChanged = rows.some(
-    (r) =>
-      !r.before ||
-      !r.after ||
-      r.before.orderType !== r.after.orderType ||
-      Number(r.before.limit) !== Number(r.after.limit),
-  );
+  const pricesChanged =
+    !repair &&
+    rows.some(
+      (r) =>
+        !r.before ||
+        !r.after ||
+        r.before.orderType !== r.after.orderType ||
+        Number(r.before.limit) !== Number(r.after.limit),
+    );
   const delivery = (interval: number) =>
     deliveryLabel(draft.points[interval].timestamp_utc, draft.market.product_minutes, zone);
   return (
@@ -39,7 +42,7 @@ export function SuggestionRevisionTable({
       <div className="suggestion-toolbar">
         <strong>
           {repair
-            ? `${changed.length} ${changed.length === 1 ? "correction" : "corrections"}`
+            ? repairSummary(rows)
             : `${protectedOrders.length} protected · ${changed.length} changes`}
         </strong>
         <button className="secondary small" aria-pressed={!all} onClick={() => setAll(false)}>
@@ -52,8 +55,10 @@ export function SuggestionRevisionTable({
       {!changed.length && <p role="status">Current suggestions already match this calculation.</p>}
       {(all || changed.length > 0) && (
         <div className="suggestion-table-scroll">
-          <table className="suggestion-table revision-table">
-            <caption className="sr-only">Current and proposed suggested orders</caption>
+          <table className={`suggestion-table revision-table${repair ? " repair-table" : ""}`}>
+            <caption className="sr-only">
+              {repair ? "Proposed portfolio corrections" : "Current and proposed suggested orders"}
+            </caption>
             <thead>
               <tr>
                 <th scope="col">Delivery</th>
@@ -114,7 +119,11 @@ export function SuggestionRevisionTable({
                     </td>
                     {repair && (
                       <td>
-                        <small>{reasons?.[order.id] ?? "Rebalance the complete schedule"}</small>
+                        <small>
+                          {r.change === "Unchanged"
+                            ? "Kept unchanged"
+                            : (reasons?.[order.id] ?? "Part of the full-day repair.")}
+                        </small>
                         {r.before && r.change !== "Unchanged" && (
                           <button
                             className="secondary small"

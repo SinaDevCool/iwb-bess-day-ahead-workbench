@@ -73,31 +73,44 @@ def _infeasible(
     )
 
 
+def independent_batch_issues(request, eligible, interval):
+    """Same-side checks independent of the SoC trajectory; shared by repair and execution."""
+    if not eligible:
+        return []
+    side = eligible[0].side
+    limit = min(
+        request.battery.grid_limit_mw,
+        request.battery.max_charge_power_mw
+        if side == "BUY"
+        else request.battery.max_discharge_power_mw,
+    )
+    volume = sum(o.volume_mw for o in eligible)
+    issues = []
+    if interval in request.battery.unavailable_intervals:
+        issues.append(("UNAVAILABLE", "The battery is unavailable in this delivery interval.", {}))
+    if volume > limit + 1e-9:
+        issues.append(
+            (
+                "POWER_LIMIT",
+                f"Accepted volume is {volume:g} MW; the executable limit is {limit:g} MW.",
+                {"observed_value": volume, "configured_limit": limit, "unit": "MW"},
+            )
+        )
+    return issues
+
+
 def evaluate_batch(request, eligible, interval, point, soc, throughput, evidence=None):
     """Evaluate all accepted same-side orders together; never clip physical volume."""
     dt = request.market.product_minutes / 60
     fee = effective_transaction_fee(request.market)
-    side = eligible[0].side if eligible else None
-    volume = sum(order.volume_mw for order in eligible)
     physical_code = physical_reason = None
     economics = []
     if eligible:
-        power_limit = min(
-            request.battery.grid_limit_mw,
-            request.battery.max_charge_power_mw
-            if side == "BUY"
-            else request.battery.max_discharge_power_mw,
-        )
-        if interval in request.battery.unavailable_intervals:
-            physical_code, physical_reason = (
-                "UNAVAILABLE",
-                "The battery is unavailable in this delivery interval.",
-            )
-        elif volume > power_limit + 1e-9:
-            physical_code, physical_reason = (
-                "POWER_LIMIT",
-                f"Accepted volume is {volume:g} MW; the executable limit is {power_limit:g} MW.",
-            )
+        independent = independent_batch_issues(request, eligible, interval)
+        if independent:
+            physical_code, physical_reason, independent_evidence = independent[0]
+            if evidence is not None:
+                evidence.update(independent_evidence)
         else:
             economics = [
                 calculate_interval(
@@ -129,9 +142,7 @@ def evaluate_batch(request, eligible, interval, point, soc, throughput, evidence
 
     # Capture values where they are calculated; consumers never parse warning text.
     if evidence is not None and physical_code:
-        values = {
-            "POWER_LIMIT": (volume, power_limit, "MW"),
-        }
+        values = {}
         if economics:
             values.update(
                 {

@@ -1,5 +1,4 @@
 "use client";
-import { useEffect, useRef } from "react";
 import { DialogActions, useDialogCloseGuard } from "./dialog";
 import type { Draft } from "./workspace-types";
 import type { SubmittedOrder } from "@/types/api";
@@ -9,6 +8,7 @@ import { replaceable, type RevisionRow } from "./suggestion-revision";
 import { SuggestionRevisionTable } from "./suggestion-revision-table";
 import { deliveryLabel, orderNumber } from "./order-presentation";
 import { useDisplayTimezone } from "./time-preference";
+import { repairIssueText, repairReason } from "./repair-presentation";
 
 export function PortfolioRepairPanel({
   draft,
@@ -20,11 +20,6 @@ export function PortfolioRepairPanel({
   close: () => void;
 }) {
   const state = usePortfolioRepair(draft);
-  const permissionsRef = useRef<HTMLDetailsElement>(null);
-  useEffect(() => {
-    if (state.preview?.status === "blocked" && permissionsRef.current)
-      permissionsRef.current.open = true;
-  }, [state.preview]);
   const zone = useDisplayTimezone();
   useDialogCloseGuard(() => !state.busy);
   const next = fromOrders(state.preview?.orders ?? [], draft.points);
@@ -46,32 +41,95 @@ export function PortfolioRepairPanel({
       : [];
   const label = (o: Draft["orders"][number]) =>
     `${deliveryLabel(draft.points[o.interval].timestamp_utc, draft.market.product_minutes, zone)} · ${o.side} · ${orderNumber(o.volume)} MW`;
+  const required = new Set(state.issues.flatMap((i) => i.required_revision_ids ?? []));
+  const involved = new Set(
+    state.issues.flatMap((i) => i.existing_orders.map((o) => o.client_order_id)),
+  );
+  const protectedOrders = draft.orders.filter((o) => !replaceable(o) || state.kept.includes(o.id));
+  const necessary = protectedOrders.filter((o) => required.has(o.id));
+  const review = protectedOrders.filter((o) => !required.has(o.id) && involved.has(o.id));
+  const other = protectedOrders.filter((o) => !required.has(o.id) && !involved.has(o.id));
+  const blocker = necessary.find((o) => !state.allowed.includes(o.id) || state.kept.includes(o.id));
+  const permission = (o: Draft["orders"][number]) => (
+    <div key={o.id}>
+      <label className="repair-option">
+        <input
+          type="checkbox"
+          disabled={state.busy || state.stale}
+          checked={state.allowed.includes(o.id) && !state.kept.includes(o.id)}
+          onChange={(e) => state.allow(o.id, e.target.checked)}
+        />
+        Allow revision · {label(o)}
+      </label>
+      {required.has(o.id) && (
+        <p className="ws-help">
+          {state.issues
+            .filter((i) => i.required_revision_ids?.includes(o.id))
+            .map(repairIssueText)
+            .join(" ")}
+        </p>
+      )}
+      {state.kept.includes(o.id) && (
+        <div className="repair-option">
+          <span className="ws-help">
+            Kept original. This order cannot change and may prevent a repair.
+          </span>
+          <button
+            className="secondary small"
+            disabled={state.busy || state.stale}
+            onClick={() => state.allow(o.id, true)}
+          >
+            Allow revision again
+          </button>
+        </div>
+      )}
+    </div>
+  );
+  const status = state.stale
+    ? "Inputs changed. Close and reopen this preview."
+    : state.error
+      ? state.error
+      : state.busy
+        ? "Calculating corrections…"
+        : state.preview?.status === "blocked"
+          ? blocker
+            ? `Allow revision of ${label(blocker)} and calculate again. No feasible repair can keep it unchanged.`
+            : "No feasible repair was found with these permissions. Review protected orders involved or battery settings."
+          : state.preview
+            ? state.preview.message
+            : state.permissionsChanged
+              ? "Permissions changed. Calculate again."
+              : "Calculate corrections to preview a feasible plan before applying.";
   return (
     <section aria-label="Repair portfolio">
-      <p>
-        Find a feasible schedule with minimal changes. Manual and protected orders stay unchanged
-        unless you allow revision.
+      <p>Preview changes before applying.</p>
+      <p className="ws-help">
+        Checked orders may be reduced or removed. They will not necessarily change.
       </p>
-      <details className="revision-protected" ref={permissionsRef}>
-        <summary>Review protected orders</summary>
-        <p className="ws-help">
-          Select orders the repair may reduce or remove. Nothing changes until you apply the
-          preview.
-        </p>
-        {draft.orders
-          .filter((o) => !replaceable(o))
-          .map((o) => (
-            <label className="repair-option" key={o.id}>
-              <input
-                type="checkbox"
-                disabled={state.busy || state.stale}
-                checked={state.allowed.includes(o.id)}
-                onChange={(e) => state.allow(o.id, e.target.checked)}
-              />
-              Allow revision · {label(o)}
-            </label>
-          ))}
-      </details>
+      {!!necessary.length && (
+        <section className="revision-protected repair-required" aria-label="Changes required">
+          <strong>Changes required</strong>
+          {necessary.map(permission)}
+        </section>
+      )}
+      {!!review.length && (
+        <details
+          className="revision-protected"
+          open={review.some((o) => state.kept.includes(o.id))}
+        >
+          <summary>Review together · {review.length}</summary>
+          <p className="ws-help">
+            These orders are involved in reported findings. Not every order needs to change.
+          </p>
+          {review.map(permission)}
+        </details>
+      )}
+      {!!other.length && (
+        <details className="revision-protected" open={other.some((o) => state.kept.includes(o.id))}>
+          <summary>Other protected orders · {other.length}</summary>
+          {other.map(permission)}
+        </details>
+      )}
       <label className="repair-option">
         <input
           type="checkbox"
@@ -79,57 +137,30 @@ export function PortfolioRepairPanel({
           disabled={state.busy || state.stale}
           onChange={(e) => state.add(e.target.checked)}
         />
-        Allow balancing additions
+        Allow new balancing orders
       </label>
-      {!!state.kept.length && (
-        <details className="revision-protected" open>
-          <summary>Kept original · {state.kept.length}</summary>
-          <p className="ws-help">These orders cannot change and may prevent a repair.</p>
-          {draft.orders
-            .filter((o) => state.kept.includes(o.id))
-            .map((o) => (
-              <div key={o.id} className="repair-option">
-                <span>{label(o)}</span>
-                <button
-                  className="secondary"
-                  disabled={state.busy || state.stale}
-                  onClick={() => state.allow(o.id, true)}
-                >
-                  Allow revision again
-                </button>
-              </div>
-            ))}
-        </details>
-      )}
-      {state.stale && <p role="alert">Inputs changed. Close and reopen this preview.</p>}
-      {state.error && (
-        <p role="alert" className="ws-error">
-          {state.error}
-        </p>
-      )}
-      {state.preview && <p role="status">{state.preview.message}</p>}
-      {!state.preview && !state.busy && !state.error && !state.stale && (
-        <p className="ws-help" role="status">
-          Calculate corrections to preview a feasible plan before applying.
-        </p>
-      )}
-      {state.preview?.status === "blocked" && (
-        <p className="ws-error" role="alert">
-          Apply is unavailable because no feasible plan was found. Allow revision of the orders that
-          must change, including any kept originals, then calculate again. Repeating the same
-          permissions will not resolve the conflict.
-        </p>
-      )}
-      {!!state.preview?.issues.length && (
-        <details className="revision-protected" open={state.preview.status === "blocked"}>
-          <summary>
-            {state.preview.status === "ready" ? "Issues addressed" : "Schedule issues"} ·{" "}
-            {state.preview.issues.length}
-          </summary>
+      <p className="ws-help">
+        Permits new orders to balance stored energy. Protected orders remain unchanged.
+      </p>
+      <p
+        id="repair-status"
+        role={
+          state.stale || state.error || state.preview?.status === "blocked" ? "alert" : "status"
+        }
+      >
+        {status}
+      </p>
+      {!!state.issues.length && (
+        <details className="revision-protected">
+          <summary>Diagnostic details</summary>
+          <p className="ws-help">
+            {state.issues.length} reported findings. Findings may share orders or intervals; this is
+            not an exhaustive diagnosis of every possible schedule.
+          </p>
           <ul>
-            {state.preview.issues.map((issue, i) => (
+            {state.issues.map((issue, i) => (
               <li key={i}>
-                {issue.message}
+                {repairIssueText(issue)}
                 {issue.existing_orders.map((order) => {
                   const existing = draft.orders.find((o) => o.id === order.client_order_id);
                   return existing ? (
@@ -150,12 +181,7 @@ export function PortfolioRepairPanel({
           repair
           disabled={state.busy || state.stale}
           reasons={Object.fromEntries(
-            (state.preview?.issues ?? []).flatMap((i) =>
-              i.existing_orders.map((o) => [
-                o.client_order_id,
-                `Reported: ${i.code.replaceAll("_", " ")}`,
-              ]),
-            ),
+            draft.orders.map((o) => [o.id, repairReason(state.issues, o.id)]),
           )}
           onKeep={(id) => state.keep(id, true)}
         />
@@ -169,10 +195,11 @@ export function PortfolioRepairPanel({
           disabled={state.busy || state.stale}
           onClick={() => void state.calculate()}
         >
-          {state.busy ? "Checking…" : "Calculate corrections"}
+          {state.busy ? "Calculating…" : "Calculate corrections"}
         </button>
         <button
           className="primary"
+          aria-describedby="repair-status"
           disabled={state.busy || state.stale || state.preview?.status !== "ready"}
           onClick={() => void state.apply(apply)}
         >

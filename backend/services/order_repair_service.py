@@ -2,10 +2,10 @@
 
 import hashlib
 import json
-from backend.domain.schemas.order_repair import RepairIssue, RepairResult, can_revise
+from backend.domain.schemas.order_repair import RepairResult, can_revise
 from backend.domain.schemas.requests import OrderSimulationRequest
 from backend.services.order_suggestion_validation import evaluate
-from backend.services.suggestion_evidence import selection_evidence
+from backend.services.repair_evidence import repair_evidence
 from backend.services.forecast_resolution import resolve_forecast
 from backend.services.order_execution_rules import _clears
 from backend.optimization.repair_optimizer import optimize_repair
@@ -64,25 +64,8 @@ def repair_orders(request):
     from backend.domain.schemas.order_repair import RepairCheck
 
     before = evaluate(request.baseline)
-    issues, _ = selection_evidence(before, {o.client_order_id for o in request.baseline.orders})
-    repair_codes = {
-        "minimum_soc",
-        "maximum_soc",
-        "power_limit",
-        "unavailable",
-        "conflicting_sides",
-        "cycle_budget",
-        "cycle_limit",
-        "terminal_soc",
-    }
-    issues = [
-        RepairIssue(
-            **i.model_dump(),
-            category="schedule" if i.code in repair_codes else "technical",
-            action="repair" if i.code in repair_codes else "review_calculation",
-        )
-        for i in issues
-    ]
+    points = resolve_forecast(request.baseline)
+    issues = repair_evidence(request.baseline, before, points)
     key = repair_hash(request)
     if any(i.category == "technical" for i in issues):
         return RepairResult(
@@ -100,7 +83,7 @@ def repair_orders(request):
             contribution_eur=before.summary.net_contribution_eur,
             optimal=True,
         )
-    status, orders = optimize_repair(request, resolve_forecast(request.baseline))
+    status, orders = optimize_repair(request, points)
     if status != "ready":
         messages = {
             "blocked": "No feasible repair with the current permissions. Review protected orders or battery settings.",

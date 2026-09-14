@@ -4,13 +4,20 @@ import { api } from "@/lib/api";
 import type { SubmittedOrder } from "@/types/api";
 import type { Draft } from "./workspace-types";
 import { identity, orderRequest } from "./workspace-adapters";
+import type { SelectionIssue } from "./suggestion-checks";
+
+export type RepairIssue = Pick<SelectionIssue, "code" | "message" | "existing_orders"> &
+  Partial<Omit<SelectionIssue, "code" | "message" | "existing_orders">> & {
+    side?: "BUY" | "SELL" | null;
+    required_revision_ids?: string[];
+  };
 
 export type RepairPreview = {
   input_hash: string;
   status: "ready" | "unchanged" | "blocked" | "timeout" | "error";
   message: string;
   orders: SubmittedOrder[];
-  issues: { code: string; message: string; existing_orders: SubmittedOrder[] }[];
+  issues: RepairIssue[];
 };
 export function usePortfolioRepair(draft: Draft) {
   const [snapshot] = useState(draft);
@@ -20,6 +27,8 @@ export function usePortfolioRepair(draft: Draft) {
   const [preview, setPreview] = useState<RepairPreview>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [issues, setIssues] = useState<RepairIssue[]>([]);
+  const [permissionsChanged, setPermissionsChanged] = useState(false);
   const sequence = useRef(0);
   const applied = useRef(false);
   const current = useRef(draft);
@@ -49,7 +58,11 @@ export function usePortfolioRepair(draft: Draft) {
         method: "POST",
         body: JSON.stringify(body),
       });
-      if (ticket === sequence.current) setPreview(next);
+      if (ticket === sequence.current) {
+        setPreview(next);
+        setIssues(next.issues ?? []);
+        setPermissionsChanged(false);
+      }
     } catch (e) {
       if (ticket === sequence.current) setError(e instanceof Error ? e.message : "Repair failed");
     } finally {
@@ -88,21 +101,26 @@ export function usePortfolioRepair(draft: Draft) {
     preview,
     busy,
     error,
+    issues,
+    permissionsChanged,
     stale,
     calculate,
     apply,
     allow: (id: string, enabled: boolean) => {
       invalidate();
+      setPermissionsChanged(true);
       setAllowed(enabled ? [...allowed, id] : allowed.filter((o) => o !== id));
       if (enabled) setKept(kept.filter((o) => o !== id));
     },
     keep: (id: string, enabled: boolean) => {
       invalidate();
+      setPermissionsChanged(true);
       setKept(enabled ? [...kept, id] : kept.filter((o) => o !== id));
       if (enabled) setAllowed(allowed.filter((o) => o !== id));
     },
     add: (enabled: boolean) => {
       invalidate();
+      setPermissionsChanged(true);
       setAdditions(enabled);
     },
   };

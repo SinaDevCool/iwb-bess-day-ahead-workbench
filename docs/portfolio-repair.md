@@ -33,6 +33,19 @@ Price rejection and negative contribution alone do not trigger repair. Protected
 shows candidates, not a claimed irreducible conflict set. Full-day optimization can alter an
 earlier permitted order to resolve a later failure; interval evidence is not causal attribution.
 
+Repair additionally calls the shared independent batch checks for each qualifying side, even
+when execution excluded the interval due to opposing directions. Power and availability evidence
+is side-specific; execution outcomes and SoC trajectories remain unchanged. Findings do not
+invent a trajectory for excluded orders. An individually oversized or unavailable qualifying
+order is marked as necessarily requiring revision. Aggregate violations identify a group, not
+every member as a mandatory change. Other protected orders are not presented as blockers.
+
+The dialog retains baseline evidence when permissions invalidate a preview, but never retains
+an applicable candidate. Required permissions are shown first; other permissions and diagnostic
+details are collapsible. Checked permissions permit changes; they do not force changes. The
+balancing switch permits additions but does not unlock existing orders or require an addition.
+No extra solver or permission-subset search is used for diagnostics.
+
 ## Review
 
 The shared revision table retains original IDs and exposes before/after quantities, provenance,

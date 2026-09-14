@@ -32,6 +32,8 @@ const labels: Record<string, string> = {
   power_limit: "Power limit",
   unavailable: "Unavailable",
   cycle_budget: "Cycle limit",
+  cycle_limit: "Cycle limit",
+  terminal_soc: "End reserve",
   conflicting_sides: "Conflicting directions",
 };
 export const checkLabel = (code: string) => labels[code.toLowerCase()] ?? "Check interval";

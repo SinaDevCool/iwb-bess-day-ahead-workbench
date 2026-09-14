@@ -30,6 +30,8 @@ class RepairCheck(RepairRequest):
 class RepairIssue(SelectionIssue):
     category: Literal["schedule", "technical"] = "schedule"
     action: Literal["repair", "review_calculation"] = "repair"
+    side: Literal["BUY", "SELL"] | None = None
+    required_revision_ids: list[str] = Field(default_factory=list)
 
 
 class RepairResult(BaseModel):
