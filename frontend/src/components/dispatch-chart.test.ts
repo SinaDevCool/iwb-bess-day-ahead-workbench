@@ -1,6 +1,32 @@
 import type { Battery, Dispatch } from "@/types/api";
 import { describe, expect, it } from "vitest";
 import { scheduleChartData } from "./dispatch-chart";
+import { timeTicks, signedColor, chartColors, grid } from "./schedule/chart-config";
+it("shares colors by sign without treating charging as a financial loss", () => {
+  expect(signedColor(-25)).toBe(chartColors.negative);
+  expect(signedColor(50)).toBe(chartColors.positive);
+  // Charging can earn money at negative prices: these must remain independent.
+  expect(signedColor(-25)).not.toBe(signedColor(100));
+  expect(grid.props.vertical).toBe(true);
+  expect(grid.props.syncWithTicks).toBe(true);
+});
+it("uses sparse aligned guides for normal and DST days at either product duration", () => {
+  const start = Date.parse("2026-10-24T22:00:00Z");
+  for (const hours of [23, 24, 25]) {
+    const end = start + hours * 3600000;
+    for (const width of [320, 650, 1000]) {
+      const ticks = timeTicks(start, end, width);
+      expect(ticks[0]).toBe(start);
+      expect(ticks.at(-1)).toBe(end);
+      expect(new Set(ticks).size).toBe(ticks.length);
+      expect(ticks.length).toBeLessThanOrEqual(width === 320 ? 5 : width === 650 ? 8 : 14);
+      expect(ticks.every((tick, i) => i === 0 || tick > ticks[i - 1])).toBe(true);
+    }
+  }
+  expect(timeTicks(start, start)).toEqual([]);
+  expect(timeTicks(NaN, start)).toEqual([]);
+  expect(timeTicks(start, start + 86400000, 1000)[1] - start).toBe(7200000);
+});
 describe("schedule time boundaries", () => {
   for (const minutes of [15, 60])
     it("preserves initial and final energy at " + minutes + " minutes", () => {

@@ -2,18 +2,25 @@ import type { Battery, Dispatch } from "@/types/api";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { DispatchChart } from "./dispatch-chart";
+import { chartColors } from "./schedule/chart-config";
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   ComposedChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   Area: () => null,
-  Cell: () => null,
+  Cell: ({ fill }: { fill: string }) => <span data-testid="chart-cell" data-fill={fill} />,
   ReferenceArea: () => null,
   ReferenceDot: () => null,
-  Bar: () => null,
+  Bar: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   CartesianGrid: () => null,
   ReferenceLine: () => null,
   Tooltip: () => null,
-  XAxis: () => null,
+  XAxis: ({ ticks, tick }: { ticks: number[]; tick: unknown }) => (
+    <span
+      data-testid="time-axis"
+      data-ticks={JSON.stringify(ticks)}
+      data-tick-enabled={tick !== false}
+    />
+  ),
   YAxis: () => null,
 }));
 afterEach(() => {
@@ -46,6 +53,36 @@ const rows = [
     interval_pnl_eur: -310,
   },
 ] as Dispatch[];
+it("matches bar legends and tooltip accents while preserving positive charging contribution", () => {
+  const profitableCharge = [{ ...rows[1], price_eur_mwh: -30, interval_pnl_eur: 270 }];
+  const { container } = render(
+    <DispatchChart rows={profitableCharge} battery={battery} showContribution />,
+  );
+  const cells = screen.getAllByTestId("chart-cell");
+  const axes = screen.getAllByTestId("time-axis");
+  expect(axes).toHaveLength(4);
+  expect(new Set(axes.map((axis) => axis.dataset.ticks)).size).toBe(1);
+  expect(axes.every((axis) => axis.dataset.tickEnabled === "true")).toBe(true);
+  expect(cells.map((cell) => cell.dataset.fill)).toEqual([
+    chartColors.negative,
+    chartColors.positive,
+  ]);
+  expect(container.querySelector(".schedule-power i")).toHaveStyle({
+    background: chartColors.negative,
+  });
+  expect(container.querySelector(".schedule-contribution i")).toHaveStyle({
+    background: chartColors.positive,
+  });
+  fireEvent.keyDown(screen.getByRole("img", { name: "Day-Ahead price forecast" }), {
+    key: "ArrowRight",
+  });
+  expect(container.querySelector(".schedule-track-readout.power")).toHaveStyle({
+    borderTopColor: chartColors.negative,
+  });
+  expect(container.querySelector(".schedule-track-readout.contribution")).toHaveStyle({
+    borderTopColor: chartColors.positive,
+  });
+});
 function plotBounds(element: HTMLElement) {
   vi.spyOn(element, "getBoundingClientRect").mockReturnValue({ left: 0, width: 284 } as DOMRect);
 }

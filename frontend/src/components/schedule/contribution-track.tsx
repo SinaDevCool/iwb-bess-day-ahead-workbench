@@ -1,7 +1,7 @@
 import { TrackReadout, type TrackTooltip } from "./track-readout";
 import type { Dispatch } from "@/types/api";
 import { Bar, Cell, ComposedChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
-import { axis, grid, margin, Y_AXIS_WIDTH } from "./chart-config";
+import { axis, grid, margin, Y_AXIS_WIDTH, chartColors, signedColor } from "./chart-config";
 import type { useScheduleInspection } from "./use-schedule-inspection";
 /** Render one track; time and selection are supplied by the parent. */
 export function ContributionTrack({
@@ -31,11 +31,11 @@ export function ContributionTrack({
         <span className="schedule-track-legend">
           {label}{" "}
           <span>
-            <i style={{ background: "#237451" }} />
+            <i aria-hidden="true" style={{ background: chartColors.positive }} />
             Positive
           </span>
           <span>
-            <i style={{ background: "#b45443" }} />
+            <i aria-hidden="true" style={{ background: chartColors.negative }} />
             Negative
           </span>
         </span>
@@ -65,13 +65,10 @@ export function ContributionTrack({
             />
             {tip}
             {cursor}
-            <ReferenceLine y={0} stroke="#829693" />
+            <ReferenceLine y={0} stroke={chartColors.zero} strokeWidth={1.5} />
             <Bar dataKey="contribution" name={label} barSize={barSize} isAnimationActive={false}>
               {rows.map((row) => (
-                <Cell
-                  key={row.timestamp_utc}
-                  fill={row.interval_pnl_eur < 0 ? "#b45443" : "#237451"}
-                />
+                <Cell key={row.timestamp_utc} fill={signedColor(row.interval_pnl_eur)} />
               ))}
             </Bar>
           </ComposedChart>

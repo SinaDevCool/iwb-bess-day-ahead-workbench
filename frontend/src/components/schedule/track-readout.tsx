@@ -3,6 +3,7 @@ export type TrackTooltip = {
   interval: string;
   label: string;
   value?: string;
+  color?: string;
   tone: "price" | "power" | "soc" | "contribution";
   rows?: { label: string; value: string }[];
 };
@@ -21,6 +22,7 @@ export function TrackReadout({ value }: { value?: TrackTooltip }) {
       role="tooltip"
       style={{
         left,
+        borderTopColor: value.color,
       }}
     >
       <div className="tooltip-interval">{value.interval}</div>

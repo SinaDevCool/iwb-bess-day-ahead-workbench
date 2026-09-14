@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   YAxis,
 } from "recharts";
-import { axis, grid, margin, Y_AXIS_WIDTH } from "./chart-config";
+import { axis, grid, margin, Y_AXIS_WIDTH, chartColors } from "./chart-config";
 import type { useScheduleInspection } from "./use-schedule-inspection";
 /** Render one track; time and selection are supplied by the parent. */
 export function SocTrack({
@@ -53,7 +53,7 @@ export function SocTrack({
             {cursor}
             <ReferenceLine
               y={battery.min_soc_mwh}
-              stroke="#8980be"
+              stroke={chartColors.socLimit}
               strokeDasharray="4 4"
               label={{
                 value: `Min ${battery.min_soc_mwh} MWh`,
@@ -63,7 +63,7 @@ export function SocTrack({
             />
             <ReferenceLine
               y={battery.max_soc_mwh}
-              stroke="#8980be"
+              stroke={chartColors.socLimit}
               strokeDasharray="4 4"
               label={{
                 value: `Max ${battery.max_soc_mwh} MWh`,
@@ -77,7 +77,7 @@ export function SocTrack({
                 y={battery.target_soc_mwh}
                 r={4}
                 fill="white"
-                stroke="#655fb4"
+                stroke={chartColors.soc}
                 strokeWidth={2}
                 label={{
                   value: `Reserve ${battery.target_soc_mwh} MWh`,
@@ -96,7 +96,7 @@ export function SocTrack({
                     x={point.x}
                     y={point.soc}
                     r={3}
-                    fill="#655fb4"
+                    fill={chartColors.soc}
                     stroke="white"
                   />
                 ))}
@@ -104,7 +104,7 @@ export function SocTrack({
               dataKey="soc"
               name="Stored energy MWh"
               type="linear"
-              stroke="#655fb4"
+              stroke={chartColors.soc}
               strokeWidth={2}
               fill="#f0eef8"
               dot={false}

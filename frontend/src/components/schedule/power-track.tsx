@@ -2,7 +2,7 @@ import { TrackReadout, type TrackTooltip } from "./track-readout";
 import type { scheduleChartData } from "@/lib/schedule-chart-data";
 import type { Battery } from "@/types/api";
 import { Bar, Cell, ComposedChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
-import { axis, grid, margin, Y_AXIS_WIDTH } from "./chart-config";
+import { axis, grid, margin, Y_AXIS_WIDTH, chartColors, signedColor } from "./chart-config";
 import type { useScheduleInspection } from "./use-schedule-inspection";
 /** Render one track; time and selection are supplied by the parent. */
 export function PowerTrack({
@@ -30,11 +30,11 @@ export function PowerTrack({
         <span className="schedule-track-legend">
           Scheduled power{" "}
           <span>
-            <i style={{ background: "#1d9c98" }} />
+            <i aria-hidden="true" style={{ background: chartColors.negative }} />
             Charge −
           </span>
           <span>
-            <i style={{ background: "#db7c13" }} />
+            <i aria-hidden="true" style={{ background: chartColors.positive }} />
             Discharge +
           </span>
         </span>
@@ -61,7 +61,7 @@ export function PowerTrack({
             />
             {tip}
             {cursor}
-            <ReferenceLine y={0} stroke="#829693" />
+            <ReferenceLine y={0} stroke={chartColors.zero} strokeWidth={1.5} />
             <ReferenceLine
               y={
                 -Math.min(
@@ -69,7 +69,7 @@ export function PowerTrack({
                   battery.grid_limit_mw ?? battery.max_charge_power_mw,
                 )
               }
-              stroke="#7d9295"
+              stroke={chartColors.limit}
               label={{
                 value: "Charge limit",
                 position: "insideBottomLeft",
@@ -83,7 +83,7 @@ export function PowerTrack({
                 battery.max_discharge_power_mw,
                 battery.grid_limit_mw ?? battery.max_discharge_power_mw,
               )}
-              stroke="#7d9295"
+              stroke={chartColors.limit}
               label={{
                 value: "Discharge limit",
                 position: "insideTopLeft",
@@ -100,7 +100,7 @@ export function PowerTrack({
               isAnimationActive={false}
             >
               {intervals.map((row) => (
-                <Cell key={row.x} fill={row.power < 0 ? "#168780" : "#c8750c"} />
+                <Cell key={row.x} fill={signedColor(row.power)} />
               ))}
             </Bar>
           </ComposedChart>

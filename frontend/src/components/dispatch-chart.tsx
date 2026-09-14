@@ -16,6 +16,8 @@ import {
   timeTicks,
   Y_AXIS_WIDTH,
   margin,
+  chartColors,
+  signedColor,
 } from "./schedule/chart-config";
 import { ContributionTrack } from "./schedule/contribution-track";
 import { ForecastTrack } from "./schedule/forecast-track";
@@ -76,11 +78,11 @@ export function DispatchChart({
       dataKey="x"
       type="number"
       domain={[start, end]}
-      ticks={timeTicks(start, end).filter(
-        (_, i, a) => width > 650 || i % 2 === 0 || i === a.length - 1,
-      )}
-      tickFormatter={(v) => axisTime(v, start, zone)}
-      tick={labels ? axis : false}
+      ticks={timeTicks(start, end, width)}
+      interval={0}
+      tickFormatter={(v) => (width < 500 ? clock(v, zone) : axisTime(v, start, zone))}
+      // Keep tick coordinates available to the shared grid even without labels.
+      tick={labels ? axis : () => <g />}
       height={labels ? 26 : 8}
       axisLine={false}
       tickLine={false}
@@ -107,6 +109,7 @@ export function DispatchChart({
           label: "DA forecast",
           value: euros(active.price_eur_mwh) + "/MWh",
           tone: "price",
+          color: chartColors.price,
         },
         power: {
           interval: activeTime,
@@ -118,6 +121,7 @@ export function DispatchChart({
                 : "Discharging",
           value: number(active.power_mw, 1) + " MW",
           tone: "power",
+          color: active.power_mw === 0 ? chartColors.zero : signedColor(active.power_mw),
           rows: [
             { label: "Energy", value: number((Math.abs(active.power_mw) * dt) / 3600000) + " MWh" },
           ],
@@ -126,6 +130,7 @@ export function DispatchChart({
           interval: activeTime,
           label: "Stored energy",
           tone: "soc",
+          color: chartColors.soc,
           rows: [
             {
               label: "Start",
@@ -144,6 +149,8 @@ export function DispatchChart({
           label: "Interval contribution",
           value: euros(active.interval_pnl_eur),
           tone: "contribution",
+          color:
+            active.interval_pnl_eur === 0 ? chartColors.zero : signedColor(active.interval_pnl_eur),
         },
       }
     : undefined;

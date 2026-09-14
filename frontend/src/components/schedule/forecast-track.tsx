@@ -1,6 +1,6 @@
 import { TrackReadout, type TrackTooltip } from "./track-readout";
 import { Area, ComposedChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
-import { axis, grid, margin, Y_AXIS_WIDTH } from "./chart-config";
+import { axis, grid, margin, Y_AXIS_WIDTH, chartColors } from "./chart-config";
 import type { useScheduleInspection } from "./use-schedule-inspection";
 /** Render one track; time and selection are supplied by the parent. */
 export function ForecastTrack({
@@ -60,7 +60,7 @@ export function ForecastTrack({
               dataKey="price"
               name="Forecast €/MWh"
               type="stepAfter"
-              stroke="#174b56"
+              stroke={chartColors.price}
               strokeWidth={2}
               fill="#edf4f3"
               dot={false}
