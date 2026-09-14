@@ -126,3 +126,14 @@
 .suggestion-summary p:last-child {
   margin-bottom: 0;
 }
+.repair-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  font-size: 0.85rem;
+}
+.repair-option input {
+  width: auto;
+  flex: 0 0 auto;
+}

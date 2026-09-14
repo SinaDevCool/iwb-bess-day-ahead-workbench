@@ -7,13 +7,18 @@ import { OrdersTable } from "./orders-table";
 import { useOrderLayout } from "./use-order-layout";
 import type { ReadyWorkbench } from "./use-workbench";
 import { AddOrderDialog } from "./add-order-dialog";
-import { OrderSuggestionsDialog } from "./order-suggestions-dialog";
+import { OptimizationDialog } from "./optimization-dialog";
+import { fromOrders } from "./workspace-adapters";
 import { applySuggestions, replaceable, suggestionIdentity } from "./suggestion-revision";
 
 /** Orchestrates selection only; every edit updates the existing shared case draft. */
 export function OrdersView({
   context,
+  repairRequested = false,
+  clearRepair,
 }: {
+  repairRequested?: boolean;
+  clearRepair?: () => void;
   context: Pick<
     ReadyWorkbench,
     | "draft"
@@ -92,16 +97,27 @@ export function OrdersView({
   return (
     view === "orders" && (
       <>
-        {suggesting && (
-          <OrderSuggestionsDialog
+        {(suggesting || repairRequested) && (
+          <OptimizationDialog
             draft={draft}
-            replacing={replacing}
-            reviewProtected={() => {
+            repairFirst={
+              repairRequested || Boolean(result && !dirty && !result.submitted_portfolio_feasible)
+            }
+            repair={(orders) => {
+              setUndo(draft);
+              change({ orders: fromOrders(orders, draft.points), suggestionIdentity: undefined });
               setSuggesting(false);
-              setSelected(draft.orders.find((o) => !replaceable(o))?.id ?? "");
+              clearRepair?.();
+              setSelected("");
+              context.setNotice(
+                "Corrections applied. Simulate orders to calculate the revised schedule.",
+              );
             }}
-            close={() => setSuggesting(false)}
-            add={(orders) => {
+            close={() => {
+              setSuggesting(false);
+              clearRepair?.();
+            }}
+            improve={(orders) => {
               setUndo(draft);
               const next = applySuggestions(draft, orders, replacing);
               change(next);
@@ -158,7 +174,7 @@ export function OrdersView({
                   if (context.validate()) setSuggesting(true);
                 }}
               >
-                {replacing ? "Re-optimize suggestions" : "Suggest orders"}
+                Re-optimize
               </button>
             </div>
           </div>

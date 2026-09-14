@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { simulationPresentation } from "@/lib/simulation-presentation";
 import { executedIntervalCount } from "@/lib/order-volume-context";
 
@@ -20,6 +21,7 @@ export function UnifiedWorkbench() {
   );
 }
 function WorkbenchContent() {
+  const [repairRequested, setRepairRequested] = useState(false);
   const context = useWorkbench();
   const {
     draft,
@@ -198,7 +200,11 @@ function WorkbenchContent() {
                 </button>
               </div>
             )}
-            <OrdersView context={ready} />
+            <OrdersView
+              context={ready}
+              repairRequested={repairRequested}
+              clearRepair={() => setRepairRequested(false)}
+            />
             {view === "schedule" &&
               (result ? (
                 <SimulationResults
@@ -214,6 +220,10 @@ function WorkbenchContent() {
                   }
                   onEditOrder={context.editResultOrder}
                   onReviewOrders={() => context.navigate("orders")}
+                  onRepair={() => {
+                    context.navigate("orders");
+                    setRepairRequested(true);
+                  }}
                   onRestore={() => void context.restore(result.simulation_id, "ORDER_SIMULATION")}
                 />
               ) : (

@@ -6,7 +6,21 @@ import { revisionBaseline } from "./suggestion-revision";
 import { deliveryLabel, orderNumber } from "./order-presentation";
 import { useDisplayTimezone } from "./time-preference";
 
-export function SuggestionRevisionTable({ draft, rows }: { draft: Draft; rows: RevisionRow[] }) {
+export function SuggestionRevisionTable({
+  draft,
+  rows,
+  repair = false,
+  onKeep,
+  disabled = false,
+  reasons,
+}: {
+  draft: Draft;
+  rows: RevisionRow[];
+  repair?: boolean;
+  onKeep?: (id: string) => void;
+  disabled?: boolean;
+  reasons?: Record<string, string>;
+}) {
   const [all, setAll] = useState(false);
   const zone = useDisplayTimezone();
   const protectedOrders = revisionBaseline(draft).orders;
@@ -24,13 +38,15 @@ export function SuggestionRevisionTable({ draft, rows }: { draft: Draft; rows: R
     <section aria-label="Proposed suggestion changes">
       <div className="suggestion-toolbar">
         <strong>
-          {protectedOrders.length} protected · {changed.length} changes
+          {repair
+            ? `${changed.length} ${changed.length === 1 ? "correction" : "corrections"}`
+            : `${protectedOrders.length} protected · ${changed.length} changes`}
         </strong>
         <button className="secondary small" aria-pressed={!all} onClick={() => setAll(false)}>
           Changes only
         </button>
         <button className="secondary small" aria-pressed={all} onClick={() => setAll(true)}>
-          All suggestions
+          {repair ? "All orders" : "All suggestions"}
         </button>
       </div>
       {!changed.length && <p role="status">Current suggestions already match this calculation.</p>}
@@ -59,6 +75,7 @@ export function SuggestionRevisionTable({ draft, rows }: { draft: Draft; rows: R
                   </>
                 )}
                 <th scope="col">Change</th>
+                {repair && <th scope="col">Review</th>}
               </tr>
             </thead>
             <tbody>
@@ -69,7 +86,15 @@ export function SuggestionRevisionTable({ draft, rows }: { draft: Draft; rows: R
                 return (
                   <tr key={r.before?.id ?? r.after!.id}>
                     <td>{delivery(order.interval)}</td>
-                    <td>{order.side === "BUY" ? "Buy" : "Sell"}</td>
+                    <td>
+                      {order.side === "BUY" ? "Buy" : "Sell"}
+                      {repair && (
+                        <small>
+                          {" "}
+                          · {(order.origin ?? "manual") === "manual" ? "Manual" : "Suggested"}
+                        </small>
+                      )}
+                    </td>
                     <td className="suggestion-number">
                       {r.before ? orderNumber(r.before.volume) : "—"}
                     </td>
@@ -87,6 +112,20 @@ export function SuggestionRevisionTable({ draft, rows }: { draft: Draft; rows: R
                         {r.change}
                       </span>
                     </td>
+                    {repair && (
+                      <td>
+                        <small>{reasons?.[order.id] ?? "Rebalance the complete schedule"}</small>
+                        {r.before && r.change !== "Unchanged" && (
+                          <button
+                            className="secondary small"
+                            disabled={disabled}
+                            onClick={() => onKeep?.(r.before!.id)}
+                          >
+                            Keep original
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -94,7 +133,7 @@ export function SuggestionRevisionTable({ draft, rows }: { draft: Draft; rows: R
           </table>
         </div>
       )}
-      {!!protectedOrders.length && (
+      {!repair && !!protectedOrders.length && (
         <details className="revision-protected">
           <summary>
             Kept unchanged · {protectedOrders.length}{" "}

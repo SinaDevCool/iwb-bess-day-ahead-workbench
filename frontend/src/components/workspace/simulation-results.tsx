@@ -16,6 +16,7 @@ export function SimulationResults({
   onEditOrder,
   onRestore,
   onReviewOrders,
+  onRepair,
 }: {
   result: OrderSimulation;
   stale?: boolean;
@@ -24,6 +25,7 @@ export function SimulationResults({
   onEditOrder?: (id: string) => void;
   onRestore?: () => void;
   onReviewOrders?: () => void;
+  onRepair?: () => void;
 }) {
   const ordered = useMemo(
     () =>
@@ -60,14 +62,16 @@ export function SimulationResults({
     !result.submitted_portfolio_feasible ||
     !result.executed_schedule_feasible;
   const action = needsAttention
-    ? !stale && blocked.length && onEditOrder
-      ? {
-          label: blocked.length === 1 ? "Edit order" : "Edit orders",
-          onClick: () => onEditOrder(blocked[0].submitted_order.client_order_id),
-        }
-      : onReviewOrders
-        ? { label: stale ? "Review current orders" : "Review orders", onClick: onReviewOrders }
-        : undefined
+    ? !stale && onRepair
+      ? { label: "Review corrections", onClick: onRepair }
+      : !stale && blocked.length && onEditOrder
+        ? {
+            label: blocked.length === 1 ? "Edit order" : "Edit orders",
+            onClick: () => onEditOrder(blocked[0].submitted_order.client_order_id),
+          }
+        : onReviewOrders
+          ? { label: stale ? "Review current orders" : "Review orders", onClick: onReviewOrders }
+          : undefined
     : undefined;
   return (
     <div className="simulation-results">
