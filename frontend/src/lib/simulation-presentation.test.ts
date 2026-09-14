@@ -18,6 +18,24 @@ const result = (patch: Partial<OrderSimulation> = {}) =>
   }) as OrderSimulation;
 
 describe("consistent simulation interpretation", () => {
+  it("distinguishes conflict-only, mixed, and physical failures", () => {
+    const r = result({
+      submitted_portfolio_feasible: false,
+      order_results: [
+        {
+          execution_status: "PHYSICALLY_INFEASIBLE",
+          reason_code: "CONFLICTING_SIDES",
+        },
+      ] as OrderSimulation["order_results"],
+    });
+    r.summary.infeasible_order_count = 1;
+    expect(simulationPresentation(r).title).toBe("Conflicting order directions");
+    expect(simulationPresentation(r, true).title).toBe("Previous result — inputs changed");
+    r.summary.infeasible_order_count = 2;
+    expect(simulationPresentation(r).title).toBe("Entered portfolio needs attention");
+    r.order_results = [];
+    expect(simulationPresentation(r).title).toBe("Entered portfolio is not physically feasible");
+  });
   it("never calls a filtered portfolio successful", () => {
     const r = result({ submitted_portfolio_feasible: false });
     r.summary.infeasible_order_count = 1;

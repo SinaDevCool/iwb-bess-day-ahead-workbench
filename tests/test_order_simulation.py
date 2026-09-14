@@ -171,6 +171,7 @@ def test_conflicting_sides_are_reported(tmp_path, monkeypatch):
     assert result.summary.infeasible_order_count == 2
     assert result.validation.status == "failed"
     assert all(item.reason_code == "CONFLICTING_SIDES" for item in result.order_results)
+    assert all("does not net opposing trades" in item.reason for item in result.order_results)
 
 
 def test_market_and_limit_contract_validation():

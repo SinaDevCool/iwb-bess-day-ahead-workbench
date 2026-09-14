@@ -32,7 +32,7 @@ const labels: Record<string, string> = {
   power_limit: "Power limit",
   unavailable: "Unavailable",
   cycle_budget: "Cycle limit",
-  conflicting_sides: "Buy/sell conflict",
+  conflicting_sides: "Conflicting directions",
 };
 export const checkLabel = (code: string) => labels[code.toLowerCase()] ?? "Check interval";
 const number = (value: number) =>

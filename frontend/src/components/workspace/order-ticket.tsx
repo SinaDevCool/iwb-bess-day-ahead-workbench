@@ -3,7 +3,7 @@ import { X, Trash2, ArrowRight } from "lucide-react";
 import type { SimulatedOrderResult } from "@/types/api";
 import { OrderRow } from "./order-entry-row";
 import { OrderPriceEvidence } from "./order-price-evidence";
-import { OrderStatus } from "./order-presentation";
+import { OrderStatus, orderReason } from "./order-presentation";
 
 type Props = ComponentProps<typeof OrderRow> & {
   prices: string[];
@@ -49,7 +49,7 @@ export function OrderTicket({ outcome, stale, close, locate, prices, remove, ...
         <h4>Simulation</h4>
         <OrderStatus outcome={outcome} stale={stale} />
         {!stale && outcome && !["EXECUTED", "NOT_EXECUTED"].includes(outcome.execution_status) && (
-          <p className="field-error">{outcome.reason}</p>
+          <p className="field-error">{orderReason(outcome)}</p>
         )}
       </section>
       <footer className="order-ticket-footer">
@@ -75,7 +75,7 @@ export function OrderTicket({ outcome, stale, close, locate, prices, remove, ...
           forecast price, not the limit. At the limit, full allocation is assumed.
         </p>
         {!stale && outcome && ["EXECUTED", "NOT_EXECUTED"].includes(outcome.execution_status) && (
-          <p>{outcome.reason}</p>
+          <p>{orderReason(outcome)}</p>
         )}
         <small>Order reference: {fields.order.id}</small>
       </details>

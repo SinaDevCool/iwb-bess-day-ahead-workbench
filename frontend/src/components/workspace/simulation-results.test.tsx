@@ -22,6 +22,27 @@ const result = {
     },
   ],
 } as OrderSimulation;
+it.each(["overview", "detail"])("keeps the correction action for conflicts in %s", (view) => {
+  history.replaceState({}, "", `/?scheduleView=${view}`);
+  const repair = vi.fn();
+  render(
+    <SimulationResults
+      result={{
+        ...result,
+        order_results: [
+          {
+            ...result.order_results[0],
+            reason_code: "CONFLICTING_SIDES",
+          },
+        ],
+      }}
+      onRepair={repair}
+    />,
+  );
+  expect(screen.getByRole("status")).toHaveTextContent("Conflicting order directions");
+  fireEvent.click(screen.getByRole("button", { name: "Review corrections →" }));
+  expect(repair).toHaveBeenCalledOnce();
+});
 it.each(["overview", "detail"])("offers direct editing in %s", (view) => {
   history.replaceState({}, "", `/?scheduleView=${view}`);
   const edit = vi.fn();

@@ -53,7 +53,7 @@ def eligible_orders(orders, point, soc, interval, order_results, findings):
             order_results.append(_not_executed(order, point.price_eur_mwh, soc))
     sides = {order.side for order in eligible}
     if len(sides) > 1:
-        reason = "Both BUY and SELL orders meet their price conditions in this interval; simultaneous physical execution is not supported. Adjust their limits or volumes."
+        reason = "Both BUY and SELL qualify in this interval. This simulation does not net opposing trades. Review corrections to adjust the orders."
         for order in eligible:
             order_results.append(
                 _infeasible(order, point.price_eur_mwh, soc, "CONFLICTING_SIDES", reason)

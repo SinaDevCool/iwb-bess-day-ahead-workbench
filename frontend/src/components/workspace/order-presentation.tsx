@@ -5,6 +5,12 @@ import { deliveryTime } from "@/lib/time-presentation";
 export const isPhysicallyRejected = (outcome?: SimulatedOrderResult) =>
   outcome?.execution_status === "PHYSICALLY_INFEASIBLE";
 
+/** Clarify saved conflict evidence without changing its status or calculation. */
+export const orderReason = (outcome: SimulatedOrderResult) =>
+  isPhysicallyRejected(outcome) && outcome.reason_code === "CONFLICTING_SIDES"
+    ? "Both BUY and SELL qualify in this interval. This simulation does not net opposing trades. Review corrections to adjust the orders."
+    : outcome.reason;
+
 /** Labels never re-evaluate execution: saved outcomes come from the backend. */
 export function orderStatus(outcome?: SimulatedOrderResult, stale = false, invalid = false) {
   if (invalid) return { label: "Check input", tone: "failed", Icon: AlertCircle };
@@ -14,7 +20,14 @@ export function orderStatus(outcome?: SimulatedOrderResult, stale = false, inval
     return { label: "Executed", tone: "passed", Icon: CheckCircle2 };
   if (outcome.execution_status === "NOT_EXECUTED")
     return { label: "Price not met", tone: "neutral", Icon: MinusCircle };
-  return { label: "Physical constraint", tone: "failed", Icon: AlertCircle };
+  return {
+    label:
+      outcome.reason_code === "CONFLICTING_SIDES"
+        ? "Conflicting directions"
+        : "Physical constraint",
+    tone: "failed",
+    Icon: AlertCircle,
+  };
 }
 
 export function OrderStatus({

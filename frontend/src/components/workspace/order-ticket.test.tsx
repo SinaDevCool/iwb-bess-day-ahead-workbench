@@ -35,6 +35,21 @@ const rejected = {
   reason: "Charge power exceeds the grid limit.",
 } as SimulatedOrderResult;
 
+it("clarifies saved opposing-side evidence while preserving stale precedence", () => {
+  const conflict = { ...rejected, reason_code: "CONFLICTING_SIDES" };
+  const { rerender } = render(<OrderTicket {...fields} outcome={conflict} />);
+  expect(screen.getByText("Conflicting directions")).toBeInTheDocument();
+  expect(screen.getByText(/This simulation does not net opposing trades/)).toBeInTheDocument();
+  expect(screen.queryByText("Physical constraint")).not.toBeInTheDocument();
+  expect(screen.queryByText(rejected.reason)).not.toBeInTheDocument();
+  rerender(<OrderTicket {...fields} outcome={conflict} stale />);
+  expect(screen.getByText("Outdated")).toBeInTheDocument();
+  expect(
+    screen.queryByText(/This simulation does not net opposing trades/),
+  ).not.toBeInTheDocument();
+  expect(orderStatus(conflict, false, true).label).toBe("Check input");
+});
+
 it("separates equal-limit eligibility from a physical rejection", () => {
   render(<OrderTicket {...fields} outcome={rejected} />);
   expect(screen.getByText(/2.5 MWh for this interval/)).toBeInTheDocument();

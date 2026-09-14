@@ -4,11 +4,14 @@ import type { OrderSimulation } from "@/types/api";
 export function simulationPresentation(result: OrderSimulation, stale = false) {
   const s = result.summary;
   const excluded = s.infeasible_order_count > 0;
+  const conflicts = (result.order_results ?? []).filter(
+    (o) => o.execution_status === "PHYSICALLY_INFEASIBLE" && o.reason_code === "CONFLICTING_SIDES",
+  ).length;
   const contributionLabel = excluded
     ? "Contribution of remaining schedule"
     : "Simulated net contribution";
   const scope = excluded
-    ? `${s.infeasible_order_count} physically infeasible ${s.infeasible_order_count === 1 ? "order is" : "orders are"} excluded from the displayed schedule and contribution. ${result.executed_schedule_feasible ? "The remaining schedule is feasible, not the complete entered portfolio." : "The remaining schedule also needs physical correction."}`
+    ? `${s.infeasible_order_count} blocked ${s.infeasible_order_count === 1 ? "order is" : "orders are"} excluded from the displayed schedule and contribution. ${result.executed_schedule_feasible ? "The remaining schedule is feasible, not the complete entered portfolio." : "The remaining schedule also needs physical correction."}`
     : !result.executed_schedule_feasible
       ? "Amounts describe a schedule that needs physical correction; they are not a feasible portfolio result."
       : "Contribution includes simulated executions only, at the entered forecast prices.";
@@ -27,7 +30,11 @@ export function simulationPresentation(result: OrderSimulation, stale = false) {
   if (excluded)
     return {
       severity: "failed",
-      title: "Entered portfolio is not physically feasible",
+      title: conflicts
+        ? conflicts === s.infeasible_order_count && result.executed_schedule_feasible
+          ? "Conflicting order directions"
+          : "Entered portfolio needs attention"
+        : "Entered portfolio is not physically feasible",
       detail: scope,
       contributionLabel,
       scope,

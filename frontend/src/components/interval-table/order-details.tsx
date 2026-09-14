@@ -1,6 +1,6 @@
 import type { intervalEvidence } from "@/lib/interval-evidence";
 import { n } from "./columns";
-import { OrderStatus, isPhysicallyRejected } from "../workspace/order-presentation";
+import { OrderStatus, isPhysicallyRejected, orderReason } from "../workspace/order-presentation";
 import { AtLimit } from "../workspace/at-limit";
 import { useDisplayTimezone } from "../workspace/time-preference";
 import { deliveryTime } from "@/lib/time-presentation";
@@ -109,7 +109,7 @@ export function IntervalOrderDetails({
                       <td>
                         <OrderStatus outcome={outcome} />
                         {outcome.execution_status !== "EXECUTED" && (
-                          <small className="interval-order-reason">{outcome.reason}</small>
+                          <small className="interval-order-reason">{orderReason(outcome)}</small>
                         )}
                       </td>
                       {onEditOrder && (
