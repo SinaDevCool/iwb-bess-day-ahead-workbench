@@ -16,6 +16,38 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 const points = [{ timestamp_utc: "2026-09-08T22:00:00Z", price_eur_mwh: 0 }];
+it("invalidates a candidate when pasted input changes", async () => {
+  vi.mocked(api).mockResolvedValue({ points, forecast: {} });
+  const { result } = renderHook(() => useForecastLoader("2026-09-09", 60, points));
+  await act(() => result.current.upload(new File(["csv"], "test.csv")));
+  expect(result.current.preview).toBeDefined();
+  act(() => result.current.setPasted("changed"));
+  expect(result.current.preview).toBeUndefined();
+  expect(result.current.pasted).toBe("changed");
+});
+it("ignores a pending response after the product changes", async () => {
+  let finish!: (value: unknown) => void;
+  vi.mocked(api).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }) as never,
+  );
+  const { result, rerender } = renderHook(
+    ({ minutes }) => useForecastLoader("2026-09-09", minutes, points),
+    { initialProps: { minutes: 60 } },
+  );
+  let pending!: Promise<void>;
+  act(() => {
+    pending = result.current.upload(new File(["csv"], "test.csv"));
+  });
+  rerender({ minutes: 15 });
+  await act(async () => {
+    finish({ points, forecast: {} });
+    await pending;
+  });
+  expect(result.current.preview).toBeUndefined();
+});
 it("downloads a filled example without replacing the forecast or creating a preview", async () => {
   vi.mocked(api).mockImplementation(
     async (path) => (path.includes("providers") ? { items: [] } : { points }) as never,

@@ -14,6 +14,8 @@ export function useForecastLoader(
 ) {
   const mounted = useRef(true);
   const request = useRef(0);
+  const context = JSON.stringify([date, minutes, points.map((p) => p.timestamp_utc)]);
+  const [previewContext, setPreviewContext] = useState("");
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -27,22 +29,24 @@ export function useForecastLoader(
   const [busy, setBusy] = useState(false);
   const [filename, setFilename] = useState("");
   const [pasted, setPasted] = useState("");
-  const [providers, setProviders] = useState<{ id: string; name: string; connected: boolean }[]>(
-    [],
-  );
+  const [inputContext, setInputContext] = useState(context);
+  if (inputContext !== context) {
+    setInputContext(context);
+    setPreview(undefined);
+    setBusy(false);
+    setError("");
+    setIssues([]);
+  }
   useEffect(() => {
-    let active = true;
-    api<{ items: typeof providers }>("/api/forecast/providers")
-      .then((r) => {
-        if (active) setProviders(r.items);
-      })
-      .catch(() => {
-        if (active) setError("Provider catalogue unavailable. CSV upload remains available.");
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+    request.current += 1;
+  }, [context]);
+  function reset() {
+    request.current += 1;
+    setPreview(undefined);
+    setBusy(false);
+    setError("");
+    setIssues([]);
+  }
   async function upload(file?: File) {
     if (!file) return;
     setPreview(undefined);
@@ -65,7 +69,10 @@ export function useForecastLoader(
           body: file,
         },
       );
-      if (mounted.current && current === request.current) setPreview(next);
+      if (mounted.current && current === request.current) {
+        setPreviewContext(context);
+        setPreview(next);
+      }
     } catch (e) {
       if (mounted.current && current === request.current) {
         setError(e instanceof Error ? e.message : String(e));
@@ -94,7 +101,8 @@ export function useForecastLoader(
       if (!mounted.current || current !== request.current) return;
       if (download)
         downloadForecastCsv(forecastCsv(r.points), `DA-forecast-${date}-${minutes}min-example.csv`);
-      else
+      else {
+        setPreviewContext(context);
         setPreview({
           points: r.points,
           forecast: {
@@ -104,6 +112,7 @@ export function useForecastLoader(
             bidding_zone: "CH",
           },
         });
+      }
     } catch (e) {
       if (mounted.current && current === request.current)
         setError(e instanceof Error ? e.message : String(e));
@@ -112,14 +121,17 @@ export function useForecastLoader(
     }
   }
   return {
-    preview,
+    preview: previewContext === context ? preview : undefined,
     error,
     issues,
     busy,
     filename,
     pasted,
-    setPasted,
-    providers,
+    setPasted: (value: string) => {
+      reset();
+      setPasted(value);
+    },
+    reset,
     upload,
     template,
     demo,

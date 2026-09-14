@@ -43,6 +43,23 @@ it("rejects incompatible quarter hours without modifying the draft", () => {
   expect(() => changeResolution(quarters, old.points, 60)).toThrow("Cannot merge");
   expect(JSON.stringify(quarters)).toBe(before);
 });
+it("merges numerically equivalent formatting without changing energy", () => {
+  const old = draft();
+  const quarters = { ...old, ...changeResolution(old, grid(15, 96), 15) };
+  quarters.prices[0] = "-5.00";
+  quarters.orders[1].volume = "20.00";
+  quarters.orders[1].limit = "0.00";
+  expect(changeResolution(quarters, old.points, 60).orders).toHaveLength(1);
+});
+it("does not merge different quarter-hour power or availability", () => {
+  const old = draft();
+  const quarters = { ...old, ...changeResolution(old, grid(15, 96), 15) };
+  quarters.orders[1].volume = "10";
+  expect(() => changeResolution(quarters, old.points, 60)).toThrow("Cannot merge");
+  quarters.orders[1].volume = "20";
+  quarters.battery.unavailable_intervals = [8];
+  expect(() => changeResolution(quarters, old.points, 60)).toThrow("Cannot merge");
+});
 it("preserves missing prices and supports the 25-hour DST day", () => {
   const old = draft();
   old.points = grid(60, 25, "2026-10-24T22:00:00Z");

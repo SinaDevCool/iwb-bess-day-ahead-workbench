@@ -11,6 +11,28 @@ vi.mock("./dialog", () => ({
 }));
 const points = [{ timestamp_utc: "2026-09-08T22:00:00Z", price_eur_mwh: 55 }];
 afterEach(cleanup);
+it("switches methods, reviews an example, and returns without applying", async () => {
+  vi.mocked(api).mockResolvedValue({ points });
+  const apply = vi.fn(),
+    cancel = vi.fn();
+  render(
+    <ForecastLoader date="2026-09-09" minutes={60} points={points} apply={apply} cancel={cancel} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Paste CSV" }));
+  expect(screen.queryByLabelText("Choose CSV file")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Paste forecast CSV"), { target: { value: "my csv" } });
+  fireEvent.click(screen.getByRole("button", { name: "Example data" }));
+  fireEvent.click(screen.getByRole("button", { name: "Preview example" }));
+  await screen.findByText(/Ready to use/);
+  expect(screen.queryByRole("button", { name: "Upload CSV" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Choose another source" }));
+  expect(screen.queryByRole("button", { name: "Apply forecast" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Paste CSV" }));
+  expect(screen.getByLabelText("Paste forecast CSV")).toHaveValue("my csv");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(cancel).toHaveBeenCalledOnce();
+  expect(apply).not.toHaveBeenCalled();
+});
 beforeEach(() => {
   vi.mocked(api).mockReset();
   vi.mocked(api).mockResolvedValue({
@@ -31,8 +53,7 @@ it("validates an uploaded file on the server and applies only on confirmation", 
       cancel={vi.fn()}
     />,
   );
-  await screen.findByText("Volue");
-  expect(screen.getByRole("button", { name: "Not connected" })).toBeDisabled();
+  expect(api).not.toHaveBeenCalled();
   const preview = {
     points,
     forecast: {
@@ -48,7 +69,7 @@ it("validates an uploaded file on the server and applies only on confirmation", 
   fireEvent.change(screen.getByLabelText("Choose CSV file"), {
     target: { files: [file] },
   });
-  await screen.findByText(/1\/1 intervals validated/);
+  await screen.findByText(/Ready to use/);
   expect(api).toHaveBeenLastCalledWith(
     "/api/forecast/import?delivery_date=2026-09-09&product_minutes=60",
     expect.objectContaining({ method: "POST", body: file }),
@@ -68,7 +89,6 @@ it("does not replace the forecast when validation fails", async () => {
       cancel={vi.fn()}
     />,
   );
-  await screen.findByText("Volue");
   vi.mocked(api).mockRejectedValueOnce(new Error("Missing delivery interval"));
   fireEvent.change(screen.getByLabelText("Choose CSV file"), {
     target: { files: [new File(["bad"], "bad.csv")] },
@@ -76,6 +96,6 @@ it("does not replace the forecast when validation fails", async () => {
   await waitFor(() =>
     expect(screen.getByRole("alert")).toHaveTextContent("Missing delivery interval"),
   );
-  expect(screen.getByRole("button", { name: "Apply forecast" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Apply forecast" })).not.toBeInTheDocument();
   expect(apply).not.toHaveBeenCalled();
 });

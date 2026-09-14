@@ -1,14 +1,11 @@
+@import "./forecast-loader.css";
 /* unified: editor-and-history. Ordered by the parent manifest. */
-.forecast-downloads,
 .forecast-edit-toolbar,
 .forecast-chart-legend {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-}
-.forecast-downloads {
-  margin-bottom: 12px;
 }
 .forecast-filename {
   overflow-wrap: anywhere;
@@ -170,7 +167,6 @@
   display: grid;
   gap: 18px;
 }
-.provider-row,
 .history-pagination {
   display: flex;
   align-items: center;

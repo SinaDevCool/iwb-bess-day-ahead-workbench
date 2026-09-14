@@ -76,7 +76,7 @@ export function WorkspaceDialogs({
         </Dialog>
       )}
       {modal === "load-forecast" && (
-        <Dialog title="Load Day-Ahead price forecast" close={() => setModal(null)}>
+        <Dialog title="Replace price forecast" close={() => setModal(null)} wide>
           <ForecastLoader
             key={`${draft.date}-${draft.market.product_minutes}`}
             date={draft.date}

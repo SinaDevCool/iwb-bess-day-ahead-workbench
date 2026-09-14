@@ -13,6 +13,8 @@ export function changeResolution(draft: Draft, points: Point[], minutes: 15 | 60
   const baseline = source?.length === draft.points.length ? source : undefined;
   const originals: number[] = [];
   const unavailable: number[] = [];
+  const numeric = (value: string) =>
+    value.trim() !== "" && Number.isFinite(Number(value)) ? Number(value) : value;
   const signature = (index: number) =>
     JSON.stringify(
       draft.orders
@@ -20,8 +22,8 @@ export function changeResolution(draft: Draft, points: Point[], minutes: 15 | 60
         .map(({ side, orderType, volume, limit, origin, protected: locked, generationId }) => ({
           side,
           orderType,
-          volume,
-          limit,
+          volume: numeric(volume),
+          limit: orderType === "MARKET" ? null : numeric(limit),
           origin: origin ?? "manual",
           protected: locked ?? true,
           generationId,
@@ -39,7 +41,7 @@ export function changeResolution(draft: Draft, points: Point[], minutes: 15 | 60
     if (
       overlaps.some(
         (i) =>
-          draft.prices[i] !== draft.prices[first] ||
+          numeric(draft.prices[i]) !== numeric(draft.prices[first]) ||
           signature(i) !== signature(first) ||
           draft.battery.unavailable_intervals.includes(i) !==
             draft.battery.unavailable_intervals.includes(first),

@@ -86,7 +86,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
       setConfirmation({
         message:
           value === draft.date
-            ? "Change product duration? Hourly inputs are split into quarter-hours at the same MW and price, preserving energy. Quarter-hours can merge only if their prices, orders and availability match. Re-simulate afterwards; you can undo this change."
+            ? "Convert product duration without re-optimizing? Hourly orders split into four quarter-hours at the same MW and price, preserving energy. Quarters merge only when their prices, orders and availability match. Use Re-optimize afterwards for new suggestions, or Simulate orders to evaluate the converted orders. You can undo this change."
             : "Move existing orders to the same market delivery times on the new date? Forecast and interval availability will be cleared; other battery settings are preserved. Load a new forecast and re-simulate. You can undo this change.",
         action: () => void changeDate(value, true, minutes),
       });
@@ -106,7 +106,7 @@ export function useReplacementActions(context: ReplacementActionContext) {
         change(replacement);
         setSelected("");
         setNotice(
-          "Product duration changed. Orders and forecast preserved; re-simulate to update the schedule.",
+          "Product duration converted—not re-optimized. Use Re-optimize → Improve suggestions to calculate new quantities for this product, or Simulate orders to evaluate the converted orders. Splitting hourly prices does not create a new quarter-hour forecast.",
         );
         return;
       }

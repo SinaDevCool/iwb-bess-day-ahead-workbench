@@ -1,0 +1,55 @@
+.forecast-methods,
+.forecast-review-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.forecast-methods button {
+  flex: 1;
+}
+.forecast-methods button[aria-pressed="true"] {
+  border-color: #237d78;
+  background: #e6f3f1;
+  color: #174d49;
+}
+.forecast-format {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+.forecast-format > button {
+  justify-self: start;
+}
+.forecast-review-heading h3 {
+  overflow-wrap: anywhere;
+  margin: 0;
+  min-width: 0;
+}
+.forecast-review-heading span {
+  color: #246347;
+  font-weight: 600;
+}
+.forecast-loader textarea {
+  display: block;
+  width: 100%;
+  min-height: 150px;
+  margin: 12px 0;
+}
+.ws-dialog .forecast-loader p {
+  margin: 0;
+}
+.ws-dialog .forecast-loader .secondary {
+  margin: 0;
+}
+.ws-dialog .forecast-loader details {
+  padding: 6px 0;
+}
+.forecast-loader > section {
+  margin: 0;
+}
+.forecast-loader [aria-label="Choose forecast source"] > section {
+  margin: 12px 0;
+}
