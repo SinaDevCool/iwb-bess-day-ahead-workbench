@@ -41,7 +41,7 @@ Automated acceptance verified on 14 September 2026:
 
 The physically excluded case reports only the remaining schedule's contribution; it is not a feasible improvement. Corrected throughput is 53.759 MWh. The regression reconciles interval contributions and final stored energy with the summary, and verifies that simulation preserves entered orders.
 
-Validation: 231 backend tests and 174 frontend tests passed, along with lint, type checking, formatting, structure checks and the production build. The local browser demonstration was attempted but could not be completed because the existing local server returned an empty response; the table above records automated API acceptance, not a completed browser walkthrough.
+Validation: 231 backend tests and 174 frontend tests passed, along with lint, type checking, formatting, structure checks and the production build. After a local-server connection failure, the complete browser demonstration was verified on the deployed workbench on 14 September 2026: CSV paste and preview/apply, all three manual tickets, price rejection evidence, limit correction, outdated-result indication, physical exclusion evidence and restoration. All four displayed contributions matched the table above; rounded throughput and stored energy matched the API results. The main button displayed **Simulate battery dispatch**. No live exchange orders were submitted.
 
 ## Boundaries to explain
 
