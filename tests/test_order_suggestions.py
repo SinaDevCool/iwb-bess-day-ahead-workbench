@@ -141,3 +141,18 @@ def test_order_provenance_survives_saved_result_without_changing_dispatch():
     assert restored.origin == "suggested"
     assert restored.protected is False
     assert restored.generation_id == "generation-a"
+
+
+def test_suggestion_solver_has_bounded_deployment_runtime(monkeypatch):
+    from backend.optimization import milp_optimizer
+
+    original = milp_optimizer.milp
+    observed = []
+
+    def recording_solver(**kwargs):
+        observed.append(kwargs["options"]["time_limit"])
+        return original(**kwargs)
+
+    monkeypatch.setattr(milp_optimizer, "milp", recording_solver)
+    assert suggest_orders(case()).validation.feasible
+    assert observed == [20]

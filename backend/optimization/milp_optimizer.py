@@ -34,7 +34,9 @@ def optimize_dispatch(
             # A single solver thread keeps execution deterministic and avoids native
             # HiGHS worker teardown races when FastAPI tests create short-lived portals.
             options={
-                "time_limit": 5,
+                # Quarter-hour suggestion models include discrete volume variables;
+                # allow a bounded longer solve on smaller deployment instances.
+                "time_limit": 20 if fixed_power is not None else 5,
                 "mip_rel_gap": 1e-3 if fixed_power is not None else 1e-9,
                 "threads": 1,
             },
