@@ -1,6 +1,6 @@
 import type { intervalEvidence } from "@/lib/interval-evidence";
 import { n } from "./columns";
-import { OrderStatus } from "../workspace/order-presentation";
+import { OrderStatus, isPhysicallyRejected } from "../workspace/order-presentation";
 import { AtLimit } from "../workspace/at-limit";
 import { useDisplayTimezone } from "../workspace/time-preference";
 import { deliveryTime } from "@/lib/time-presentation";
@@ -84,7 +84,10 @@ export function IntervalOrderDetails({
                     order.order_type === "LIMIT" &&
                     outcome.forecast_price_eur_mwh === order.limit_price_eur_mwh;
                   return (
-                    <tr key={order.client_order_id}>
+                    <tr
+                      key={order.client_order_id}
+                      className={isPhysicallyRejected(outcome) ? "physical-rejection" : ""}
+                    >
                       <td>
                         {order.side} · {order.order_type === "MARKET" ? "Market" : "Limit"}
                       </td>

@@ -5,6 +5,7 @@ import { IntervalResultsTable } from "@/components/interval-results-table";
 import type { OrderSimulation } from "@/types/api";
 import { SimulationVerdict } from "./simulation-verdict";
 import { simulationPresentation } from "@/lib/simulation-presentation";
+import { isPhysicallyRejected } from "./order-presentation";
 import { useEffect, useMemo, useState } from "react";
 
 export function SimulationResults({
@@ -14,6 +15,7 @@ export function SimulationResults({
   onSelection,
   onEditOrder,
   onRestore,
+  onReviewOrders,
 }: {
   result: OrderSimulation;
   stale?: boolean;
@@ -21,11 +23,14 @@ export function SimulationResults({
   onSelection?: (timestamp: string, orderId?: string) => void;
   onEditOrder?: (id: string) => void;
   onRestore?: () => void;
+  onReviewOrders?: () => void;
 }) {
   const ordered = useMemo(
     () =>
-      [...result.order_results].sort((a, b) =>
-        a.submitted_order.delivery_start_utc.localeCompare(b.submitted_order.delivery_start_utc),
+      [...result.order_results].sort(
+        (a, b) =>
+          Date.parse(a.submitted_order.delivery_start_utc) -
+          Date.parse(b.submitted_order.delivery_start_utc),
       ),
     [result],
   );
@@ -49,6 +54,21 @@ export function SimulationResults({
   const selectedInterval =
     selection?.simulationId === result.simulation_id ? selection.timestamp : undefined;
   const setSelectedInterval = (value: string) => onSelection?.(value);
+  const blocked = ordered.filter(isPhysicallyRejected);
+  const needsAttention =
+    blocked.length > 0 ||
+    !result.submitted_portfolio_feasible ||
+    !result.executed_schedule_feasible;
+  const action = needsAttention
+    ? !stale && blocked.length && onEditOrder
+      ? {
+          label: blocked.length === 1 ? "Edit order" : "Edit orders",
+          onClick: () => onEditOrder(blocked[0].submitted_order.client_order_id),
+        }
+      : onReviewOrders
+        ? { label: stale ? "Review current orders" : "Review orders", onClick: onReviewOrders }
+        : undefined
+    : undefined;
   return (
     <div className="simulation-results">
       {stale && onRestore && (
@@ -68,7 +88,7 @@ export function SimulationResults({
           Interval Detail
         </button>
       </div>
-      <SimulationVerdict result={result} stale={stale} compact />
+      <SimulationVerdict result={result} stale={stale} compact action={action} />
 
       {!detailView && (
         <>

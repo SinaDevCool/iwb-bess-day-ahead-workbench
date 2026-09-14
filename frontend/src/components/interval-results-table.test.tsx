@@ -40,6 +40,35 @@ const result = {
     },
   ],
 } as OrderSimulation;
+it.each([15, 60] as const)(
+  "highlights only physical rejections for %s-minute products",
+  (minutes) => {
+    const rejected = {
+      ...result.order_results[0],
+      execution_status: "PHYSICALLY_INFEASIBLE" as const,
+      reason: "Combined interval exceeds charging limit",
+    };
+    const sample = {
+      ...result,
+      market: { ...result.market, product_minutes: minutes },
+      order_results: [rejected],
+    };
+    const { rerender } = render(<IntervalResultsTable result={sample} />);
+    const button = screen.getByRole("button", { name: /BUY MARKET/ });
+    expect(button.closest("tr")).toHaveClass("physical-rejection");
+    expect(screen.getByText("1 blocked")).toBeInTheDocument();
+    fireEvent.click(button);
+    expect(screen.getByText("Physical constraint").closest("tr")).toHaveClass("physical-rejection");
+    expect(button.closest("tr")).toHaveClass("selected");
+    rerender(
+      <IntervalResultsTable
+        result={{ ...sample, order_results: [{ ...rejected, execution_status: "NOT_EXECUTED" }] }}
+      />,
+    );
+    expect(button.closest("tr")).not.toHaveClass("physical-rejection");
+    expect(screen.queryByText("1 blocked")).not.toBeInTheDocument();
+  },
+);
 it("shows one schedule row with separate expandable execution evidence", () => {
   const select = vi.fn();
   render(<IntervalResultsTable result={result} onSelect={select} />);

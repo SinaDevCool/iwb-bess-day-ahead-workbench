@@ -1,7 +1,12 @@
 import { Fragment, type ReactNode, type RefObject } from "react";
 import type { OrderSimulation } from "@/types/api";
 import type { Draft } from "./workspace-types";
-import { OrderStatus, orderNumber, deliveryLabel } from "./order-presentation";
+import {
+  OrderStatus,
+  orderNumber,
+  deliveryLabel,
+  isPhysicallyRejected,
+} from "./order-presentation";
 import { useDisplayTimezone } from "./time-preference";
 
 type Props = {
@@ -59,7 +64,7 @@ export function OrdersTable({
               return (
                 <Fragment key={order.id}>
                   <tr
-                    className={selected === order.id ? "selected" : ""}
+                    className={`${selected === order.id ? "selected" : ""} ${!dirty && isPhysicallyRejected(outcome) ? "physical-rejection" : ""}`}
                     onClick={(event) => {
                       if (
                         (event.target as HTMLElement).closest("button, a, input, select") ||

@@ -213,6 +213,7 @@ function WorkbenchContent() {
                     })
                   }
                   onEditOrder={context.editResultOrder}
+                  onReviewOrders={() => context.navigate("orders")}
                   onRestore={() => void context.restore(result.simulation_id, "ORDER_SIMULATION")}
                 />
               ) : (

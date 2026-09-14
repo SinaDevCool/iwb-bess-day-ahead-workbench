@@ -2,6 +2,9 @@ import { CheckCircle2, Circle, AlertCircle, MinusCircle } from "lucide-react";
 import type { SimulatedOrderResult } from "@/types/api";
 import { deliveryTime } from "@/lib/time-presentation";
 
+export const isPhysicallyRejected = (outcome?: SimulatedOrderResult) =>
+  outcome?.execution_status === "PHYSICALLY_INFEASIBLE";
+
 /** Labels never re-evaluate execution: saved outcomes come from the backend. */
 export function orderStatus(outcome?: SimulatedOrderResult, stale = false, invalid = false) {
   if (invalid) return { label: "Check input", tone: "failed", Icon: AlertCircle };

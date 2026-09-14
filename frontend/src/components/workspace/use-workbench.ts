@@ -73,7 +73,10 @@ export function useWorkbench() {
     navigate("schedule");
   };
   const editResultOrder = (orderId: string) => {
-    if (dirty || !draft?.orders.some((order) => order.id === orderId)) return;
+    if (dirty || !draft?.orders.some((order) => order.id === orderId)) {
+      navigate("orders");
+      return;
+    }
     setSelected(orderId);
     navigate("orders");
   };

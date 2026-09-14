@@ -7,10 +7,12 @@ export function SimulationVerdict({
   result,
   stale = false,
   compact = false,
+  action,
 }: {
   result: OrderSimulation;
   stale?: boolean;
   compact?: boolean;
+  action?: { label: string; onClick: () => void };
 }) {
   const view = simulationPresentation(result, stale);
   const Icon =
@@ -23,11 +25,16 @@ export function SimulationVerdict({
           <strong>{view.title}</strong>
           <small>
             {compact && !stale && result.summary.infeasible_order_count > 0
-              ? `${result.summary.infeasible_order_count} orders excluded from the displayed schedule. ${result.executed_schedule_feasible ? "Review the order outcomes." : "The remaining schedule also needs correction. Review the order outcomes."}`
+              ? `${result.summary.infeasible_order_count} ${result.summary.infeasible_order_count === 1 ? "order" : "orders"} excluded from the displayed schedule. ${result.executed_schedule_feasible ? "Review the order outcomes." : "The remaining schedule also needs correction. Review the order outcomes."}`
               : view.detail}
           </small>
         </span>
       </div>
+      {action && (
+        <button className="secondary verdict-action" onClick={action.onClick}>
+          {action.label} →
+        </button>
+      )}
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { alignment, choices, clock, defaults, n, type Column } from "./interval-
 import { IntervalOrderDetails } from "./interval-table/order-details";
 import { useColumns } from "./interval-table/use-columns";
 import { useDisplayTimezone } from "./workspace/time-preference";
+import { isPhysicallyRejected } from "./workspace/order-presentation";
+import { AlertCircle } from "lucide-react";
 
 export function IntervalResultsTable({
   result,
@@ -102,6 +104,7 @@ export function IntervalResultsTable({
           </thead>
           <tbody>
             {rows.map((row) => {
+              const blocked = row.orders.filter(isPhysicallyRejected).length;
               const values: Record<Column, string> = {
                 forecast: n(row.price_eur_mwh),
                 action: row.action,
@@ -117,7 +120,7 @@ export function IntervalResultsTable({
               return (
                 <tr
                   key={row.id}
-                  className={expanded === row.id ? "selected interval-row" : "interval-row"}
+                  className={`interval-row ${expanded === row.id ? "selected" : ""} ${blocked ? "physical-rejection" : ""}`}
                   onClick={(event) => {
                     if (
                       !window.getSelection()?.toString() &&
@@ -162,6 +165,11 @@ export function IntervalResultsTable({
                         <small>
                           {row.orders.filter((o) => o.execution_status === "EXECUTED").length}{" "}
                           executed
+                          {blocked > 0 && (
+                            <span className="blocked-count">
+                              <AlertCircle size={13} aria-hidden="true" /> {blocked} blocked
+                            </span>
+                          )}
                         </small>
                       </button>
                     ) : (
