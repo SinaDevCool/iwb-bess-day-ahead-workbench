@@ -10,6 +10,7 @@ export type Draft = {
   prices: string[];
   orders: DraftOrderInput[];
   sourceProposalId?: string;
+  suggestionIdentity?: string;
   forecast?: OrderSimulation["forecast"];
 };
 export type Preview = {

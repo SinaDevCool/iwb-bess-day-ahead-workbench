@@ -17,7 +17,15 @@ export function changeResolution(draft: Draft, points: Point[], minutes: 15 | 60
     JSON.stringify(
       draft.orders
         .filter((order) => order.interval === index)
-        .map(({ side, orderType, volume, limit }) => ({ side, orderType, volume, limit }))
+        .map(({ side, orderType, volume, limit, origin, protected: locked, generationId }) => ({
+          side,
+          orderType,
+          volume,
+          limit,
+          origin: origin ?? "manual",
+          protected: locked ?? true,
+          generationId,
+        }))
         .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
     );
   points.forEach((point, index) => {

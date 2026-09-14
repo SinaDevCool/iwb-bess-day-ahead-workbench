@@ -32,6 +32,18 @@ export function OrderTicket({ outcome, stale, close, locate, prices, remove, ...
         </button>
       </div>
       <OrderRow {...fields} />
+      {fields.order.origin === "suggested" ? (
+        <label className="order-protection">
+          <input
+            type="checkbox"
+            checked={fields.order.protected !== false}
+            onChange={(e) => fields.update(fields.order.id, { protected: e.target.checked })}
+          />
+          Keep unchanged during re-optimization
+        </label>
+      ) : (
+        <p className="ws-help">Manual order · kept unchanged</p>
+      )}
       <OrderPriceEvidence order={fields.order} prices={prices} />
       <section className="order-evidence" aria-label="Last simulation outcome">
         <h4>Simulation</h4>

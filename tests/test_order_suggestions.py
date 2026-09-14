@@ -104,3 +104,40 @@ def test_nonpositive_forecasts(price):
     request = case()
     request.price_values = [price] * 12 + [100] * 12
     assert suggest_orders(request).validation.feasible
+
+
+@pytest.mark.parametrize("minutes", [15, 60])
+def test_revision_after_manual_charge_keeps_manual_order_and_replaces_old_suggestions(minutes):
+    from backend.services.order_suggestion_validation import evaluate
+
+    request = case(minutes)
+    original = suggest_orders(request)
+    manual = order(request, 2 * 60 // minutes, volume=13)
+    request.orders = [manual]
+    revised = suggest_orders(request)
+    assert revised.validation.feasible
+    assert request.orders == [manual]
+    combined = request.model_copy(update={"orders": [manual, *revised.orders]})
+    simulation = evaluate(combined)
+    assert simulation.submitted_portfolio_feasible
+    assert simulation.submitted_orders[0] == manual
+    old_quantities = [(o.delivery_start_utc, o.side, o.volume_mw) for o in original.orders]
+    new_quantities = [(o.delivery_start_utc, o.side, o.volume_mw) for o in revised.orders]
+    assert old_quantities != new_quantities
+
+
+def test_order_provenance_survives_saved_result_without_changing_dispatch():
+    from backend.services.order_suggestion_validation import evaluate
+
+    request = case()
+    request.orders = [order(request, 0)]
+    before = evaluate(request)
+    request.orders[0].origin = "suggested"
+    request.orders[0].protected = False
+    request.orders[0].generation_id = "generation-a"
+    after = evaluate(request)
+    assert after.dispatch == before.dispatch
+    restored = SubmittedOrder.model_validate(after.submitted_orders[0].model_dump())
+    assert restored.origin == "suggested"
+    assert restored.protected is False
+    assert restored.generation_id == "generation-a"

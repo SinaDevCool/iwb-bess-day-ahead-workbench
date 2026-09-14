@@ -15,7 +15,14 @@ export const calculationInputs = (draft: Draft) => ({
 export const calculationIdentity = (draft: Draft) =>
   JSON.stringify({
     ...calculationInputs(draft),
-    orders: draft.orders,
+    orders: draft.orders.map(({ id, interval, side, orderType, volume, limit }) => ({
+      id,
+      interval,
+      side,
+      orderType,
+      volume,
+      limit,
+    })),
   });
 /** Old sessions stored the complete draft as their result key. Migrate that key, not live inputs. */
 export function restoredResultKey(key: string) {
@@ -37,6 +44,9 @@ export const fromOrders = (orders: SubmittedOrder[], points: Point[]): DraftOrde
     orderType: o.order_type,
     volume: String(o.volume_mw),
     limit: o.limit_price_eur_mwh == null ? "" : String(o.limit_price_eur_mwh),
+    origin: o.origin ?? "manual",
+    protected: o.protected ?? true,
+    generationId: o.generation_id,
   }));
 export function examples(minutes: 15 | 60 = 60): DraftOrderInput[] {
   return [
@@ -81,5 +91,8 @@ export const orderRequest = (snapshot: Draft) => ({
     order_type: o.orderType,
     volume_mw: Number(o.volume),
     limit_price_eur_mwh: o.orderType === "LIMIT" ? Number(o.limit) : null,
+    origin: o.origin ?? "manual",
+    protected: o.protected ?? true,
+    generation_id: o.generationId,
   })),
 });

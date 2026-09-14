@@ -5,6 +5,9 @@ import { SuggestionSummary } from "./suggestion-summary";
 import { Dialog, DialogActions, useDialogCloseGuard } from "./dialog";
 import { useOrderSuggestions } from "./use-order-suggestions";
 import type { Draft } from "./workspace-types";
+import { fromOrders } from "./workspace-adapters";
+import { replaceable, revisionRows } from "./suggestion-revision";
+import { SuggestionRevisionTable } from "./suggestion-revision-table";
 
 function CloseGuard({ busy }: { busy: boolean }) {
   useDialogCloseGuard(() => !busy);
@@ -16,21 +19,41 @@ export function OrderSuggestionsDialog({
   draft,
   close,
   add,
+  replacing = false,
+  reviewProtected,
 }: {
   draft: Draft;
   close: () => void;
   add: (orders: SubmittedOrder[]) => void;
+  replacing?: boolean;
+  reviewProtected?: () => void;
 }) {
-  const state = useOrderSuggestions(draft);
+  const state = useOrderSuggestions(draft, replacing);
+  const rows = state.preview
+    ? revisionRows(draft.orders.filter(replaceable), fromOrders(state.preview.orders, draft.points))
+    : [];
+  const changed = rows.some((row) => row.change !== "Unchanged");
   return (
-    <Dialog title="Suggested additional orders" close={close} wide>
+    <Dialog
+      title={replacing ? "Review revised suggestions" : "Suggested additional orders"}
+      close={close}
+      wide
+    >
       <CloseGuard busy={state.applying} />
-      <p>Your existing orders stay unchanged. Select the additions you want to include.</p>
+      <p>
+        {replacing
+          ? "Your manual and protected orders stay unchanged. Applying replaces the previous unlocked suggestions as one set."
+          : "Your existing orders stay unchanged. Select the additions you want to include."}
+      </p>
       <p className="ws-help">
         Limit suggestions use the entered forecast and battery constraints. Actual auction execution
         is not guaranteed.
       </p>
-      {state.generating && <p role="status">Calculating additions with MILP…</p>}
+      {state.generating && (
+        <p role="status">
+          {replacing ? "Re-optimizing suggestions with MILP…" : "Calculating additions with MILP…"}
+        </p>
+      )}
       {state.error && (
         <p role="alert" className="ws-error">
           {state.error}
@@ -39,10 +62,25 @@ export function OrderSuggestionsDialog({
       {state.stale && (
         <p role="alert">Inputs changed. Close this preview and generate new suggestions.</p>
       )}
-      {state.preview && !state.preview.orders.length && (
+      {state.error && reviewProtected && (
+        <button className="secondary small" onClick={reviewProtected} disabled={state.applying}>
+          Review protected orders
+        </button>
+      )}
+      {state.error && !state.stale && (
+        <button
+          className="secondary small"
+          onClick={state.retry}
+          disabled={state.generating || state.applying}
+        >
+          Retry calculation
+        </button>
+      )}
+      {replacing && state.preview && <SuggestionRevisionTable draft={draft} rows={rows} />}
+      {!replacing && state.preview && !state.preview.orders.length && (
         <p role="status">No useful additional orders found for this case.</p>
       )}
-      {!!state.preview?.orders.length && (
+      {!replacing && !!state.preview?.orders.length && (
         <>
           <div className="suggestion-toolbar">
             <strong>
@@ -92,12 +130,16 @@ export function OrderSuggestionsDialog({
             state.applying ||
             state.stale ||
             !!state.error ||
-            !state.selected.length ||
+            (replacing ? !changed : !state.selected.length) ||
             !state.result?.feasible
           }
           onClick={() => void state.accept(add)}
         >
-          {state.applying ? "Checking…" : "Add selected orders"}
+          {state.applying
+            ? "Checking…"
+            : replacing
+              ? "Apply revised suggestions"
+              : "Add selected orders"}
         </button>
       </DialogActions>
     </Dialog>

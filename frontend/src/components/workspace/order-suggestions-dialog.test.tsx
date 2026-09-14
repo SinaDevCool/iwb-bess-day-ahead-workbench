@@ -79,3 +79,73 @@ it("does not append a subset that fails final validation", async () => {
   await screen.findByText("Insufficient stored energy");
   expect(add).not.toHaveBeenCalled();
 });
+it("re-optimizes only the protected baseline and applies a complete revision", async () => {
+  const old = {
+    id: "old",
+    interval: 0,
+    side: "BUY" as const,
+    orderType: "LIMIT" as const,
+    volume: "20",
+    limit: "40",
+    origin: "suggested" as const,
+    protected: false,
+  };
+  const manual = { ...old, id: "manual", volume: "13", origin: "manual" as const, protected: true };
+  vi.mocked(api).mockImplementation(async (path) =>
+    path === "/api/order-suggestions"
+      ? { input_hash: "h", orders: [suggestion], validation: valid }
+      : valid,
+  );
+  const add = vi.fn();
+  render(
+    <OrderSuggestionsDialog
+      draft={{ ...draft, orders: [manual, old] }}
+      replacing
+      add={add}
+      close={vi.fn()}
+    />,
+  );
+  const button = await screen.findByRole("button", { name: "Apply revised suggestions" });
+  await waitFor(() => expect(button).toBeEnabled());
+  expect(screen.queryByRole("button", { name: "Clear selection" })).not.toBeInTheDocument();
+  expect(screen.getByText("Updated")).toBeInTheDocument();
+  const body = JSON.parse(vi.mocked(api).mock.calls[0][1]!.body as string);
+  expect(body.orders.map((o: { client_order_id: string }) => o.client_order_id)).toEqual([
+    "manual",
+  ]);
+  fireEvent.click(button);
+  await waitFor(() => expect(add).toHaveBeenCalledWith([suggestion]));
+});
+it("permits a validated empty replacement to remove obsolete suggestions", async () => {
+  vi.mocked(api).mockImplementation(async (path) =>
+    path === "/api/order-suggestions" ? { input_hash: "h", orders: [], validation: valid } : valid,
+  );
+  const add = vi.fn();
+  render(
+    <OrderSuggestionsDialog
+      draft={{
+        ...draft,
+        orders: [
+          {
+            id: "old",
+            interval: 0,
+            side: "BUY",
+            orderType: "LIMIT",
+            volume: "20",
+            limit: "40",
+            origin: "suggested",
+            protected: false,
+          },
+        ],
+      }}
+      replacing
+      add={add}
+      close={vi.fn()}
+    />,
+  );
+  const button = screen.getByRole("button", { name: "Apply revised suggestions" });
+  await waitFor(() => expect(button).toBeEnabled());
+  expect(screen.getByText("Removed")).toBeInTheDocument();
+  fireEvent.click(button);
+  await waitFor(() => expect(add).toHaveBeenCalledWith([]));
+});

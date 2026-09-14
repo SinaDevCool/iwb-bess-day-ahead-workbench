@@ -7,6 +7,9 @@ export type DraftOrderInput = {
   orderType: "MARKET" | "LIMIT";
   volume: string;
   limit: string;
+  origin?: "manual" | "suggested";
+  protected?: boolean;
+  generationId?: string;
 };
 export type FieldIssues = Record<string, string>;
 

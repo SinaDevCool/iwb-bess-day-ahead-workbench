@@ -8,7 +8,7 @@ import { useOrderLayout } from "./use-order-layout";
 import type { ReadyWorkbench } from "./use-workbench";
 import { AddOrderDialog } from "./add-order-dialog";
 import { OrderSuggestionsDialog } from "./order-suggestions-dialog";
-import { fromOrders } from "./workspace-adapters";
+import { applySuggestions, replaceable, suggestionIdentity } from "./suggestion-revision";
 
 /** Orchestrates selection only; every edit updates the existing shared case draft. */
 export function OrdersView({
@@ -55,6 +55,7 @@ export function OrdersView({
   const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const { layoutRef, wide } = useOrderLayout(view);
   const current = draft.orders.find((order) => order.id === selected);
+  const replacing = draft.orders.some(replaceable);
   const ticket = current && (
     <OrderTicket
       orders={draft.orders}
@@ -75,7 +76,9 @@ export function OrdersView({
       locate={() => showOrderOnSchedule(current.id)}
       update={(oid, patch) =>
         change({
-          orders: draft.orders.map((order) => (order.id === oid ? { ...order, ...patch } : order)),
+          orders: draft.orders.map((order) =>
+            order.id === oid ? { ...order, ...patch, protected: patch.protected ?? true } : order,
+          ),
         })
       }
       remove={(order) => {
@@ -92,13 +95,22 @@ export function OrdersView({
         {suggesting && (
           <OrderSuggestionsDialog
             draft={draft}
+            replacing={replacing}
+            reviewProtected={() => {
+              setSuggesting(false);
+              setSelected(draft.orders.find((o) => !replaceable(o))?.id ?? "");
+            }}
             close={() => setSuggesting(false)}
             add={(orders) => {
               setUndo(draft);
-              change({ orders: [...draft.orders, ...fromOrders(orders, draft.points)] });
+              const next = applySuggestions(draft, orders, replacing);
+              change(next);
+              if (!next.orders.some((o) => o.id === selected)) setSelected("");
               setSuggesting(false);
               context.setNotice(
-                `Added ${orders.length} suggested orders. Simulate to update the schedule.`,
+                replacing
+                  ? "Suggestions updated. Simulate orders to calculate the revised schedule."
+                  : `Added ${orders.length} suggested orders. Simulate to update the schedule.`,
               );
             }}
           />
@@ -113,7 +125,9 @@ export function OrdersView({
             close={() => setAdding(false)}
             add={(order) => {
               setUndo(draft);
-              change({ orders: [...draft.orders, order] });
+              change({
+                orders: [...draft.orders, { ...order, origin: "manual", protected: true }],
+              });
               setAdding(false);
               setSelected(order.id);
             }}
@@ -144,11 +158,18 @@ export function OrdersView({
                   if (context.validate()) setSuggesting(true);
                 }}
               >
-                Suggest additional orders
+                {replacing ? "Re-optimize suggestions" : "Suggest orders"}
               </button>
             </div>
           </div>
           <p className="orders-caption">Entered orders · simulated outcomes</p>
+          {draft.suggestionIdentity &&
+            draft.orders.some((o) => o.origin === "suggested") &&
+            draft.suggestionIdentity !== suggestionIdentity(draft) && (
+              <p className="ws-help" role="status">
+                Inputs changed since suggestions were calculated.
+              </p>
+            )}
           <div ref={layoutRef} className="orders-layout" data-docked={Boolean(wide && current)}>
             <OrdersTable
               draft={draft}

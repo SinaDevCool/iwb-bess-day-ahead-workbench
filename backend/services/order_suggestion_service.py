@@ -28,6 +28,7 @@ def suggest_orders(request):
         points, request.battery, request.market, fixed_power=(charge, discharge)
     )
     orders = []
+    generation_id = str(uuid4())
     step = request.market.price_increment_eur_mwh
     lot = request.market.volume_increment_mw
     for t, row in enumerate(dispatch):
@@ -48,6 +49,9 @@ def suggest_orders(request):
                 order_type="LIMIT",
                 volume_mw=volume,
                 limit_price_eur_mwh=round(limit, 8),
+                origin="suggested",
+                protected=False,
+                generation_id=generation_id,
             )
         )
     key = input_hash(request)

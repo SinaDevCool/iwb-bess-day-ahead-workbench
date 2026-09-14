@@ -41,8 +41,17 @@ def optimize_dispatch(
         )
     solve_time_ms = round((time.perf_counter() - started) * 1000, 2)
     if not result.success or result.x is None:
-        detail = result.message or "unknown solver failure"
-        raise ValueError(f"No optimal dispatch found: {detail}")
+        if result.status == 2:
+            raise ValueError(
+                "No feasible completion exists with the protected orders and current battery settings. Review those orders or settings."
+            )
+        if result.status == 1:
+            raise ValueError(
+                "Optimization reached its time limit. Your orders are unchanged. Retry the calculation."
+            )
+        raise ValueError(
+            "Optimization could not complete. Your orders are unchanged. Retry the calculation or review the inputs."
+        )
 
     if fixed_power is not None:
         result.x[: 2 * n] *= market.volume_increment_mw

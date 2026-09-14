@@ -1,4 +1,49 @@
 /* Review surface only; order editing keeps the existing shared workspace styles. */
+.order-protection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 12px 0;
+}
+.order-protection input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: #247f7b;
+}
+.revision-label {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #f2f5f6;
+  color: #405b63;
+  font-size: 12px;
+}
+.revision-added {
+  background: #e9f5f0;
+  color: #24664d;
+}
+.revision-updated {
+  background: #fff5dc;
+  color: #76521b;
+}
+.revision-removed {
+  background: #f7eded;
+  color: #88483c;
+}
+.revision-protected {
+  margin-top: 16px;
+  font-size: 13px;
+}
+.revision-protected ul {
+  max-height: 180px;
+  overflow: auto;
+  line-height: 1.8;
+}
+.revision-table tbody tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48px;
+}
 .suggestion-toolbar {
   display: flex;
   align-items: center;

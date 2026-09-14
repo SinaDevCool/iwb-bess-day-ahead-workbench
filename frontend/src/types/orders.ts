@@ -25,6 +25,9 @@ export type Order = {
 export type SubmittedOrderType = "MARKET" | "LIMIT";
 export type OrderExecutionStatus = "EXECUTED" | "NOT_EXECUTED" | "PHYSICALLY_INFEASIBLE";
 export type SubmittedOrder = {
+  origin?: "manual" | "suggested";
+  protected?: boolean;
+  generation_id?: string;
   client_order_id: string;
   delivery_start_utc: string;
   side: "BUY" | "SELL";

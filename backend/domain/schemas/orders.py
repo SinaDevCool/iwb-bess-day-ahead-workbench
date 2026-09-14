@@ -28,6 +28,9 @@ class SubmittedOrder(BaseModel):
     order_type: SubmittedOrderType
     volume_mw: float = Field(..., gt=0)
     limit_price_eur_mwh: float | None = None
+    origin: Literal["manual", "suggested"] = "manual"
+    protected: bool = True
+    generation_id: str | None = Field(default=None, max_length=100)
 
     @model_validator(mode="after")
     def validate_order_type(self):
