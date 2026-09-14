@@ -73,7 +73,7 @@ def _infeasible(
     )
 
 
-def evaluate_batch(request, eligible, interval, point, soc, throughput):
+def evaluate_batch(request, eligible, interval, point, soc, throughput, evidence=None):
     """Evaluate all accepted same-side orders together; never clip physical volume."""
     dt = request.market.product_minutes / 60
     fee = effective_transaction_fee(request.market)
@@ -127,6 +127,26 @@ def evaluate_batch(request, eligible, interval, point, soc, throughput):
                     "Execution would exceed the configured daily equivalent-cycle budget.",
                 )
 
+    # Capture values where they are calculated; consumers never parse warning text.
+    if evidence is not None and physical_code:
+        values = {
+            "POWER_LIMIT": (volume, power_limit, "MW"),
+        }
+        if economics:
+            values.update(
+                {
+                    "MINIMUM_SOC": (next_soc, request.battery.min_soc_mwh, "MWh"),
+                    "MAXIMUM_SOC": (next_soc, request.battery.max_soc_mwh, "MWh"),
+                    "CYCLE_BUDGET": (
+                        next_throughput,
+                        2 * request.battery.capacity_mwh * request.battery.max_equivalent_cycles,
+                        "MWh",
+                    ),
+                }
+            )
+        if physical_code in values:
+            observed, limit, unit = values[physical_code]
+            evidence.update(observed_value=observed, configured_limit=limit, unit=unit)
     return physical_code, physical_reason, economics
 
 

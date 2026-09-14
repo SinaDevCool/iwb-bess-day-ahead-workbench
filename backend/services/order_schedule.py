@@ -132,8 +132,9 @@ def evaluate_schedule(request: OrderSimulationRequest, points):
         eligible = eligible_orders(orders, point, soc, interval, order_results, findings)
         side = eligible[0].side if eligible else None
         volume = sum(order.volume_mw for order in eligible)
+        evidence = {}
         physical_code, physical_reason, economics = evaluate_batch(
-            request, eligible, interval, point, soc, throughput
+            request, eligible, interval, point, soc, throughput, evidence
         )
 
         if physical_code:
@@ -148,6 +149,7 @@ def evaluate_schedule(request: OrderSimulationRequest, points):
                     code=physical_code.lower(),
                     message=physical_reason,
                     interval=interval,
+                    **evidence,
                 )
             )
             eligible, economics, volume, side = [], [], 0.0, None

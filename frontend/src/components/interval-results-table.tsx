@@ -2,8 +2,8 @@
 import { intervalEvidence } from "@/lib/interval-evidence";
 import type { OrderSimulation, Simulation } from "@/types/api";
 import { Columns3 } from "lucide-react";
-import { Fragment, useState } from "react";
-import { choices, clock, defaults, n, type Column } from "./interval-table/columns";
+import { useRef, useState } from "react";
+import { alignment, choices, clock, defaults, n, type Column } from "./interval-table/columns";
 import { IntervalOrderDetails } from "./interval-table/order-details";
 import { useColumns } from "./interval-table/use-columns";
 import { useDisplayTimezone } from "./workspace/time-preference";
@@ -21,16 +21,31 @@ export function IntervalResultsTable({
 }) {
   const { columns, update } = useColumns();
   const zone = useDisplayTimezone();
-  const [expansion, setExpansion] = useState<{ id?: string; anchor?: string }>();
+  const panel = useRef<HTMLDivElement>(null);
+  const opener = useRef<HTMLButtonElement | null>(null);
+  const [expansion, setExpansion] = useState<{ id?: string; anchor?: string; run: string }>();
   const expanded =
-    expansion && (expansion.anchor === selectedId || expansion.id === selectedId)
+    expansion &&
+    expansion.run === result.simulation_id &&
+    (expansion.anchor === selectedId || expansion.id === selectedId)
       ? expansion.id
       : selectedId;
   const toggle = (id: string) => {
-    setExpansion({ id: expanded === id ? undefined : id, anchor: selectedId });
+    setExpansion({
+      id: expanded === id ? undefined : id,
+      anchor: selectedId,
+      run: result.simulation_id,
+    });
     onSelect?.(id);
+    if (expanded !== id)
+      requestAnimationFrame(() => {
+        const bounds = panel.current?.getBoundingClientRect();
+        if (bounds && (bounds.top < 0 || bounds.bottom > window.innerHeight))
+          panel.current?.scrollIntoView?.({ block: "nearest", behavior: "instant" });
+      });
   };
   const rows = intervalEvidence(result);
+  const selectedRow = rows.find((row) => row.id === expanded);
   const leading = columns.filter((c) => c === "forecast" || c === "action");
   const trailing = columns.filter((c) => c !== "forecast" && c !== "action");
   return (
@@ -73,11 +88,13 @@ export function IntervalResultsTable({
             <tr>
               <th>Delivery</th>
               {leading.map((c) => (
-                <th key={c}>{choices[c]}</th>
+                <th className={alignment(c)} key={c}>
+                  {choices[c]}
+                </th>
               ))}
               <th>Orders</th>
               {trailing.map((c) => (
-                <th className="numeric" key={c}>
+                <th className={alignment(c)} key={c}>
                   {choices[c]}
                 </th>
               ))}
@@ -98,78 +115,84 @@ export function IntervalResultsTable({
                 degradation: n(row.degradation_cost_eur),
               };
               return (
-                <Fragment key={row.id}>
-                  <tr
-                    className={expanded === row.id ? "selected interval-row" : "interval-row"}
-                    onClick={(event) => {
-                      if (
-                        !window.getSelection()?.toString() &&
-                        !(event.target as Element).closest("button, a, input, select")
-                      )
+                <tr
+                  key={row.id}
+                  className={expanded === row.id ? "selected interval-row" : "interval-row"}
+                  onClick={(event) => {
+                    if (
+                      !window.getSelection()?.toString() &&
+                      !(event.target as Element).closest("button, a, input, select")
+                    ) {
+                      opener.current = event.currentTarget.querySelector("button");
+                      toggle(row.id);
+                    }
+                  }}
+                >
+                  <td>
+                    <button
+                      className="ws-row-link"
+                      onClick={(event) => {
+                        opener.current = event.currentTarget;
                         toggle(row.id);
-                    }}
-                  >
-                    <td>
+                      }}
+                      aria-expanded={expanded === row.id}
+                      aria-controls="selected-interval-details"
+                    >
+                      {clock(row.timestamp_utc, zone)}
+                    </button>
+                  </td>
+                  {leading.map((c) => (
+                    <td key={c} className={alignment(c)}>
+                      {values[c]}
+                    </td>
+                  ))}
+                  <td>
+                    {row.orders.length ? (
                       <button
                         className="ws-row-link"
-                        onClick={() => toggle(row.id)}
                         aria-expanded={expanded === row.id}
-                        aria-controls={`interval-${row.id}`}
+                        onClick={(event) => {
+                          opener.current = event.currentTarget;
+                          toggle(row.id);
+                        }}
                       >
-                        {clock(row.timestamp_utc, zone)}
+                        {row.orders.length === 1
+                          ? `${row.orders[0].submitted_order.side} ${row.orders[0].submitted_order.order_type}`
+                          : `${row.orders.length} orders`}
+                        <small>
+                          {row.orders.filter((o) => o.execution_status === "EXECUTED").length}{" "}
+                          executed
+                        </small>
                       </button>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  {trailing.map((c) => (
+                    <td
+                      key={c}
+                      className={`${alignment(c)} ${c === "net" && row.interval_pnl_eur !== 0 ? (row.interval_pnl_eur < 0 ? "negative" : "positive") : ""}`}
+                    >
+                      {values[c]}
                     </td>
-                    {leading.map((c) => (
-                      <td key={c} className={c === "forecast" ? "numeric" : ""}>
-                        {values[c]}
-                      </td>
-                    ))}
-                    <td>
-                      {row.orders.length ? (
-                        <button
-                          className="ws-row-link"
-                          aria-expanded={expanded === row.id}
-                          onClick={() => {
-                            toggle(row.id);
-                          }}
-                        >
-                          {row.orders.length === 1
-                            ? `${row.orders[0].submitted_order.side} ${row.orders[0].submitted_order.order_type}`
-                            : `${row.orders.length} orders`}
-                          <small>
-                            {row.orders.filter((o) => o.execution_status === "EXECUTED").length}{" "}
-                            executed · {expanded === row.id ? "Hide" : "Details"}
-                          </small>
-                        </button>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    {trailing.map((c) => (
-                      <td
-                        key={c}
-                        className={`numeric ${c === "net" ? (row.interval_pnl_eur < 0 ? "negative" : "positive") : ""}`}
-                      >
-                        {values[c]}
-                      </td>
-                    ))}
-                  </tr>
-                  {expanded === row.id && (
-                    <tr>
-                      <td id={`interval-${row.id}`} colSpan={columns.length + 2}>
-                        <IntervalOrderDetails
-                          row={row}
-                          onEditOrder={onEditOrder}
-                          onClose={() => toggle(row.id)}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
+                  ))}
+                </tr>
               );
             })}
           </tbody>
         </table>
+      </div>
+      <div id="selected-interval-details" ref={panel}>
+        {selectedRow && (
+          <IntervalOrderDetails
+            row={selectedRow}
+            onEditOrder={onEditOrder}
+            onClose={() => {
+              toggle(selectedRow.id);
+              opener.current?.focus({ preventScroll: true });
+            }}
+          />
+        )}
       </div>
       <p className="interval-table-note">
         Quantities and contribution reconcile to this saved result.

@@ -1,10 +1,11 @@
 import type { intervalEvidence } from "@/lib/interval-evidence";
 import { n } from "./columns";
 import { OrderStatus } from "../workspace/order-presentation";
+import { AtLimit } from "../workspace/at-limit";
 import { useDisplayTimezone } from "../workspace/time-preference";
 import { deliveryTime } from "@/lib/time-presentation";
 
-/** Interval energy is shared by every order; order fields never imply sequential dispatch. */
+/** Combined states appear once; signed per-order deltas come from backend evidence. */
 export function IntervalOrderDetails({
   row,
   onEditOrder,
@@ -18,7 +19,7 @@ export function IntervalOrderDetails({
   const action =
     row.action === "idle" ? "Idle" : row.action === "charge" ? "Charging" : "Discharging";
   return (
-    <div className="interval-order-details">
+    <section className="interval-order-details" aria-label="Selected interval details">
       <header>
         <h4>
           {deliveryTime(row.timestamp_utc, (row.end - row.start) / 60000, zone)}{" "}
@@ -32,7 +33,7 @@ export function IntervalOrderDetails({
       </header>
       <dl className="interval-detail-values">
         <div>
-          <dt>Stored energy</dt>
+          <dt>Combined stored energy</dt>
           <dd>
             {n(row.socBefore)} → {n(row.soc_mwh)} MWh
           </dd>
@@ -40,66 +41,95 @@ export function IntervalOrderDetails({
         <div>
           <dt>
             {row.action === "charge"
-              ? "Energy charged"
+              ? "Grid energy imported"
               : row.action === "discharge"
-                ? "Energy discharged"
-                : "Energy transferred"}
+                ? "Grid energy exported"
+                : "Grid energy transferred"}
           </dt>
           <dd>{n(Math.abs(row.grid_energy_mwh))} MWh</dd>
         </div>
       </dl>
-      {!row.orders.length && <p>No orders were entered for this interval.</p>}
-      {row.orders.length > 0 && row.action === "idle" && (
-        <p>No battery movement. See the order outcomes below.</p>
+      {!row.orders.length ? (
+        <p>No orders were entered for this interval.</p>
+      ) : (
+        <>
+          {row.action === "idle" && <p>No battery movement. See the order outcomes below.</p>}
+          <div className="table-scroll interval-order-scroll">
+            <table className="interval-order-table">
+              <caption className="sr-only">Order contributions for the selected interval</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Order</th>
+                  <th scope="col" className="numeric">
+                    Executed (MW)
+                  </th>
+                  <th scope="col" className="numeric">
+                    Limit (€/MWh)
+                  </th>
+                  <th scope="col" className="numeric">
+                    Stored-energy change (MWh)
+                  </th>
+                  <th scope="col">Status</th>
+                  {onEditOrder && (
+                    <th scope="col">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {row.orders.map((outcome) => {
+                  const order = outcome.submitted_order;
+                  const atLimit =
+                    order.order_type === "LIMIT" &&
+                    outcome.forecast_price_eur_mwh === order.limit_price_eur_mwh;
+                  return (
+                    <tr key={order.client_order_id}>
+                      <td>
+                        {order.side} · {order.order_type === "MARKET" ? "Market" : "Limit"}
+                      </td>
+                      <td className="numeric">
+                        {n(outcome.executed_volume_mw)}
+                        {outcome.executed_volume_mw !== order.volume_mw && (
+                          <small>Entered {n(order.volume_mw)}</small>
+                        )}
+                      </td>
+                      <td className="numeric">
+                        {order.order_type === "MARKET" ? "No limit" : n(order.limit_price_eur_mwh!)}
+                        {atLimit && <AtLimit />}
+                      </td>
+                      <td className="numeric">
+                        {Number.isFinite(outcome.soc_delta_mwh)
+                          ? (outcome.soc_delta_mwh > 0 ? "+" : "") + n(outcome.soc_delta_mwh)
+                          : "—"}
+                      </td>
+                      <td>
+                        <OrderStatus outcome={outcome} />
+                        {outcome.execution_status !== "EXECUTED" && (
+                          <small className="interval-order-reason">{outcome.reason}</small>
+                        )}
+                      </td>
+                      {onEditOrder && (
+                        <td>
+                          <button
+                            className="secondary small"
+                            aria-label={
+                              "Edit " + order.side.toLowerCase() + " order " + order.client_order_id
+                            }
+                            onClick={() => onEditOrder(order.client_order_id)}
+                          >
+                            Edit order →
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
-      {row.orders.map((o) => (
-        <article key={o.submitted_order.client_order_id}>
-          <header>
-            <div className="interval-order-heading">
-              <strong>
-                {o.submitted_order.side} ·{" "}
-                {o.submitted_order.order_type === "MARKET" ? "Market" : "Limit"}
-              </strong>
-              <OrderStatus outcome={o} />
-            </div>
-            {onEditOrder && (
-              <button
-                className="secondary small"
-                onClick={() => onEditOrder(o.submitted_order.client_order_id)}
-              >
-                Edit order →
-              </button>
-            )}
-          </header>
-          <dl className="interval-detail-values">
-            <div>
-              <dt>Entered volume</dt>
-              <dd>{n(o.submitted_order.volume_mw)} MW</dd>
-            </div>
-            <div>
-              <dt>Executed volume</dt>
-              <dd>{n(o.executed_volume_mw)} MW</dd>
-            </div>
-            <div>
-              <dt>Limit price</dt>
-              <dd>
-                {o.submitted_order.order_type === "MARKET"
-                  ? "No price limit"
-                  : "€" + n(o.submitted_order.limit_price_eur_mwh!) + "/MWh"}
-              </dd>
-            </div>
-            <div>
-              <dt>Simulated price</dt>
-              <dd>
-                {o.execution_price_eur_mwh == null
-                  ? "—"
-                  : "€" + n(o.execution_price_eur_mwh) + "/MWh"}
-              </dd>
-            </div>
-          </dl>
-          {o.execution_status !== "EXECUTED" && <p className="interval-order-reason">{o.reason}</p>}
-        </article>
-      ))}
-    </div>
+    </section>
   );
 }

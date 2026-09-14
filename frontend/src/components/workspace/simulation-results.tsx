@@ -95,6 +95,7 @@ export function SimulationResults({
       )}
       {detailView && (
         <IntervalResultsTable
+          key={result.simulation_id}
           result={result}
           onEditOrder={stale ? undefined : onEditOrder}
           selectedId={selectedInterval}

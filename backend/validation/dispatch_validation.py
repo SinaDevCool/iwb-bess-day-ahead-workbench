@@ -48,7 +48,12 @@ def validate_dispatch(
     if rows and rows[-1].soc_mwh < battery.target_soc_mwh - SOLVER_SOC_EPSILON_MWH:
         findings.append(
             ValidationFinding(
-                severity="error", code="terminal_soc", message="Terminal SOC target not met"
+                severity="error",
+                code="terminal_soc",
+                message="Terminal SOC target not met",
+                observed_value=rows[-1].soc_mwh,
+                configured_limit=battery.target_soc_mwh,
+                unit="MWh",
             )
         )
     if not rows:

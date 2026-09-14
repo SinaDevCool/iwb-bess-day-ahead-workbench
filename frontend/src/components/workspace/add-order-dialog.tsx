@@ -4,6 +4,7 @@ import { validateOrders, type DraftOrderInput } from "@/lib/order-simulation-val
 import type { Battery, Market } from "@/types/api";
 import { Dialog, DialogActions } from "./dialog";
 import { OrderRow } from "./order-entry-row";
+import { OrderPriceEvidence } from "./order-price-evidence";
 import { id } from "./workspace-adapters";
 
 /** Temporary ticket only: cancel never mutates the shared case or its saved result. */
@@ -14,6 +15,7 @@ export function AddOrderDialog({
   battery,
   close,
   add,
+  orders,
 }: {
   points: { timestamp_utc: string }[];
   prices: string[];
@@ -21,6 +23,7 @@ export function AddOrderDialog({
   battery: Battery;
   close: () => void;
   add: (order: DraftOrderInput) => void;
+  orders?: DraftOrderInput[];
 }) {
   const [order, setOrder] = useState<DraftOrderInput>(() => ({
     id: id(),
@@ -34,7 +37,6 @@ export function AddOrderDialog({
   const submitted = useRef(false);
   const form = useRef<HTMLFormElement>(null);
   const issues = validateOrders([order], market, battery, points.length);
-  const forecast = prices[order.interval];
   function submit() {
     if (submitted.current) return;
     if (Object.keys(issues).length) {
@@ -60,6 +62,7 @@ export function AddOrderDialog({
         }}
       >
         <OrderRow
+          orders={orders}
           order={order}
           rowIndex={0}
           points={points}
@@ -67,11 +70,11 @@ export function AddOrderDialog({
           issues={attempted ? issues : {}}
           update={(_, patch) => setOrder((current) => ({ ...current, ...patch }))}
         />
-        <p className="ws-help">
-          {forecast?.trim() && Number.isFinite(Number(forecast))
-            ? `DA forecast: €${Number(forecast).toFixed(2)}/MWh. Your limit is entered separately.`
-            : "Choose a delivery interval, then enter your order."}
-        </p>
+        {order.interval >= 0 ? (
+          <OrderPriceEvidence order={order} prices={prices} />
+        ) : (
+          <p className="ws-help">Choose a delivery interval, then enter your order.</p>
+        )}
       </form>
       <DialogActions>
         <button className="secondary" onClick={close}>

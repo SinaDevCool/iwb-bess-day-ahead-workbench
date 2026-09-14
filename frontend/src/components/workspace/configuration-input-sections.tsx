@@ -38,9 +38,6 @@ export function ConfigurationMarket({
           <option value={15}>15 minutes · simulation</option>
         </select>
       </label>
-      <p className="ws-help">
-        {draft.market.bidding_zone} · {draft.points.length} intervals
-      </p>
       <div className="uw-input-summary" aria-label="Current Day-Ahead forecast">
         <strong>Day-Ahead price forecast</strong>
         {!draft.prices.some((price) => price.trim()) ? (

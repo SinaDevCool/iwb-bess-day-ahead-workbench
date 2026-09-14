@@ -1,5 +1,6 @@
 import { priceCondition, type DraftOrderInput } from "@/lib/order-simulation-validation";
 import { orderNumber } from "./order-presentation";
+import { AtLimit } from "./at-limit";
 
 /** Live price eligibility is not a promise of physical execution. */
 export function OrderPriceEvidence({
@@ -34,13 +35,11 @@ export function OrderPriceEvidence({
             {preview.passed ? preview.operator : order.side === "BUY" ? ">" : "<"} limit €
             {orderNumber(order.limit, true)}/MWh
           </p>
-          <small>
-            {preview.atLimit
-              ? "At the limit · eligible"
-              : preview.passed
-                ? "Price condition met"
-                : "Price condition not met"}
-          </small>
+          {preview.atLimit ? (
+            <AtLimit />
+          ) : (
+            <small>{preview.passed ? "Price condition met" : "Price condition not met"}</small>
+          )}
         </>
       )}
     </section>

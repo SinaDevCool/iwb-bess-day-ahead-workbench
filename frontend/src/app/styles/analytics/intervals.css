@@ -31,7 +31,7 @@
   accent-color: var(--teal);
 }
 .interval-table-scroll {
-  max-height: 540px;
+  max-height: clamp(240px, 42dvh, 440px);
   margin-top: 12px;
 }
 .interval-view .interval-results {
@@ -40,7 +40,7 @@
   border-top: 0;
 }
 .interval-view .interval-table-scroll {
-  max-height: calc(100dvh - 250px);
+  max-height: clamp(240px, 42dvh, 440px);
 }
 .interval-results-table thead {
   position: sticky;
@@ -52,6 +52,41 @@
 .interval-results-table th {
   white-space: normal;
   line-height: 1.25;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 12px;
+  text-align: left;
+}
+.interval-results-table th,
+.interval-results-table td {
+  padding: 12px 14px;
+  font-variant-numeric: tabular-nums;
+}
+.interval-results-table td {
+  font-size: 14px;
+  font-weight: 400;
+}
+.interval-results-table .numeric {
+  text-align: right;
+}
+.interval-results-table {
+  min-width: 850px;
+}
+.interval-results-table .selected {
+  background: #eaf6f4;
+  box-shadow: inset 3px 0 #087d78;
+}
+.interval-results-table button:focus-visible,
+.interval-order-details button:focus-visible,
+.at-limit-trigger:focus-visible {
+  outline: 2px solid #087d78;
+  outline-offset: 3px;
+}
+.interval-results-table .ws-row-link small {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 400;
 }
 .interval-results-table tbody tr.interval-row {
   content-visibility: auto;

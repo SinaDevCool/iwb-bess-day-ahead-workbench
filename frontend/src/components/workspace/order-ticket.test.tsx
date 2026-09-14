@@ -38,7 +38,11 @@ const rejected = {
 it("separates equal-limit eligibility from a physical rejection", () => {
   render(<OrderTicket {...fields} outcome={rejected} />);
   expect(screen.getByText(/2.5 MWh for this interval/)).toBeInTheDocument();
-  expect(screen.getByText(/At the limit · eligible/)).toBeInTheDocument();
+  const atLimit = screen.getByRole("button", { name: "At limit" });
+  fireEvent.focus(atLimit);
+  expect(screen.getByRole("tooltip")).toHaveTextContent("Full allocation assumed");
+  fireEvent.keyDown(atLimit, { key: "Escape" });
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   expect(screen.getByText("Physical constraint")).toBeInTheDocument();
   expect(screen.getByText(rejected.reason)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "View battery schedule" })).toBeEnabled();

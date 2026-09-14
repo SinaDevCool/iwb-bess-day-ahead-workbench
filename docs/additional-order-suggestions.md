@@ -47,3 +47,18 @@ through the existing saved simulation's submitted orders.
 Tests cover both durations, DST days, negative/zero prices, baseline preservation,
 power/availability/conflict rejection, reserve repair, subset feasibility, stale
 inputs, cancel and duplicate acceptance.
+
+## Compact selection checks
+
+The Check column maps canonical simulation findings to delivery instants and
+selected order IDs. A warning opens one inline explanation with the observed
+value, battery limit and all eligible orders in that combined batch, including
+existing manual orders. It does not attribute the whole violation to one addition.
+Unselected rows are neutral. Pending, stale and failed checks never reuse a
+previous success indicator.
+
+Because simulation excludes infeasible batches, later executed rows are marked
+Recheck until earlier failures are resolved. Portfolio-level and existing-only
+issues remain in the compact summary; row issues are counted by interval rather
+than repeated as paragraphs. Numeric evidence is captured where the existing
+engine evaluates the constraint, not recalculated in the UI.

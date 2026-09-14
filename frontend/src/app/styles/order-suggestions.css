@@ -33,9 +33,38 @@
   border-bottom: 1px solid #e3ebec;
   white-space: nowrap;
 }
-.suggestion-table td:nth-last-child(-n + 2),
-.suggestion-table th:nth-last-child(-n + 2) {
+.suggestion-table .suggestion-number {
   text-align: right;
+}
+.suggestion-check {
+  min-width: 110px;
+}
+.suggestion-warning-row {
+  background: #fff8e8;
+}
+.suggestion-check-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #815400;
+  font: inherit;
+  cursor: pointer;
+}
+.suggestion-check-button:focus-visible {
+  outline: 2px solid #247f7b;
+  outline-offset: 3px;
+}
+.suggestion-table .suggestion-explanation td {
+  white-space: normal;
+  background: #fffaf0;
+  border-left: 3px solid #b68120;
+  line-height: 1.5;
+}
+.suggestion-explanation p {
+  margin: 4px 0 0;
 }
 .suggestion-table input {
   width: 18px;

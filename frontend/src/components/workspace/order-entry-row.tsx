@@ -3,6 +3,8 @@ import type { DraftOrderInput } from "@/lib/order-simulation-validation";
 import type { Market, SubmittedOrderType } from "@/types/api";
 import { deliveryLabel } from "./order-presentation";
 import { useDisplayTimezone } from "./time-preference";
+import { combinedEnteredVolume } from "@/lib/order-volume-context";
+import { orderNumber } from "./order-presentation";
 
 /** Controlled fields only. Price and saved-execution evidence live outside the form grid. */
 export function OrderRow({
@@ -12,6 +14,7 @@ export function OrderRow({
   market,
   issues,
   update,
+  orders = [],
 }: {
   order: DraftOrderInput;
   rowIndex: number;
@@ -19,9 +22,11 @@ export function OrderRow({
   market: Market;
   issues: Record<string, string>;
   update: (id: string, patch: Partial<DraftOrderInput>) => void;
+  orders?: DraftOrderInput[];
 }) {
   const prefix = `order.${order.id}`;
   const zone = useDisplayTimezone();
+  const combined = combinedEnteredVolume(order, orders);
   return (
     <div className="order-ticket-fields">
       <label className="order-delivery">
@@ -79,7 +84,7 @@ export function OrderRow({
         </select>
       </label>
       <label>
-        Volume
+        Order volume
         <span className="unit-input">
           <input
             name={`volume-${order.id}`}
@@ -136,6 +141,11 @@ export function OrderRow({
           <span>Limit price</span>
           <strong>No limit</strong>
         </div>
+      )}
+      {combined !== undefined && (
+        <p className="order-combined-volume" role="status">
+          Combined entered {order.side} volume: {orderNumber(String(combined))} MW
+        </p>
       )}
     </div>
   );

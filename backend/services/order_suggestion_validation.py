@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from backend.domain.schemas.requests import OrderSimulationRequest
 from backend.domain.schemas.order_suggestions import SelectionResult, SuggestionSelection
 from backend.services.order_simulation_engine import calculate_order_simulation
+from backend.services.suggestion_evidence import selection_evidence
 
 
 def input_hash(request: OrderSimulationRequest) -> str:
@@ -34,6 +35,9 @@ def validate_selection(selection: SuggestionSelection) -> SelectionResult:
     )
     baseline = evaluate(selection.baseline)
     result = evaluate(combined)
+    issues, checks = selection_evidence(
+        result, {o.client_order_id for o in selection.baseline.orders}
+    )
     return SelectionResult(
         feasible=result.submitted_portfolio_feasible,
         contribution_eur=result.summary.net_contribution_eur,
@@ -42,7 +46,7 @@ def validate_selection(selection: SuggestionSelection) -> SelectionResult:
         )
         if baseline.submitted_portfolio_feasible
         else None,
-        issues=list(
-            dict.fromkeys(f.message for f in result.validation.findings if f.severity == "error")
-        ),
+        issues=[issue.message for issue in issues],
+        interval_issues=issues,
+        order_checks=checks,
     )

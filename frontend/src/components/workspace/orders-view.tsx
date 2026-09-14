@@ -57,6 +57,7 @@ export function OrdersView({
   const current = draft.orders.find((order) => order.id === selected);
   const ticket = current && (
     <OrderTicket
+      orders={draft.orders}
       order={current}
       rowIndex={draft.orders.indexOf(current)}
       points={draft.points}
@@ -104,6 +105,7 @@ export function OrdersView({
         )}
         {adding && (
           <AddOrderDialog
+            orders={draft.orders}
             points={draft.points}
             prices={draft.prices}
             market={draft.market}

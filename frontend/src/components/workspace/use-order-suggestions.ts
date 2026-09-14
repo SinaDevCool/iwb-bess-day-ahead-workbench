@@ -5,12 +5,8 @@ import type { SubmittedOrder } from "@/types/api";
 import { identity, orderRequest } from "./workspace-adapters";
 import type { Draft } from "./workspace-types";
 
-export type SelectionResult = {
-  feasible: boolean;
-  contribution_eur: number;
-  improvement_eur: number | null;
-  issues: string[];
-};
+import type { SelectionResult } from "./suggestion-checks";
+export type { SelectionResult } from "./suggestion-checks";
 type Preview = { input_hash: string; orders: SubmittedOrder[]; validation: SelectionResult };
 
 /** Preview state only. Abort and sequence guards prevent stale async selection results. */
@@ -30,7 +26,7 @@ export function useOrderSuggestions(draft: Draft) {
   }, [draft]);
   const stale = identity(snapshot) !== identity(draft);
   const key = JSON.stringify(selected);
-  const result = checked?.key === key ? checked.result : undefined;
+  const result = !stale && !error && checked?.key === key ? checked.result : undefined;
   const chosen = preview?.orders.filter((o) => selected.includes(o.client_order_id)) ?? [];
   const validationBody = () => ({
     baseline: orderRequest(snapshot),

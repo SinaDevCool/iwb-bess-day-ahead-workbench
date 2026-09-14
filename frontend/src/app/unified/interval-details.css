@@ -3,6 +3,7 @@
   min-width: 0;
 }
 .interval-order-details {
+  margin-top: 16px;
   padding: 18px 20px;
   background: #fff;
   border: 1px solid #d6e3e0;
@@ -27,26 +28,14 @@
   color: #52676c;
   font-weight: 400;
 }
-.interval-order-details article {
-  border-top: 1px solid #dce6e4;
-  padding-top: 16px;
-  margin-top: 16px;
-}
 .interval-order-details p {
   margin: 10px 0 0;
   font-size: 13px;
   color: #52676c;
 }
-.interval-order-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 14px;
-  font-size: 13px;
-}
 .interval-detail-values {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   margin: 14px 0 0;
 }
@@ -67,6 +56,84 @@
 }
 .interval-order-details .interval-order-reason {
   color: #8e3d2f;
+  max-width: 280px;
+  white-space: normal;
+}
+.interval-order-scroll {
+  margin-top: 20px;
+}
+.interval-order-table {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+}
+.interval-order-table th,
+.interval-order-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e2eae8;
+  font-variant-numeric: tabular-nums;
+}
+.interval-order-table th {
+  background: #f5f8f7;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+}
+.interval-order-table td {
+  font-size: 14px;
+}
+.interval-order-table .numeric {
+  text-align: right;
+}
+.interval-order-table small {
+  display: block;
+  font-size: 12px;
+  margin-top: 5px;
+}
+.order-combined-volume {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 13px;
+  color: #52676c;
+}
+.uw-kpis strong .execution-count-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: inherit;
+}
+.at-limit {
+  display: inline-block;
+  margin-left: 7px;
+}
+.at-limit-trigger {
+  padding: 3px 7px;
+  color: #684b10;
+  background: #fff4da;
+  border: 1px solid #dbc58f;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.at-limit-trigger:hover {
+  background: #f7e6bd;
+}
+.at-limit-help {
+  position: fixed;
+  z-index: 1000;
+  width: 240px;
+  max-width: calc(100vw - 24px);
+  padding: 12px;
+  border: 1px solid #8aa5aa;
+  border-radius: 8px;
+  background: #fff;
+  color: #183e45;
+  box-shadow: 0 5px 18px #153a422b;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
 }
 @media (max-width: 700px) {
   .interval-detail-values {

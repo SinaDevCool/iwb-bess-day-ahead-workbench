@@ -1,5 +1,6 @@
 "use client";
 import { simulationPresentation } from "@/lib/simulation-presentation";
+import { executedIntervalCount } from "@/lib/order-volume-context";
 
 import { LoaderCircle } from "lucide-react";
 import { SimulationResults } from "./simulation-results";
@@ -127,9 +128,13 @@ function WorkbenchContent() {
                 <div>
                   <span>Executed orders</span>
                   <strong>
-                    {result.summary.executed_order_count} / {result.summary.submitted_order_count}
+                    {result.summary.executed_order_count}/{result.summary.submitted_order_count}{" "}
+                    <span className="execution-count-label">orders executed</span>
                   </strong>
-                  <small>Executed / entered</small>
+                  <small>
+                    Across {executedIntervalCount(result.order_results)} delivery{" "}
+                    {executedIntervalCount(result.order_results) === 1 ? "interval" : "intervals"}
+                  </small>
                 </div>
                 <div>
                   <span>Battery throughput</span>
