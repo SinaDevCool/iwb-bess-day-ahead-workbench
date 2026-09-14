@@ -29,6 +29,7 @@ export function OrderSuggestionsDialog({
   reviewProtected?: () => void;
 }) {
   const state = useOrderSuggestions(draft, replacing);
+  const busy = state.applying || state.rebalancing;
   const rows = state.preview
     ? revisionRows(draft.orders.filter(replaceable), fromOrders(state.preview.orders, draft.points))
     : [];
@@ -39,7 +40,7 @@ export function OrderSuggestionsDialog({
       close={close}
       wide
     >
-      <CloseGuard busy={state.applying} />
+      <CloseGuard busy={busy} />
       <p>
         {replacing
           ? "Your manual and protected orders stay unchanged. Applying replaces the previous unlocked suggestions as one set."
@@ -88,14 +89,14 @@ export function OrderSuggestionsDialog({
             </strong>
             <button
               className="secondary small"
-              disabled={state.applying || state.stale}
+              disabled={busy || state.stale}
               onClick={() => state.setSelected(state.preview!.orders.map((o) => o.client_order_id))}
             >
               Select all
             </button>
             <button
               className="secondary small"
-              disabled={state.applying || state.stale}
+              disabled={busy || state.stale}
               onClick={() => state.setSelected([])}
             >
               Clear selection
@@ -106,7 +107,7 @@ export function OrderSuggestionsDialog({
             selected={state.selected}
             result={state.result}
             minutes={draft.market.product_minutes}
-            disabled={state.applying || state.stale}
+            disabled={busy || state.stale}
             stale={state.stale}
             failed={!!state.error}
             change={state.setSelected}
@@ -117,17 +118,38 @@ export function OrderSuggestionsDialog({
             stale={state.stale}
             failed={!!state.error}
           />
+          {!!state.adjustments.length && (
+            <p role="status">
+              Rebalanced quantities: {state.adjustments.join("; ")}. Review the updated rows before
+              adding. Zero-volume orders are deselected.
+            </p>
+          )}
+          {state.result && !state.result.feasible && (
+            <p className="ws-help">
+              Removing a charge or discharge can unbalance later intervals. Rebalance selection
+              adjusts only selected quantities; existing and unchecked orders stay unchanged.
+            </p>
+          )}
         </>
       )}
       <DialogActions>
-        <button className="secondary" onClick={close} disabled={state.applying}>
+        <button className="secondary" onClick={close} disabled={busy}>
           Cancel
         </button>
+        {!replacing && !!state.preview?.orders.length && (
+          <button
+            className="secondary"
+            disabled={busy || state.stale || !state.selected.length}
+            onClick={() => void state.rebalance()}
+          >
+            {state.rebalancing ? "Rebalancing…" : "Rebalance selection"}
+          </button>
+        )}
         <button
           className="primary"
           disabled={
             state.generating ||
-            state.applying ||
+            busy ||
             state.stale ||
             !!state.error ||
             (replacing ? !changed : !state.selected.length) ||

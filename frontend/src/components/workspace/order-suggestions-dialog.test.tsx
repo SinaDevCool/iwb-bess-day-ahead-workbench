@@ -59,6 +59,44 @@ it("clear selection and cancel add nothing", async () => {
   expect(close).toHaveBeenCalledOnce();
   expect(add).not.toHaveBeenCalled();
 });
+it("rebalances only selected suggestions and reviews quantities before adding", async () => {
+  const rejected = { ...suggestion, client_order_id: "unchecked" };
+  const adjusted = { ...suggestion, volume_mw: 5 };
+  vi.mocked(api).mockImplementation(async (path, options) => {
+    if (path === "/api/order-suggestions")
+      return { input_hash: "hash", orders: [suggestion, rejected], validation: valid };
+    if (path === "/api/order-suggestions/repair")
+      return { status: "ready", orders: [adjusted], issues: [] };
+    const body = JSON.parse(options!.body as string);
+    return {
+      ...valid,
+      feasible: body.selected_orders.length === 2 || body.selected_orders[0]?.volume_mw === 5,
+    };
+  });
+  const add = vi.fn();
+  render(<OrderSuggestionsDialog draft={draft} add={add} close={vi.fn()} />);
+  await screen.findByText("2 of 2 selected");
+  fireEvent.click(screen.getAllByRole("checkbox")[1]);
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add selected orders" })).toBeDisabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Rebalance selection" }));
+  await screen.findByText(/Rebalanced quantities/);
+  const call = vi
+    .mocked(api)
+    .mock.calls.find(([path]) => path === "/api/order-suggestions/repair")!;
+  const payload = JSON.parse(call[1]!.body as string);
+  expect(payload.allow_additions).toBe(false);
+  expect(
+    payload.baseline.orders.map((o: { client_order_id: string }) => o.client_order_id),
+  ).toEqual(["suggested-1"]);
+  expect(add).not.toHaveBeenCalled();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add selected orders" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add selected orders" }));
+  await waitFor(() => expect(add).toHaveBeenCalledWith([adjusted]));
+});
 it("blocks a preview after input changes", async () => {
   const { rerender, add, close } = setup();
   await screen.findByRole("button", { name: "Clear selection" });

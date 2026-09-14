@@ -79,6 +79,51 @@ def test_price_rejected_order_not_repaired_or_removed():
     assert repair_orders(RepairRequest(baseline=baseline)).status == "unchanged"
 
 
+@pytest.mark.parametrize("minutes", [15, 60])
+def test_selected_subset_rebalances_without_extra_orders_or_manual_changes(minutes):
+    baseline = case(minutes)
+    manual = add(baseline, 2, 35)
+    selected = add(baseline, 18, 50, side="SELL", suggested=True)
+    request = RepairRequest(
+        baseline=baseline,
+        keep_original_ids=[manual.client_order_id],
+        allow_revision_ids=[selected.client_order_id],
+        allow_additions=False,
+    )
+    result = repair_orders(request)
+    validate(request, result)
+    revised = {o.client_order_id: o for o in result.orders}
+    assert set(revised) == {manual.client_order_id, selected.client_order_id}
+    assert revised[manual.client_order_id] == manual
+    assert 0 < revised[selected.client_order_id].volume_mw < 50
+
+
+@pytest.mark.parametrize("minutes", [15, 60])
+def test_oversized_kept_order_blocks_until_permission_is_released(minutes):
+    baseline = case(minutes)
+    first = add(baseline, 2, 30)
+    oversized = add(baseline, 15, 100, limit=1000)
+    for index, volume, side in [
+        (6, 42.1, "BUY"),
+        (9, 16.4, "SELL"),
+        (10, 50, "SELL"),
+        (14, 23.8, "BUY"),
+        (18, 49.9, "SELL"),
+        (19, 25.9, "SELL"),
+        (23, 42.1, "BUY"),
+    ]:
+        add(baseline, index, volume, side, suggested=True)
+    request = RepairRequest(baseline=baseline, allow_revision_ids=[first.client_order_id])
+    assert repair_orders(request).status == "blocked"
+    request.allow_revision_ids.append(oversized.client_order_id)
+    request.keep_original_ids = [oversized.client_order_id]
+    assert repair_orders(request).status == "blocked"
+    request.keep_original_ids = []
+    result = repair_orders(request)
+    validate(request, result)
+    assert all(o.volume_mw <= 50 for o in result.orders)
+
+
 def test_stale_permissions_and_unauthorized_changes_rejected():
     baseline = case()
     order = add(baseline, 0, 60)

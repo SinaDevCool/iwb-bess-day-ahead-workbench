@@ -55,8 +55,8 @@ export function PortfolioRepairPanel({
       <details className="revision-protected" ref={permissionsRef}>
         <summary>Review protected orders</summary>
         <p className="ws-help">
-          Permission applies to this preview only. These are review candidates, not a proven minimal
-          conflict set.
+          Select orders the repair may reduce or remove. Nothing changes until you apply the
+          preview.
         </p>
         {draft.orders
           .filter((o) => !replaceable(o))
@@ -82,20 +82,22 @@ export function PortfolioRepairPanel({
         Allow balancing additions
       </label>
       {!!state.kept.length && (
-        <details className="revision-protected">
+        <details className="revision-protected" open>
           <summary>Kept original · {state.kept.length}</summary>
+          <p className="ws-help">These orders cannot change and may prevent a repair.</p>
           {draft.orders
             .filter((o) => state.kept.includes(o.id))
             .map((o) => (
-              <label key={o.id} className="repair-option">
-                <input
-                  type="checkbox"
-                  checked
-                  disabled={state.busy}
-                  onChange={() => state.keep(o.id, false)}
-                />
-                {label(o)}
-              </label>
+              <div key={o.id} className="repair-option">
+                <span>{label(o)}</span>
+                <button
+                  className="secondary"
+                  disabled={state.busy || state.stale}
+                  onClick={() => state.allow(o.id, true)}
+                >
+                  Allow revision again
+                </button>
+              </div>
             ))}
         </details>
       )}
@@ -106,8 +108,20 @@ export function PortfolioRepairPanel({
         </p>
       )}
       {state.preview && <p role="status">{state.preview.message}</p>}
+      {!state.preview && !state.busy && !state.error && !state.stale && (
+        <p className="ws-help" role="status">
+          Calculate corrections to preview a feasible plan before applying.
+        </p>
+      )}
+      {state.preview?.status === "blocked" && (
+        <p className="ws-error" role="alert">
+          Apply is unavailable because no feasible plan was found. Allow revision of the orders that
+          must change, including any kept originals, then calculate again. Repeating the same
+          permissions will not resolve the conflict.
+        </p>
+      )}
       {!!state.preview?.issues.length && (
-        <details className="revision-protected">
+        <details className="revision-protected" open={state.preview.status === "blocked"}>
           <summary>
             {state.preview.status === "ready" ? "Issues addressed" : "Schedule issues"} ·{" "}
             {state.preview.issues.length}
@@ -116,8 +130,14 @@ export function PortfolioRepairPanel({
             {state.preview.issues.map((issue, i) => (
               <li key={i}>
                 {issue.message}
-                {issue.existing_orders.length > 0 &&
-                  ` (${issue.existing_orders.length} orders in this interval)`}
+                {issue.existing_orders.map((order) => {
+                  const existing = draft.orders.find((o) => o.id === order.client_order_id);
+                  return existing ? (
+                    <div className="ws-help" key={existing.id}>
+                      {label(existing)}
+                    </div>
+                  ) : null;
+                })}
               </li>
             ))}
           </ul>

@@ -94,10 +94,12 @@ export function usePortfolioRepair(draft: Draft) {
     allow: (id: string, enabled: boolean) => {
       invalidate();
       setAllowed(enabled ? [...allowed, id] : allowed.filter((o) => o !== id));
+      if (enabled) setKept(kept.filter((o) => o !== id));
     },
     keep: (id: string, enabled: boolean) => {
       invalidate();
       setKept(enabled ? [...kept, id] : kept.filter((o) => o !== id));
+      if (enabled) setAllowed(allowed.filter((o) => o !== id));
     },
     add: (enabled: boolean) => {
       invalidate();

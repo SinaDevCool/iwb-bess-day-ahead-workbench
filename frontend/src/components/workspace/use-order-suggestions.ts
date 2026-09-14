@@ -5,6 +5,9 @@ import type { SubmittedOrder } from "@/types/api";
 import { identity, orderRequest } from "./workspace-adapters";
 import type { Draft } from "./workspace-types";
 import { revisionBaseline } from "./suggestion-revision";
+import type { RepairPreview } from "./use-portfolio-repair";
+import { deliveryLabel } from "./order-presentation";
+import { useDisplayTimezone } from "./time-preference";
 
 import type { SelectionResult } from "./suggestion-checks";
 export type { SelectionResult } from "./suggestion-checks";
@@ -12,6 +15,7 @@ type Preview = { input_hash: string; orders: SubmittedOrder[]; validation: Selec
 
 /** Preview state only. Abort and sequence guards prevent stale async selection results. */
 export function useOrderSuggestions(draft: Draft, replacing = false) {
+  const zone = useDisplayTimezone();
   const [snapshot] = useState(draft);
   const baseline = useMemo(
     () => (replacing ? revisionBaseline(snapshot) : snapshot),
@@ -24,6 +28,9 @@ export function useOrderSuggestions(draft: Draft, replacing = false) {
   const [error, setError] = useState("");
   const [generating, setGenerating] = useState(true);
   const [applying, setApplying] = useState(false);
+  const [rebalancing, setRebalancing] = useState(false);
+  const [adjustments, setAdjustments] = useState<string[]>([]);
+  const [rebalanceError, setRebalanceError] = useState("");
   const sequence = useRef(0);
   const applied = useRef(false);
   const current = useRef(draft);
@@ -64,7 +71,7 @@ export function useOrderSuggestions(draft: Draft, replacing = false) {
   }, [baseline, attempt]);
 
   useEffect(() => {
-    if (!preview || stale) return;
+    if (!preview || stale || rebalancing) return;
     const ticket = ++sequence.current;
     const controller = new AbortController();
     const timer = setTimeout(() => {
@@ -91,10 +98,61 @@ export function useOrderSuggestions(draft: Draft, replacing = false) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [preview, selected, key, baseline, stale]);
+  }, [preview, selected, key, baseline, stale, rebalancing]);
 
+  async function rebalance() {
+    if (!preview || stale || rebalancing || applying || !chosen.length) return;
+    setRebalancing(true);
+    setRebalanceError("");
+    setError("");
+    try {
+      const original = orderRequest(baseline);
+      const repaired = await api<RepairPreview>("/api/order-suggestions/repair", {
+        method: "POST",
+        body: JSON.stringify({
+          baseline: { ...original, orders: [...original.orders, ...chosen] },
+          keep_original_ids: original.orders.map((o) => o.client_order_id),
+          allow_revision_ids: chosen.map((o) => o.client_order_id),
+          allow_additions: false,
+        }),
+      });
+      if (identity(current.current) !== identity(snapshot))
+        throw new Error("Inputs changed. Reopen suggestions.");
+      if (repaired.status !== "ready" && repaired.status !== "unchanged")
+        throw new Error(repaired.message);
+      const revised = repaired.orders.filter((o) => selected.includes(o.client_order_id));
+      const nextOrders = preview.orders.map(
+        (o) => revised.find((r) => r.client_order_id === o.client_order_id) ?? o,
+      );
+      setAdjustments(
+        chosen.flatMap((o) => {
+          const volume =
+            revised.find((r) => r.client_order_id === o.client_order_id)?.volume_mw ?? 0;
+          return volume === o.volume_mw
+            ? []
+            : [
+                `${deliveryLabel(o.delivery_start_utc, baseline.market.product_minutes, zone)} ${o.side}: ${o.volume_mw} → ${volume} MW`,
+              ];
+        }),
+      );
+      setChecked(undefined);
+      setPreview({ ...preview, orders: nextOrders });
+      setSelected(revised.map((o) => o.client_order_id));
+    } catch (e) {
+      setRebalanceError(e instanceof Error ? e.message : "Rebalancing failed");
+    } finally {
+      setRebalancing(false);
+    }
+  }
   async function accept(add: (orders: SubmittedOrder[]) => void) {
-    if (applied.current || stale || (!replacing && !chosen.length) || !result?.feasible) return;
+    if (
+      rebalancing ||
+      applied.current ||
+      stale ||
+      (!replacing && !chosen.length) ||
+      !result?.feasible
+    )
+      return;
     applied.current = true;
     setApplying(true);
     try {
@@ -125,9 +183,12 @@ export function useOrderSuggestions(draft: Draft, replacing = false) {
     selected,
     setSelected,
     result,
-    error,
+    error: error || rebalanceError,
     generating,
     applying,
+    rebalancing,
+    rebalance,
+    adjustments,
     stale,
     accept,
     retry,

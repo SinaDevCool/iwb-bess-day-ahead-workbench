@@ -89,6 +89,25 @@ it("blocks a stale candidate", async () => {
   expect(screen.getByRole("button", { name: "Apply corrections" })).toBeDisabled();
   expect(screen.getByRole("alert")).toHaveTextContent("Inputs changed");
 });
+it("allow revision clears a previous keep-original override", async () => {
+  vi.mocked(api).mockResolvedValue(ready);
+  setup();
+  fireEvent.click(screen.getByLabelText(/Allow revision/));
+  fireEvent.click(screen.getByRole("button", { name: "Calculate corrections" }));
+  await screen.findByText("Feasible under the current forecast");
+  fireEvent.click(screen.getByRole("button", { name: "Keep original" }));
+  expect(screen.getByLabelText(/Allow revision/)).not.toBeChecked();
+  expect(screen.getByText(/These orders cannot change/)).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Allow revision again" }));
+  expect(screen.getByLabelText(/Allow revision/)).toBeChecked();
+  expect(screen.queryByText(/Kept original/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Calculate corrections" }));
+  await screen.findByText("Feasible under the current forecast");
+  const body = JSON.parse(vi.mocked(api).mock.calls[1][1]!.body as string);
+  expect(body.allow_revision_ids).toEqual(["manual"]);
+  expect(body.keep_original_ids).toEqual([]);
+  expect(screen.getByRole("button", { name: "Apply corrections" })).toBeEnabled();
+});
 it("shows blocked and timeout outcomes without enabling apply", async () => {
   vi.mocked(api).mockResolvedValue({
     ...ready,
