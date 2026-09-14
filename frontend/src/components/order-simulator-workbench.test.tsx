@@ -224,6 +224,15 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: /Edit prices|Review prices/ }));
     expect(screen.getByLabelText("Price 00:00")).toHaveValue(-20);
   });
+  it("shows current result status and keeps references in collapsed details", async () => {
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: "Simulate battery dispatch" }));
+    expect(await screen.findByText("Results up to date")).toBeInTheDocument();
+    const details = screen.getByText("Result details").closest("details");
+    expect(details).not.toHaveAttribute("open");
+    expect(details).toHaveTextContent("Simulation reference: test-run");
+    expect(screen.queryByText("Results out of date")).not.toBeInTheDocument();
+  });
   it("marks a pending simulation result stale when inputs changed during the request", async () => {
     await ready();
     fireEvent.click(screen.getByRole("button", { name: /Edit 05:00–06:00 BUY order/ }));
@@ -240,7 +249,10 @@ describe("OrderSimulatorWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Simulate battery dispatch" }));
     fireEvent.change(screen.getByLabelText("Volume for order 1"), { target: { value: "21" } });
     resolve(response(result));
-    expect(await screen.findByText(/Previous simulation—inputs changed/)).toBeInTheDocument();
+    expect(await screen.findByText("Results out of date")).toBeInTheDocument();
+    expect(screen.queryByText("Previous result — inputs changed")).not.toBeInTheDocument();
+    expect(screen.getByText("Result details")).toBeInTheDocument();
+    expect(screen.getByText("Previous simulation · not current inputs")).toBeInTheDocument();
     expect(screen.getByText("Schedule charts")).toBeInTheDocument();
   });
 

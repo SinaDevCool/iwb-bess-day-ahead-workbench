@@ -6,6 +6,7 @@ import { calculationIdentity, fromOrders } from "./workspace-adapters";
 /** Unknown/legacy provenance is always protected. Never infer origin from an ID. */
 export const replaceable = (o: DraftOrderInput) =>
   o.origin === "suggested" && o.protected === false;
+// Protection affects optimization permission, not simulated physical results.
 export const suggestionIdentity = (draft: Draft) =>
   JSON.stringify({
     calculation: calculationIdentity(draft),

@@ -1,4 +1,4 @@
-"""Proposal revision, validation and approval; independent of the HTTP transport."""
+"""Reconstruct derived legacy proposal evidence after edits; no HTTP or persistence here."""
 
 from __future__ import annotations
 

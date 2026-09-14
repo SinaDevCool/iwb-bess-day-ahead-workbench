@@ -2,6 +2,8 @@ import type { DraftOrderInput } from "@/lib/order-simulation-validation";
 import type { SubmittedOrder } from "@/types/api";
 import type { Draft, Point } from "./workspace-types";
 /** Pure adapters preserve string drafts until submission; no persistence or network calls. */
+// Full identity guards replacements; calculationIdentity tracks result freshness.
+// suggestionIdentity adds protection settings for optimization permission changes.
 export const identity = (draft: Draft) => JSON.stringify(draft);
 /** Calculation freshness excludes provenance; full identity still guards async replacement. */
 export const calculationInputs = (draft: Draft) => ({

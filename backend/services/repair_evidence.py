@@ -6,6 +6,8 @@ from backend.services.suggestion_evidence import selection_evidence
 
 
 def repair_evidence(baseline, result, points):
+    # Findings describe the original evaluated portfolio, not a minimal conflict
+    # set. One earlier correction can resolve multiple downstream findings.
     findings, _ = selection_evidence(result, {o.client_order_id for o in baseline.orders})
     schedule_codes = {
         "minimum_soc",

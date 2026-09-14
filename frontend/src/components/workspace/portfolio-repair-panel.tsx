@@ -22,6 +22,7 @@ export function PortfolioRepairPanel({
   const state = usePortfolioRepair(draft);
   const zone = useDisplayTimezone();
   useDialogCloseGuard(() => !state.busy);
+  // Candidate orders are repaired; diagnostics still describe the original portfolio.
   const next = fromOrders(state.preview?.orders ?? [], draft.points);
   const rows: RevisionRow[] =
     state.preview?.status === "ready"
@@ -41,6 +42,8 @@ export function PortfolioRepairPanel({
       : [];
   const label = (o: Draft["orders"][number]) =>
     `${deliveryLabel(draft.points[o.interval].timestamp_utc, draft.market.product_minutes, zone)} · ${o.side} · ${orderNumber(o.volume)} MW`;
+  // Required means individually proven; group involvement does not blame every
+  // member. Other protected orders can still enable a different full-day repair.
   const required = new Set(state.issues.flatMap((i) => i.required_revision_ids ?? []));
   const involved = new Set(
     state.issues.flatMap((i) => i.existing_orders.map((o) => o.client_order_id)),

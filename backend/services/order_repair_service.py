@@ -12,11 +12,18 @@ from backend.optimization.repair_optimizer import optimize_repair
 
 
 def repair_hash(request):
+    # Binds baseline and permissions for consistency, not authentication/signing.
+    # Candidate orders are checked separately, rather than included in this hash.
     payload = request.model_dump(mode="json", exclude={"input_hash", "proposed_orders"})
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
 
 def validate_repair(request):
+    """Recheck candidate permissions and physics independently of solver success.
+
+    Existing eligible orders may only be reduced/removed with authorization;
+    ineligible orders stay intact and additions require explicit permission.
+    """
     if request.input_hash != repair_hash(request):
         raise ValueError("Inputs or repair permissions changed. Recalculate the plan.")
     candidate = OrderSimulationRequest.model_validate(
@@ -48,6 +55,7 @@ def validate_repair(request):
             raise ValueError("Unauthorized added order")
         if not _clears(new, points[new.delivery_start_utc]):
             raise ValueError("Added orders must qualify under the current forecast")
+    # Reuse full-day execution, including terminal reserve, before allowing Apply.
     result = evaluate(candidate)
     if not result.submitted_portfolio_feasible:
         raise ValueError("The complete revised portfolio still has blocking schedule issues")

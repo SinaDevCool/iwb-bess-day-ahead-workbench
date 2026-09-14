@@ -30,6 +30,8 @@ def save_simulation_with_event(
     """Persist a decision revision and its governance evidence atomically."""
     initialize()
     with sqlite3.connect(DB_PATH) as connection:
+        # Reserve the write transaction before replacing a legacy same-ID revision;
+        # its audit event must commit or roll back with the result payload.
         connection.execute("BEGIN IMMEDIATE")
         connection.execute(
             "INSERT OR REPLACE INTO simulations(simulation_id, created_at, payload) VALUES (?, ?, ?)",
@@ -67,6 +69,7 @@ def get_simulation(simulation_id: str):
 def list_simulations(limit: int = 30, run_type: str | None = None, offset: int = 0):
     initialize()
     with sqlite3.connect(DB_PATH) as connection:
+        # Old proposal records predate run_type; classify them before pagination.
         if run_type:
             rows = connection.execute(
                 "SELECT payload FROM simulations WHERE COALESCE(json_extract(payload, '$.run_type'), 'OPTIMIZATION') = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",

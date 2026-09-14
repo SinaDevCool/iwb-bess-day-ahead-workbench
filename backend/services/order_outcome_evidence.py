@@ -1,7 +1,6 @@
-"""Deterministic full-fill simulation. No database writes, random IDs or clock reads.
+"""Attach shared interval boundaries to outcomes and enforce one outcome per order.
 
-Each interval is evaluated as one batch; SoC is carried to the next interval.
-A rejected batch is never silently clipped or converted into a partial fill.
+Execution belongs to order_schedule; this projection never recalculates dispatch.
 """
 
 from __future__ import annotations

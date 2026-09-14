@@ -31,6 +31,7 @@ class RepairIssue(SelectionIssue):
     category: Literal["schedule", "technical"] = "schedule"
     action: Literal["repair", "review_calculation"] = "repair"
     side: Literal["BUY", "SELL"] | None = None
+    # Individually proven blockers, not every order implicated in a group finding.
     required_revision_ids: list[str] = Field(default_factory=list)
 
 
@@ -45,6 +46,10 @@ class RepairResult(BaseModel):
 
 
 def can_revise(request, order):
+    """Keep-original wins; otherwise explicit consent or an unlocked suggestion permits edits.
+
+    Manual/protected orders require consent. Permission never requires a change.
+    """
     oid = order.client_order_id
     return oid not in request.keep_original_ids and (
         oid in request.allow_revision_ids or (order.origin == "suggested" and not order.protected)

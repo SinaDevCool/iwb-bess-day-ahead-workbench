@@ -1,4 +1,4 @@
-"""horizon service: one responsibility within optimization."""
+"""Resolve legacy proposal continuation assumptions, separately from daily cash."""
 
 from __future__ import annotations
 

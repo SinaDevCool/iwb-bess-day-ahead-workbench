@@ -202,6 +202,7 @@ class SimulationResult(BaseModel):
 
 
 class SimulatedOrderResult(BaseModel):
+    # Before/after SoC is interval-wide; soc_delta_mwh belongs to this order.
     soc_evidence_scope: Literal["delivery_interval"] = "delivery_interval"
     interval_order_count: int = 1
     submitted_order: SubmittedOrder
@@ -260,7 +261,9 @@ class OrderSimulationResult(BaseModel):
     validation: ValidationResult
     summary: OrderSimulationSummary
     audit: dict[str, object]
+    # Includes physical exclusions and day-wide failures, not price rejection.
     submitted_portfolio_feasible: bool
+    # Validity after exclusions; terminal reserve can fail with zero excluded orders.
     executed_schedule_feasible: bool
     # Missing on historical results: never backfill new semantics into old runs.
     assumptions: SimulationAssumptions | None = None

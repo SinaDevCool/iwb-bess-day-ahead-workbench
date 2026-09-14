@@ -1,5 +1,5 @@
 /* Cascade manifest: keep this order. Later files intentionally override earlier rules.
- * No selectors were removed or reordered during the comprehensibility refactor. */
+ * Legacy bases still participate; workspace/unified layers own current overrides. */
 @import "./styles/tokens-and-base.css";
 @import "./styles/shell.css";
 @import "./styles/configuration.css";

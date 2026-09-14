@@ -29,6 +29,8 @@ def test_conflict_does_not_hide_independent_limits_or_change_execution(minutes):
 
 
 def test_aggregate_excess_is_group_evidence_not_individual_blame():
+    # Individually legal orders may exceed a shared limit together; involvement
+    # must not be presented as proof that every order requires permission.
     baseline = case()
     add(baseline, 10, 30)
     add(baseline, 10, 30)

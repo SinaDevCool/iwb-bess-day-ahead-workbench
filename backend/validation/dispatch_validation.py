@@ -24,6 +24,8 @@ from backend.validation.dispatch_row_checks import physical_findings, energy_fin
 def validate_dispatch(
     rows: list[DispatchRow], battery: BatteryConfig, market: MarketConfig | None = None
 ) -> ValidationResult:
+    # Check the resulting ledger and day-wide limits, not order eligibility.
+    # Execution decides batches first; this independent pass validates its output.
     findings = []
     if market and rows:
         date = rows[0].timestamp_utc.astimezone(ZoneInfo(market.timezone)).strftime("%Y-%m-%d")

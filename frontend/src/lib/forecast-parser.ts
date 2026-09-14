@@ -6,6 +6,8 @@ export type ForecastParseResult = {
 
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
+// Price-editor paste parser (plain prices or timed rows), not the strict CSV
+// upload contract in forecast_import_service. Submitted values still face API validation.
 export function parseForecast(
   input: string,
   expectedCount: number,

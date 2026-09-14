@@ -8,9 +8,14 @@ from backend.domain.models import (
     ValidationResult,
 )
 
+# SoC tolerance for solver-ledger bounds; legacy executable-order reconstruction
+# uses the tighter boundary epsilon below, not the reconciliation allowance.
 SOLVER_SOC_EPSILON_MWH = 1e-3
 ORDER_SOC_BOUNDARY_EPSILON_MWH = 1e-6
+# Legacy ledger energy/throughput reconciliation allowance, not dispatch headroom.
+# Repository history does not derive the exact 0.15 calibration; review separately.
 ENERGY_BALANCE_TOLERANCE_MWH = 0.15
+# MW tolerance for decoded dispatch power and operating-mode checks.
 POWER_TOLERANCE_MW = 1e-3
 
 

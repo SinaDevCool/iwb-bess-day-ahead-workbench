@@ -110,10 +110,20 @@ function WorkbenchContent() {
           </div>
           {result && (
             <section aria-label="Working case result">
-              <p className={dirty ? "stale-notice" : "ws-help"} role="status">
-                {dirty ? "Previous simulation—inputs changed" : "Current working-case simulation"} ·{" "}
-                {result.simulation_id} · {result.delivery_date}
-              </p>
+              <div className={dirty ? "stale-notice" : "ws-help"} role="status">
+                <strong>{dirty ? "Results out of date" : "Results up to date"}</strong>
+                {dirty && (
+                  <div>
+                    Inputs have changed. Simulate battery dispatch again to update these results.
+                  </div>
+                )}
+              </div>
+              <details className="ws-validation-line">
+                <summary>Result details</summary>
+                <p>Simulation reference: {result.simulation_id}</p>
+                <p>Delivery date: {result.delivery_date}</p>
+                {dirty && <p>Previous simulation: {simulationPresentation(result).scope}</p>}
+              </details>
               <div
                 className="uw-kpis"
                 aria-label={dirty ? "Previous simulation metrics" : "Current simulation metrics"}
@@ -122,9 +132,11 @@ function WorkbenchContent() {
                   <span>{simulationPresentation(result).contributionLabel}</span>
                   <strong>{euro(result.summary.net_contribution_eur)}</strong>
                   <small>
-                    {result.submitted_portfolio_feasible
-                      ? "Sales − purchases − costs"
-                      : "Portfolio needs attention · review order outcomes"}
+                    {dirty
+                      ? "Previous simulation · not current inputs"
+                      : result.submitted_portfolio_feasible
+                        ? "Sales − purchases − costs"
+                        : "Portfolio needs attention · review order outcomes"}
                   </small>
                 </div>
                 <div>
@@ -210,6 +222,7 @@ function WorkbenchContent() {
                 <SimulationResults
                   result={result}
                   stale={dirty}
+                  freshnessNoticeShown
                   selection={context.scheduleSelection}
                   onSelection={(timestamp, orderId) =>
                     context.setScheduleSelection({

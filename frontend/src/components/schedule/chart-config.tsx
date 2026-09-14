@@ -14,6 +14,7 @@ export const chartColors = {
   limit: "#7d9295",
   socLimit: "#8980be",
 };
+// Color each metric by its own sign: charging can earn money at negative prices.
 export const signedColor = (value: number) =>
   value < 0 ? chartColors.negative : chartColors.positive;
 export const number = (value: number, digits = 2) =>

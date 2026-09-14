@@ -1,4 +1,4 @@
-"""Proposal revision, validation and approval; independent of the HTTP transport."""
+"""Reprice legacy proposal orders in place; approval and persistence belong to the caller."""
 
 from __future__ import annotations
 

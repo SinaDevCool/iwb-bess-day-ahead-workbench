@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 export function SimulationResults({
   result,
   stale = false,
+  freshnessNoticeShown = false,
   selection,
   onSelection,
   onEditOrder,
@@ -20,6 +21,9 @@ export function SimulationResults({
 }: {
   result: OrderSimulation;
   stale?: boolean;
+  // Workspace may own the warning; history/standalone retains its own notice.
+  // Suppressing duplicate copy never permits editing stale results.
+  freshnessNoticeShown?: boolean;
   selection?: { simulationId: string; timestamp: string; orderId?: string };
   onSelection?: (timestamp: string, orderId?: string) => void;
   onEditOrder?: (id: string) => void;
@@ -92,7 +96,15 @@ export function SimulationResults({
           Interval Detail
         </button>
       </div>
-      <SimulationVerdict result={result} stale={stale} compact action={action} />
+      {stale && freshnessNoticeShown ? (
+        onReviewOrders && (
+          <button className="ws-text-button" onClick={onReviewOrders}>
+            Review current orders →
+          </button>
+        )
+      ) : (
+        <SimulationVerdict result={result} stale={stale} compact action={action} />
+      )}
 
       {!detailView && (
         <>

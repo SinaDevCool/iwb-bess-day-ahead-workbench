@@ -35,6 +35,8 @@ HOURLY_PRICES = [
 
 
 def build_demo_forecast(delivery_date: str, market: MarketConfig) -> list[PricePoint]:
+    # Hand-authored hourly profile with deterministic intrahour illustration, not
+    # a forecast model. Unlike resampling, a fresh demo adds quarter-hour variation.
     if market.product_minutes not in (15, 60):
         raise ValueError("Product duration must be 15 or 60 minutes")
     local_zone = ZoneInfo(market.timezone)

@@ -1,4 +1,4 @@
-"""executable order service: one responsibility within optimization."""
+"""Quantize and reconstruct legacy optimizer proposals; not the portfolio-repair MILP."""
 
 from __future__ import annotations
 

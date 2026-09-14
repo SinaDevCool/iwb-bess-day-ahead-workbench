@@ -39,6 +39,7 @@ export function useOrderSuggestions(draft: Draft, replacing = false) {
   }, [draft]);
   const stale = identity(snapshot) !== identity(draft);
   const key = JSON.stringify(selected);
+  // Feasibility belongs to this selection: removing a trade can break later SoC.
   const result = !stale && !error && checked?.key === key ? checked.result : undefined;
   const chosen = preview?.orders.filter((o) => selected.includes(o.client_order_id)) ?? [];
   const validationBody = () => ({
@@ -101,6 +102,8 @@ export function useOrderSuggestions(draft: Draft, replacing = false) {
   }, [preview, selected, key, baseline, stale, rebalancing]);
 
   async function rebalance() {
+    // Revise only selected suggestions; baseline orders stay fixed and additions
+    // are disabled, so deselected trades cannot silently reappear.
     if (!preview || stale || rebalancing || applying || !chosen.length) return;
     setRebalancing(true);
     setRebalanceError("");
@@ -156,6 +159,7 @@ export function useOrderSuggestions(draft: Draft, replacing = false) {
     applied.current = true;
     setApplying(true);
     try {
+      // Revalidate the exact selection before applying it to the shared draft.
       const final = await api<SelectionResult>("/api/order-suggestions/validate", {
         method: "POST",
         body: JSON.stringify(validationBody()),

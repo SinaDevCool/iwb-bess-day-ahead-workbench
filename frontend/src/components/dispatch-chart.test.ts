@@ -45,6 +45,7 @@ describe("schedule time boundaries", () => {
         { x: start + minutes * 60000, soc: 55 },
         { x: start + 2 * minutes * 60000, soc: 60 },
       ]);
+      // Half of minutes * 60000 places power at the center, not the SoC boundary.
       expect(d.intervals[0].x).toBe(start + minutes * 30000);
       expect(d.end).toBe(start + 2 * minutes * 60000);
     });

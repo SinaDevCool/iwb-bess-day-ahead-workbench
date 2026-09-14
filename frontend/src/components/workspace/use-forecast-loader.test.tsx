@@ -26,6 +26,8 @@ it("invalidates a candidate when pasted input changes", async () => {
   expect(result.current.pasted).toBe("changed");
 });
 it("ignores a pending response after the product changes", async () => {
+  // Resolve the old hourly upload only after switching to quarters: it must not
+  // become an applicable preview for the new delivery grid.
   let finish!: (value: unknown) => void;
   vi.mocked(api).mockImplementation(
     () =>

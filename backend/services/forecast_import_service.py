@@ -25,6 +25,7 @@ def import_csv(raw: bytes, delivery_date: str, market: MarketConfig):
     if len(raw) > MAX_UPLOAD_BYTES:
         raise ValueError("CSV must be smaller than 256 KB")
     try:
+        # Accept an optional spreadsheet UTF-8 BOM without altering header matching.
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError as error:
         raise ValueError("Use a UTF-8 CSV file") from error
@@ -50,6 +51,7 @@ def import_csv(raw: bytes, delivery_date: str, market: MarketConfig):
         if not row:
             continue
         interval_rows += 1
+        # The longest supported local day is 25 hours: 100 quarter-hour intervals.
         if interval_rows > 100:
             raise ValueError("A delivery day cannot contain more than 100 intervals")
         try:

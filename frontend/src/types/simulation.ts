@@ -39,7 +39,9 @@ export type OrderSimulation = {
   };
   summary: OrderSimulationSummary;
   audit: Record<string, unknown>;
+  // Includes physical exclusions, unlike validity of the remaining ledger below.
   submitted_portfolio_feasible: boolean;
+  // Includes final reserve; can fail without any individually excluded order.
   executed_schedule_feasible: boolean;
   /** Absent on historical snapshots; do not infer current semantics for them. */
   assumptions?: {

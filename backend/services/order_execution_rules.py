@@ -1,7 +1,6 @@
-"""Deterministic full-fill simulation. No database writes, random IDs or clock reads.
+"""Evaluate price eligibility and same-side batch limits without mutating the schedule.
 
-Each interval is evaluated as one batch; SoC is carried to the next interval.
-A rejected batch is never silently clipped or converted into a partial fill.
+order_schedule owns chronology; these rules never clip an infeasible batch.
 """
 
 from __future__ import annotations

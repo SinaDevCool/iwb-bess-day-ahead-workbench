@@ -1,4 +1,4 @@
-"""risk service: one responsibility within optimization."""
+"""Score legacy optimized candidates across illustrative price cases; not live risk control."""
 
 from __future__ import annotations
 

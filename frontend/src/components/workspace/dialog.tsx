@@ -6,6 +6,7 @@ const DialogFooterContext = createContext<HTMLElement | null>(null);
 const CloseGuardContext = createContext<React.MutableRefObject<(() => boolean) | null> | null>(
   null,
 );
+// Share one guard between Escape and the close button while a child is applying.
 export function useDialogCloseGuard(guard: () => boolean) {
   const targetRef = useContext(CloseGuardContext);
   useEffect(() => {
@@ -15,6 +16,7 @@ export function useDialogCloseGuard(guard: () => boolean) {
     };
   }, [targetRef, guard]);
 }
+// Children declare actions locally; the portal keeps them outside the scrolling body.
 export function DialogActions({ children }: { children: React.ReactNode }) {
   const target = useContext(DialogFooterContext);
   return target ? createPortal(<div className="ws-dialog-footer">{children}</div>, target) : null;
@@ -37,6 +39,7 @@ export function Dialog({
   };
   const [footer, setFooter] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
+    // Return keyboard focus to the opener after native modal focus management ends.
     const previous = document.activeElement as HTMLElement;
     ref.current?.showModal();
     return () => {

@@ -81,6 +81,8 @@ def test_price_rejected_order_not_repaired_or_removed():
 
 @pytest.mark.parametrize("minutes", [15, 60])
 def test_selected_subset_rebalances_without_extra_orders_or_manual_changes(minutes):
+    # Missing suggested charging makes the selected sell too large; repair may
+    # reduce that sell, but must not alter the manual buy or create new trades.
     baseline = case(minutes)
     manual = add(baseline, 2, 35)
     selected = add(baseline, 18, 50, side="SELL", suggested=True)
@@ -166,6 +168,7 @@ def test_multiple_orders_not_merged():
 
 @pytest.mark.parametrize("status", ["timeout", "error"])
 def test_solver_failures_not_claimed_infeasible(monkeypatch, status):
+    # A stopped/failed search cannot justify the solver's proven-infeasible status.
     monkeypatch.setattr(
         "backend.services.order_repair_service.optimize_repair", lambda *_: (status, [])
     )

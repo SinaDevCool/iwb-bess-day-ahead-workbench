@@ -19,8 +19,11 @@ export type RepairPreview = {
   orders: SubmittedOrder[];
   issues: RepairIssue[];
 };
+/** Preview against the opening draft; only validated Apply changes orders. */
 export function usePortfolioRepair(draft: Draft) {
+  // Freeze inputs; current below tracks intervening edits during async Apply.
   const [snapshot] = useState(draft);
+  // Consent permits changes; keep-original overrides consent and default eligibility.
   const [allowed, setAllowed] = useState<string[]>([]);
   const [kept, setKept] = useState<string[]>([]);
   const [additions, setAdditions] = useState(true);
@@ -43,6 +46,8 @@ export function usePortfolioRepair(draft: Draft) {
     allow_additions: additions,
   };
   function invalidate() {
+    // Ignore obsolete responses, not backend work. Retain original diagnostics
+    // while discarding a proposal whose permissions no longer match.
     sequence.current++;
     setPreview(undefined);
     setError("");
@@ -71,10 +76,12 @@ export function usePortfolioRepair(draft: Draft) {
   }
   async function apply(done: (orders: SubmittedOrder[]) => void) {
     if (busy || stale || applied.current || preview?.status !== "ready") return;
+    // Guard duplicate clicks before busy state renders; failure permits retry.
     applied.current = true;
     setBusy(true);
     setError("");
     try {
+      // Recheck permissions/physics on the server, then reject intervening draft edits.
       const checked = await api<RepairPreview>("/api/order-suggestions/repair/validate", {
         method: "POST",
         body: JSON.stringify({

@@ -88,6 +88,29 @@ it("reviews current orders without restoring or editing stale inputs", () => {
   expect(edit).not.toHaveBeenCalled();
   expect(restore).not.toHaveBeenCalled();
 });
+it.each(["overview", "detail"])(
+  "avoids a duplicate freshness warning in %s while preserving actions",
+  (view) => {
+    history.replaceState({}, "", `/?scheduleView=${view}`);
+    const review = vi.fn(),
+      restore = vi.fn();
+    render(
+      <SimulationResults
+        result={result}
+        stale
+        freshnessNoticeShown
+        onReviewOrders={review}
+        onRestore={restore}
+      />,
+    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Review current orders →" }));
+    expect(review).toHaveBeenCalledOnce();
+    expect(restore).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Restore these inputs to edit orders" }));
+    expect(restore).toHaveBeenCalledOnce();
+  },
+);
 it("offers review for schedule-wide failures without inventing a blocked order", () => {
   const review = vi.fn();
   render(

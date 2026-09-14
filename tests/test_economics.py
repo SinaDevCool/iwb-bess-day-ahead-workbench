@@ -18,6 +18,7 @@ def test_interval_economics_reconciles_for_buy_and_sell():
 
 
 def test_round_trip_losses_require_more_battery_energy_to_sell():
+    # sqrt(0.81)=0.9: 10 grid MWh stores 9 MWh; selling 10 consumes 10/0.9.
     battery = BatteryConfig(round_trip_efficiency=0.81)
     buy = calculate_interval("BUY", 10, 1, 0, battery)
     sell = calculate_interval("SELL", 10, 1, 0, battery)
@@ -26,6 +27,7 @@ def test_round_trip_losses_require_more_battery_energy_to_sell():
 
 
 def test_transaction_fee_applies_to_every_grid_mwh_on_both_sides():
+    # 10 MW * 0.25 h = 2.5 grid MWh; at 0.10 EUR/MWh each side pays 0.25 EUR.
     battery = BatteryConfig(degradation_cost_eur_per_mwh=0)
     buy = calculate_interval("BUY", 10, 0.25, 40, battery, 0.10)
     sell = calculate_interval("SELL", 10, 0.25, 100, battery, 0.10)

@@ -118,6 +118,7 @@ def calculate_order_simulation(
             "validation_version": "physical_and_order_validation_v4",
             "clearing_assumption": "Forecast price is used as simulated auction clearing and settlement price; full execution only.",
         },
+        # Price rejection is not physical infeasibility; physical batch exclusion is.
         submitted_portfolio_feasible=not bool(infeasible) and physical.status != "failed",
         executed_schedule_feasible=physical.status != "failed",
         assumptions=SimulationAssumptions(),
